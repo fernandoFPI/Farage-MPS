@@ -1,0 +1,89 @@
+version: '3.8'
+
+services:
+  mps-postgres:
+    image: postgres:15-alpine
+    container_name: mps-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mps-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mps-backend:
+    build:
+      context: ./mps-backend
+      dockerfile: Dockerfile
+    container_name: mps-backend
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: mps-postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN}
+      AUTO_BILLING_CYCLE_JOB: ${AUTO_BILLING_CYCLE_JOB}
+      ODOO_BASE_URL: ${ODOO_BASE_URL}
+      ODOO_API_KEY: ${ODOO_API_KEY}
+      ODOO_DATABASE: ${ODOO_DATABASE}
+    depends_on:
+      mps-postgres:
+        condition: service_healthy
+    networks:
+      - mps-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  mps-frontend:
+    build:
+      context: ./mps-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    container_name: mps-frontend
+    restart: always
+    depends_on:
+      - mps-backend
+    networks:
+      - mps-network
+
+  mps-nginx:
+    image: nginx:alpine
+    container_name: mps-nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - mps-backend
+      - mps-frontend
+    networks:
+      - mps-network
+
+networks:
+  mps-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
