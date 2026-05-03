@@ -1,0 +1,2 @@
+ALTER TABLE contract_printers
+  ADD COLUMN IF NOT EXISTS fixed_charge NUMERIC(12,2) DEFAULT NULL;

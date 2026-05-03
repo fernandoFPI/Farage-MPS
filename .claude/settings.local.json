@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(npm run *)",
+      "Bash(npx vite *)",
+      "PowerShell($env:PGPASSWORD = \"Xerox@2026\"; & \"C:\\\\Program Files\\\\PostgreSQL\\\\17\\\\bin\\\\psql.exe\" -h localhost -U fernando -d mps_db -c \"SELECT id, printer_id, billing_cycle_id, source, a4_bw, a3_bw, a4_color, a3_color, excess_bw, excess_color, read_at FROM meter_readings ORDER BY read_at;\")",
+      "PowerShell(Get-Command psql -ErrorAction SilentlyContinue)",
+      "Bash(node -e ' *)",
+      "Bash(node scripts/migrate.js)",
+      "Bash(node --input-type=module)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('c:/Users/PC/OneDrive - Farage Printing Industries/Desktop/MPS/mps-frontend/src/i18n/locales/en.json', 'utf8'\\)\\); console.log\\('en.json OK'\\)\")",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('c:/Users/PC/OneDrive - Farage Printing Industries/Desktop/MPS/mps-frontend/src/i18n/locales/ar.json', 'utf8'\\)\\); console.log\\('ar.json OK'\\)\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('xlsx:', p.dependencies?.xlsx ?? p.devDependencies?.xlsx ?? 'NOT FOUND'\\)\")",
+      "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('xlsx:', p.dependencies?.xlsx ?? 'NOT FOUND'\\)\")",
+      "Bash(node --input-type=module --check)",
+      "Bash(npx tsc *)"
+    ]
+  }
+}

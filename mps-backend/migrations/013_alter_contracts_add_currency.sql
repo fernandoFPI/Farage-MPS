@@ -1,0 +1,3 @@
+ALTER TABLE contracts
+ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'IQD'
+  CHECK (currency IN ('IQD', 'USD'));

@@ -1,0 +1,213 @@
+import * as repo from '../repositories/contractRepository.js';
+
+const VALID_BILLING_TYPES = ['per_click', 'minimum_volume'];
+const VALID_INVOICE_FREQUENCIES = ['monthly', 'quarterly', 'three_cycle_quarterly'];
+const VALID_CONTRACT_MODES = ['osg', 'psg', 'psg_simple'];
+
+function validateInvoiceFrequency(data) {
+  const freq = data.invoiceFrequency ?? 'monthly';
+  if (!VALID_INVOICE_FREQUENCIES.includes(freq)) {
+    const err = new Error('invoiceFrequency must be monthly, quarterly, or three_cycle_quarterly');
+    err.status = 400;
+    throw err;
+  }
+  if (freq === 'quarterly' || freq === 'three_cycle_quarterly') {
+    const months = data.quarterStartMonths;
+    if (!Array.isArray(months) || months.length !== 4) {
+      const err = new Error('quarterStartMonths must be an array of exactly 4 months');
+      err.status = 400;
+      throw err;
+    }
+    if (!months.every(m => Number.isInteger(m) && m >= 1 && m <= 12)) {
+      const err = new Error('quarterStartMonths values must be integers between 1 and 12');
+      err.status = 400;
+      throw err;
+    }
+  }
+}
+
+// Apply PSG/OSG field constraints — returns normalised data object
+function applyModeConstraints(data) {
+  const mode = data.contractMode ?? 'osg';
+  if (!VALID_CONTRACT_MODES.includes(mode)) {
+    const err = new Error('contractMode must be osg, psg, or psg_simple');
+    err.status = 400;
+    throw err;
+  }
+
+  if (mode === 'psg') {
+    // PSG: always per_click, all OSG price fields zeroed
+    if (data.a4Price != null && Number(data.a4Price) <= 0) {
+      const err = new Error('a4Price is required and must be > 0 for PSG contracts');
+      err.status = 400;
+      throw err;
+    }
+    if (data.a3Price != null && Number(data.a3Price) <= 0) {
+      const err = new Error('a3Price is required and must be > 0 for PSG contracts');
+      err.status = 400;
+      throw err;
+    }
+    return {
+      ...data,
+      contractMode: 'psg',
+      billingType: 'per_click',
+      fixedCharge: 0,
+      bwPrice: 0,
+      colorPrice: 0,
+      excessBwPrice: 0,
+      excessColorPrice: 0,
+      minBwPages: 0,
+      minColorPages: 0,
+    };
+  }
+
+  if (mode === 'psg_simple') {
+    // PSG Simple: a4Price only (same price for BW and Color), a3Price forced to 0
+    if (data.a4Price != null && Number(data.a4Price) <= 0) {
+      const err = new Error('a4Price is required and must be > 0 for PSG Simple contracts');
+      err.status = 400;
+      throw err;
+    }
+    return {
+      ...data,
+      contractMode: 'psg_simple',
+      billingType: 'per_click',
+      fixedCharge: 0,
+      bwPrice: 0,
+      colorPrice: 0,
+      excessBwPrice: 0,
+      excessColorPrice: 0,
+      minBwPages: 0,
+      minColorPages: 0,
+      a3Price: 0,
+    };
+  }
+
+  // OSG: zero out PSG-specific fields
+  return {
+    ...data,
+    contractMode: 'osg',
+    a4Price: 0,
+    a3Price: 0,
+  };
+}
+
+export async function listContracts(query) {
+  const filter = {};
+  if (query.customerId) filter.customerId = query.customerId;
+  if (query.isActive !== undefined) filter.isActive = query.isActive === 'true';
+  if (query.contractMode) filter.contractMode = query.contractMode;
+  return repo.findAll(filter);
+}
+
+export async function createContract(data) {
+  const { customerId, contractNumber, startDate } = data;
+  const mode = data.contractMode ?? 'osg';
+
+  if (!customerId || !contractNumber || !startDate) {
+    const err = new Error('customerId, contractNumber, and startDate are required');
+    err.status = 400;
+    throw err;
+  }
+
+  const normalised = applyModeConstraints({ ...data, contractMode: mode });
+
+  // billingType required for OSG; PSG/PSG-Simple forces per_click
+  if (normalised.contractMode === 'osg' && !normalised.billingType) {
+    const err = new Error('billingType is required for OSG contracts');
+    err.status = 400;
+    throw err;
+  }
+
+  if (normalised.billingType && !VALID_BILLING_TYPES.includes(normalised.billingType)) {
+    const err = new Error('billingType must be per_click or minimum_volume');
+    err.status = 400;
+    throw err;
+  }
+
+  if (data.endDate && new Date(data.endDate) <= new Date(startDate)) {
+    const err = new Error('endDate must be after startDate');
+    err.status = 400;
+    throw err;
+  }
+
+  validateInvoiceFrequency(normalised);
+
+  const numExists = await repo.contractNumberExists(contractNumber);
+  if (numExists) {
+    const err = new Error('Contract number already exists');
+    err.status = 409;
+    throw err;
+  }
+
+  const custExists = await repo.customerExists(customerId);
+  if (!custExists) {
+    const err = new Error('Customer not found');
+    err.status = 400;
+    throw err;
+  }
+
+  return repo.create(normalised);
+}
+
+export async function getContractById(id) {
+  const contract = await repo.findById(id);
+  if (!contract) {
+    const err = new Error('Contract not found');
+    err.status = 404;
+    throw err;
+  }
+  return contract;
+}
+
+export async function updateContract(id, fields) {
+  const existing = await repo.findById(id);
+  if (!existing) {
+    const err = new Error('Contract not found');
+    err.status = 404;
+    throw err;
+  }
+
+  // Merge mode: use incoming contractMode if provided, else keep existing
+  const merged = { ...existing, ...fields };
+  const normalised = applyModeConstraints(merged);
+
+  if (normalised.billingType && !VALID_BILLING_TYPES.includes(normalised.billingType)) {
+    const err = new Error('billingType must be per_click or minimum_volume');
+    err.status = 400;
+    throw err;
+  }
+
+  if (fields.invoiceFrequency !== undefined || fields.quarterStartMonths !== undefined) {
+    validateInvoiceFrequency(normalised);
+  }
+
+  const startDate = normalised.startDate ?? existing.startDate;
+  const endDate = normalised.endDate !== undefined ? normalised.endDate : existing.endDate;
+  if (endDate && new Date(endDate) <= new Date(startDate)) {
+    const err = new Error('endDate must be after startDate');
+    err.status = 400;
+    throw err;
+  }
+
+  return repo.update(id, normalised);
+}
+
+export async function deleteContract(id) {
+  const existing = await repo.findById(id);
+  if (!existing) {
+    const err = new Error('Contract not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const hasCycles = await repo.hasBillingCycles(id);
+  if (hasCycles) {
+    const err = new Error('Contract has billing history');
+    err.status = 400;
+    throw err;
+  }
+
+  await repo.deleteById(id);
+  return { message: 'Contract deleted' };
+}

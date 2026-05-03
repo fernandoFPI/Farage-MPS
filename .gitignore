@@ -1,0 +1,17 @@
+# Dependencies
+mps-backend/node_modules/
+mps-frontend/node_modules/
+
+# Environment files — never commit these
+mps-backend/.env
+mps-frontend/.env
+
+# Build output
+mps-frontend/dist/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db

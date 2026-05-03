@@ -1,0 +1,4 @@
+ALTER TABLE billing_cycles
+ADD COLUMN IF NOT EXISTS is_cancelled BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS cancelled_by_user_id UUID REFERENCES users(id);

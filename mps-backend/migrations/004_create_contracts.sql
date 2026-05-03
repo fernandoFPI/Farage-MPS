@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS contracts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  customer_id UUID NOT NULL REFERENCES customers(id),
+  contract_number VARCHAR(100) UNIQUE NOT NULL,
+  billing_type VARCHAR(20) NOT NULL CHECK (billing_type IN ('per_click', 'minimum_volume')),
+  fixed_charge NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  min_bw_pages INT NOT NULL DEFAULT 0,
+  min_color_pages INT NOT NULL DEFAULT 0,
+  excess_bw_price NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  excess_color_price NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  a4_bw_price NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  a4_color_price NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  a3_bw_price NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  a3_color_price NUMERIC(10, 4) NOT NULL DEFAULT 0,
+  start_date DATE NOT NULL,
+  end_date DATE,
+  confirmation_sla_days INT NOT NULL DEFAULT 5,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
