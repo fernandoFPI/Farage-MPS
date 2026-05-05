@@ -60,7 +60,7 @@ export default function CustomersPage() {
       <PageHeader
         title={t('customers.title')}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <div className="relative">
               <Search className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input

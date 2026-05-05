@@ -270,7 +270,7 @@ export default function BillingCyclesPage() {
       <PageHeader
         title={t('billingCycles.title')}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <select value={contractId} onChange={e => setContractId(e.target.value)} className={selectCls}>
               <option value="">{t('billingCycles.contract')}: All</option>
               {allContracts.map(c => (

@@ -6,8 +6,8 @@ export default function Modal({ open, onClose, title, children, footer }) {
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/50 dark:bg-black/70" />
-        <Dialog.Content aria-describedby={undefined} className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg rounded-xl bg-white shadow-xl dark:bg-gray-900">
+        <Dialog.Content aria-describedby={undefined} className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="w-full max-w-lg mx-4 sm:mx-auto rounded-xl bg-white shadow-xl dark:bg-gray-900">
             <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4 dark:border-gray-800">
               <Dialog.Title className="text-base font-semibold text-gray-900 dark:text-gray-100">
                 {title}

@@ -40,7 +40,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 mb-8">
         <StatCard title={t('nav.customers')} value="—" icon={Users}    color="blue" />
         <StatCard title={t('nav.contracts')} value="—" icon={FileText} color="green" />
         <StatCard title={t('nav.printers')}  value="—" icon={Printer}  color="amber" />

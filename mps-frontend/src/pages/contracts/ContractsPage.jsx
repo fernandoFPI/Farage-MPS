@@ -85,7 +85,7 @@ export default function ContractsPage() {
       <PageHeader
         title={t('contracts.title')}
         actions={
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <select value={customerId} onChange={e => setCustomerId(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">
               <option value="">{t('customers.title')}: All</option>

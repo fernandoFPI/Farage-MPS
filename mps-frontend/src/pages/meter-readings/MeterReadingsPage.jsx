@@ -176,7 +176,7 @@ export default function MeterReadingsPage() {
         <PageHeader
           title={t('meterReadings.title')}
           actions={
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
               <ViewToggle view={view} onChange={changeView} t={t} />
               {canManage && (
                 <button
@@ -199,7 +199,7 @@ export default function MeterReadingsPage() {
         />
 
         {/* Filters */}
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           <select value={customerId} onChange={e => setCustomerId(e.target.value)} className={selectCls}>
             <option value="">All Customers</option>
             {customers.map(c => (
