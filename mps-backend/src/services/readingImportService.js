@@ -62,7 +62,8 @@ function getPeriod(readDate) {
   if (isNaN(d.getTime())) return null;
   const year  = d.getFullYear();
   const month = d.getMonth();
-  const periodStart = new Date(Date.UTC(year, month, 1)).toISOString().slice(0, 10);
+  const day   = d.getDate();
+  const periodStart = new Date(Date.UTC(year, month, day)).toISOString().slice(0, 10);
   const periodEnd   = new Date(Date.UTC(year, month + 1, 0)).toISOString().slice(0, 10);
   return { periodStart, periodEnd };
 }
