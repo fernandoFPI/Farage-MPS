@@ -27,6 +27,7 @@ function mapRow(row) {
     quarterStartMonths: row.quarter_start_months ?? null,
     combinedInvoice: row.combined_invoice ?? false,
     contractMode: row.contract_mode ?? 'osg',
+    officialContractNumber: row.official_contract_number ?? null,
   };
 }
 
@@ -136,8 +137,8 @@ export async function create(data) {
        a4_price, a3_price,
        start_date, end_date, confirmation_sla_days, is_active,
        invoice_frequency, quarter_start_months, combined_invoice,
-       contract_mode
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+       contract_mode, official_contract_number
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      RETURNING id`,
     [
       data.customerId,
@@ -162,6 +163,7 @@ export async function create(data) {
       data.quarterStartMonths ?? null,
       data.combinedInvoice ?? false,
       data.contractMode ?? 'osg',
+      data.officialContractNumber ?? null,
     ],
   );
   return findById(rows[0].id);
@@ -189,6 +191,7 @@ export async function update(id, fields) {
     invoiceFrequency: 'invoice_frequency',
     quarterStartMonths: 'quarter_start_months',
     combinedInvoice: 'combined_invoice',
+    officialContractNumber: 'official_contract_number',
   };
 
   const setClauses = [];

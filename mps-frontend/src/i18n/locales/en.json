@@ -125,12 +125,15 @@
     "osg": "OSG — Office Services Group",
     "psg": "PSG — Print Services Group",
     "psgNote": "PSG contracts are always billed per click using A4 and A3 prices only",
-    "psgSimple": "PSG Simple — A4 Only",
-    "psgSimpleNote": "PSG Simple uses A4 counter only (same price for BW and Color). A3 and XLS are not used.",
+    "psgSimple": "PSG — A4 Only",
+    "psgSimpleNote": "PSG A4 uses A4 counter only (same price for BW and Color). A3 and XLS are not used.",
     "psgSimpleFieldNote": "A3 Black, A3 Color, and XLS counters are not used for PSG Simple contracts.",
     "modeBadgeOsg": "OSG",
     "modeBadgePsg": "PSG",
-    "modeBadgePsgSimple": "PSG Simple"
+    "modeBadgePsgSimple": "PSG Simple",
+    "officialContractNumber": "Official Contract Number",
+    "officialContractNumberHelper": "This number will appear on the invoice. Leave blank to use the contract number above.",
+    "invoiceReference": "Invoice Reference"
   },
   "printers": {
     "title": "Printers",

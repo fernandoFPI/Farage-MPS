@@ -136,14 +136,15 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
   // Baseline cycles carry no charges — return immediately with zeroed values
   if (cycle.isBaseline) {
     return {
-      cycleId:        cycle.id,
-      cycleName:      cycle.cycleName,
-      contractNumber: cycle.contract.contractNumber,
-      customerName:   cycle.contract.customer.name,
-      periodStart:    cycle.periodStart,
-      periodEnd:      cycle.periodEnd,
-      status:         cycle.status,
-      isBaseline:     true,
+      cycleId:                cycle.id,
+      cycleName:              cycle.cycleName,
+      contractNumber:         cycle.contract.contractNumber,
+      officialContractNumber: cycle.contract.officialContractNumber ?? null,
+      customerName:           cycle.contract.customer.name,
+      periodStart:            cycle.periodStart,
+      periodEnd:              cycle.periodEnd,
+      status:                 cycle.status,
+      isBaseline:             true,
       printers: printers.map(p => ({
         ...p,
         excessBw:      0,
@@ -335,14 +336,15 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
   }
 
   return {
-    cycleId:        cycle.id,
-    cycleName:      cycle.cycleName,
-    contractNumber: cycle.contract.contractNumber,
-    customerName:   cycle.contract.customer.name,
-    periodStart:    cycle.periodStart,
-    periodEnd:      cycle.periodEnd,
-    status:         cycle.status,
-    printers:       printerResults,
+    cycleId:                cycle.id,
+    cycleName:              cycle.cycleName,
+    contractNumber:         cycle.contract.contractNumber,
+    officialContractNumber: cycle.contract.officialContractNumber ?? null,
+    customerName:           cycle.contract.customer.name,
+    periodStart:            cycle.periodStart,
+    periodEnd:              cycle.periodEnd,
+    status:                 cycle.status,
+    printers:               printerResults,
     totals,
     invoices,
     billing:        { billingType: cycle.contract.billingType, total: grandTotal },
@@ -553,9 +555,10 @@ export async function getGroupSummary(id) {
   }));
 
   return {
-    groupId: cycle.cycleGroupId,
-    contractNumber: cycle.contract.contractNumber,
-    customerName: cycle.contract.customer.name,
+    groupId:                cycle.cycleGroupId,
+    contractNumber:         cycle.contract.contractNumber,
+    officialContractNumber: cycle.contract.officialContractNumber ?? null,
+    customerName:           cycle.contract.customer.name,
     currency: cycle.contract.currency ?? 'IQD',
     invoiceFrequency: cycle.contract.invoiceFrequency,
     combinedInvoice,

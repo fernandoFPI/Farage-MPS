@@ -536,6 +536,15 @@ export default function BillingCycleDetail() {
                   {cycle.contract?.contractNumber ?? '—'}
                 </Link>
               </span>
+              {cycle.contract?.officialContractNumber && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <span>
+                    <span className="text-gray-400">{t('contracts.invoiceReference')}:</span>{' '}
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{cycle.contract.officialContractNumber}</span>
+                  </span>
+                </>
+              )}
               <span className="text-gray-300 dark:text-gray-600">|</span>
               <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ${
                 cycle.contract?.contractMode === 'psg'
@@ -579,6 +588,9 @@ export default function BillingCycleDetail() {
                   {cycle.contract?.contractNumber ?? '—'}
                 </Link>
               } />
+              {cycle.contract?.officialContractNumber && (
+                <InfoRow label={t('contracts.invoiceReference')} value={cycle.contract.officialContractNumber} />
+              )}
               <InfoRow label={t('billingCycles.customer')} value={
                 cycle.contract?.customerId
                   ? <Link to={`/customers/${cycle.contract.customerId}`} className="text-brand-600 hover:underline dark:text-brand-400">

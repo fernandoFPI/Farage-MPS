@@ -130,7 +130,10 @@
     "psgSimpleFieldNote": "عدادات A3 أبيض وأسود، A3 ألوان، و XLS لا تُستخدم في عقود PSG البسيط.",
     "modeBadgeOsg": "OSG",
     "modeBadgePsg": "PSG",
-    "modeBadgePsgSimple": "PSG بسيط"
+    "modeBadgePsgSimple": "PSG بسيط",
+    "officialContractNumber": "رقم العقد الرسمي",
+    "officialContractNumberHelper": "سيظهر هذا الرقم في الفاتورة. اتركه فارغاً لاستخدام رقم العقد أعلاه.",
+    "invoiceReference": "مرجع الفاتورة"
   },
   "printers": {
     "title": "الطابعات",

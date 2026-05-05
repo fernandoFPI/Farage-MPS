@@ -36,7 +36,7 @@ export async function findAll({ contractId, status } = {}) {
   const where = `WHERE ${conditions.join(' AND ')}`;
 
   const { rows } = await pool.query(
-    `SELECT bc.*, co.contract_number, co.contract_mode, cu.name AS customer_name,
+    `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, cu.name AS customer_name,
             bu.full_name AS baseline_set_by_name,
             TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
      FROM billing_cycles bc
@@ -53,7 +53,7 @@ export async function findAll({ contractId, status } = {}) {
     contractNumber: row.contract_number,
     customerName: row.customer_name,
     cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
-    contract: { contractNumber: row.contract_number, contractMode: row.contract_mode ?? 'osg' },
+    contract: { contractNumber: row.contract_number, contractMode: row.contract_mode ?? 'osg', officialContractNumber: row.official_contract_number ?? null },
   }));
 }
 
@@ -64,8 +64,9 @@ export async function findById(id) {
        TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
        json_build_object(
          'id',                 co.id,
-         'contractNumber',     co.contract_number,
-         'billingType',        co.billing_type,
+         'contractNumber',          co.contract_number,
+         'officialContractNumber',  co.official_contract_number,
+         'billingType',             co.billing_type,
          'fixedCharge',        co.fixed_charge::float8,
          'bwPrice',            co.bw_price::float8,
          'colorPrice',         co.color_price::float8,

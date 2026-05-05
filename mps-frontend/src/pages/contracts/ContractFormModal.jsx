@@ -10,7 +10,7 @@ import { useCustomers } from '../../api/hooks/useCustomers'
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const empty = {
-  customerId: '', contractNumber: '', billingType: 'per_click', contractMode: 'osg', currency: 'IQD',
+  customerId: '', contractNumber: '', officialContractNumber: '', billingType: 'per_click', contractMode: 'osg', currency: 'IQD',
   fixedCharge: '', bwPrice: '', colorPrice: '',
   excessBwPrice: '', excessColorPrice: '', minBwPages: '', minColorPages: '',
   a4Price: '', a3Price: '', startDate: '', endDate: '',
@@ -58,6 +58,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         minColorPages: initial.minColorPages ?? '', a4Price: initial.a4Price ?? '',
         a3Price: initial.a3Price ?? '', confirmationSlaDays: initial.confirmationSlaDays ?? '5',
         startDate: initial.startDate?.slice(0, 10) ?? '', endDate: initial.endDate?.slice(0, 10) ?? '',
+        officialContractNumber: initial.officialContractNumber ?? '',
         invoiceFrequency: initial.invoiceFrequency ?? 'monthly',
         quarterStartMonths: initial.quarterStartMonths ?? [],
         combinedInvoice: initial.combinedInvoice ?? false,
@@ -98,6 +99,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
       const payload = {
         customerId: form.customerId,
         contractNumber: form.contractNumber,
+        officialContractNumber: form.officialContractNumber?.trim() || null,
         contractMode: form.contractMode,
         billingType: isPsg ? 'per_click' : form.billingType,
         currency: form.currency,
@@ -219,6 +221,15 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
               <option value="USD">USD — US Dollar</option>
             </select>
           </FormField>
+        </div>
+
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('contracts.officialContractNumber')}
+            <span className="ms-1 text-xs font-normal text-gray-400">({t('common.optional')})</span>
+          </label>
+          <input className={inputCls} value={form.officialContractNumber} onChange={e => set('officialContractNumber', e.target.value)} placeholder={form.contractNumber || '—'} />
+          <p className="text-xs text-gray-400 dark:text-gray-500">{t('contracts.officialContractNumberHelper')}</p>
         </div>
 
         {/* OSG-only fields */}

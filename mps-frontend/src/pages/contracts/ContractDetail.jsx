@@ -68,6 +68,15 @@ export default function ContractDetail() {
         <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
           <div>
             <InfoRow label={t('customers.title')} value={<Link to={`/customers/${contract.customerId}`} className="text-brand-600 dark:text-brand-400 hover:underline">{contract.customer?.name}</Link>} />
+            <InfoRow label={t('contracts.contractNumber')} value={contract.contractNumber} />
+            {contract.officialContractNumber && (
+              <InfoRow label={t('contracts.officialContractNumber')} value={
+                <span className="flex items-center gap-1.5">
+                  {contract.officialContractNumber}
+                  <span className="text-xs text-gray-400 dark:text-gray-500">({t('contracts.invoiceReference')})</span>
+                </span>
+              } />
+            )}
             <InfoRow label={t('contracts.contractMode')} value={
               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
                 isPsg

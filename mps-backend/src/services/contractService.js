@@ -13,8 +13,8 @@ function validateInvoiceFrequency(data) {
   }
   if (freq === 'quarterly' || freq === 'three_cycle_quarterly') {
     const months = data.quarterStartMonths;
-    if (!Array.isArray(months) || months.length !== 4) {
-      const err = new Error('quarterStartMonths must be an array of exactly 4 months');
+    if (!Array.isArray(months) || months.length !== 3) {
+      const err = new Error('quarterStartMonths must be an array of exactly 3 months');
       err.status = 400;
       throw err;
     }
