@@ -1,8 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Pencil, UserPlus, RefreshCw, X } from 'lucide-react'
-import { usePrinter } from '../../api/hooks/usePrinters'
+import { ArrowLeft, Pencil, UserPlus, RefreshCw, X, MapPin } from 'lucide-react'
+import { MapContainer, TileLayer, Marker } from 'react-leaflet'
+import { usePrinter, useUpdatePrinterCoordinates } from '../../api/hooks/usePrinters'
 import { useAssignments, useUpdateAssignment } from '../../api/hooks/useAssignments'
 import { useContract } from '../../api/hooks/useContracts'
 import { useDocTitle } from '../../hooks/useDocTitle'
@@ -13,6 +14,7 @@ import LoadingSpinner from '../../components/LoadingSpinner'
 import StatusBadge from '../../components/StatusBadge'
 import EmptyState from '../../components/EmptyState'
 import ConfirmDialog from '../../components/ConfirmDialog'
+import PinDropModal from '../../components/PinDropModal'
 import PrinterFormModal from './PrinterFormModal'
 import PrinterAssignModal from './PrinterAssignModal'
 import { formatAmount } from '../../utils/currency'
@@ -58,9 +60,20 @@ export default function PrinterDetail() {
   const { data: assignments = [] } = useAssignments({ printerId: id })
   const updateAssignment = useUpdateAssignment()
 
+  const updateCoords = useUpdatePrinterCoordinates()
   const [editing, setEditing] = useState(false)
   const [assignModalOpen, setAssignModalOpen] = useState(false)
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+
+  async function handleUpdateCoordinates({ latitude, longitude }) {
+    try {
+      await updateCoords.mutateAsync({ id, latitude, longitude })
+      showToast({ variant: 'success', title: t('map.locationSaved') })
+    } catch (err) {
+      showToast({ variant: 'error', title: err.response?.data?.error || err.message })
+    }
+  }
 
   useDocTitle(printer?.serialNumber)
 
@@ -217,6 +230,55 @@ export default function PrinterDetail() {
             )}
           </div>
         </div>
+
+        {/* Location card */}
+        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              {t('printers.location')}
+            </h2>
+            <button
+              onClick={() => setPinModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-brand-300 hover:text-brand-600 dark:border-gray-700 dark:text-gray-400 dark:hover:text-brand-400"
+            >
+              <MapPin className="h-3.5 w-3.5" />
+              {printer.latitude ? t('map.updateLocation') : t('map.addLocation')}
+            </button>
+          </div>
+          <InfoRow label={t('printers.city')} value={printer.city} />
+          <InfoRow label={t('printers.location')} value={printer.location} />
+          {printer.latitude != null && printer.longitude != null ? (
+            <>
+              <div style={{ height: '200px', borderRadius: '8px', overflow: 'hidden', margin: '12px 0', border: '1px solid #e5e7eb' }}>
+                <MapContainer
+                  key={`${printer.latitude}-${printer.longitude}`}
+                  center={[printer.latitude, printer.longitude]}
+                  zoom={14}
+                  zoomControl={false}
+                  dragging={false}
+                  scrollWheelZoom={false}
+                  style={{ height: '100%', width: '100%' }}
+                >
+                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                  <Marker position={[printer.latitude, printer.longitude]} />
+                </MapContainer>
+              </div>
+              <p className="text-xs text-gray-400 dark:text-gray-500 font-mono">
+                {printer.latitude.toFixed(6)}, {printer.longitude.toFixed(6)}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-gray-400 dark:text-gray-500 mt-2">{t('map.noLocationSet')}</p>
+          )}
+        </div>
+
+        <PinDropModal
+          open={pinModalOpen}
+          onClose={() => setPinModalOpen(false)}
+          onConfirm={handleUpdateCoordinates}
+          initialLatitude={printer.latitude ?? undefined}
+          initialLongitude={printer.longitude ?? undefined}
+        />
 
         {/* Assignment history */}
         {sortedAssignments.length > 0 && (

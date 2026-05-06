@@ -62,6 +62,8 @@ function parseSheet(buffer) {
       colorPriceOverride:   safeNum(row[9]),
       minBwOverride:        safeNum(row[10]) != null ? Math.round(safeNum(row[10])) : null,
       minColorOverride:     safeNum(row[11]) != null ? Math.round(safeNum(row[11])) : null,
+      latitude:             safeNum(row[13]),
+      longitude:            safeNum(row[14]),
     });
   }
   return rows;
@@ -181,6 +183,8 @@ export async function importPrinterFile({ buffer, filename, userId }) {
         xsmDeviceId:  null,
         xsmEnabled:   true,
         isBwOnly:     typeNorm === 'b&w',
+        latitude:     row.latitude,
+        longitude:    row.longitude,
       });
 
       // ── Create assignment (PSG contracts ignore price overrides) ──────

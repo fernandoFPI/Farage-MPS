@@ -39,3 +39,12 @@ export function useDeletePrinter() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['printers'] }),
   })
 }
+
+export function useUpdatePrinterCoordinates() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, latitude, longitude }) =>
+      client.patch(`/api/printers/${id}/coordinates`, { latitude, longitude }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['printers'] }),
+  })
+}

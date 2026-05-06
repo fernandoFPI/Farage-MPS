@@ -18,7 +18,8 @@
     "importLogs": "سجلات الاستيراد",
     "performance": "الأداء",
     "consumables": "المستلزمات",
-    "contractGroups": "مجموعات العقود"
+    "contractGroups": "مجموعات العقود",
+    "map": "الخريطة"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -162,7 +163,9 @@
     "alreadyExists": "الطابعة موجودة بالفعل",
     "contractNotFound": "العقد غير موجود",
     "contractInactive": "العقد غير نشط",
-    "row": "صف"
+    "row": "صف",
+    "latitude": "خط العرض",
+    "longitude": "خط الطول"
   },
   "assignments": {
     "title": "التعيينات",
@@ -257,7 +260,16 @@
     "lockWarning": "ستنتهي جلستك خلال 5 دقائق. يرجى التسجيل وإلا سيتم تحرير القفل.",
     "cancelLock": "إلغاء",
     "submitSuccess": "تم تسجيل القراءة لـ",
-    "lockedError": "هذه الطابعة يُسجِّلها حالياً"
+    "lockedError": "هذه الطابعة يُسجِّلها حالياً",
+    "openCyclesOnly": "تظهر هنا دورات الفوترة النشطة (المفتوحة) فقط.",
+    "viewPastReadings": "لعرض القراءات السابقة اذهب إلى قراءات العداد.",
+    "submitStorage": "تسليم مخزن العميل",
+    "storageSubmitted": "تم تسليم المخزن",
+    "storageSubmittedBy": "بواسطة",
+    "storageAlreadySubmitted": "تم تسليم المخزن لهذه الدورة مسبقاً",
+    "storageSubmitSuccess": "تم تسليم المخزن بنجاح",
+    "storageSubmitTitle": "تسليم مخزن العميل",
+    "storageSubmitNote": "قم بتحديث كميات المخزون في مخزن العميل."
   },
   "xsmImport": {
     "title": "استيراد XSM",
@@ -482,5 +494,38 @@
     "viewCycle": "عرض الدورة",
     "memberBanner": "هذا العقد جزء من المجموعة \"{{name}}\"",
     "viewGroup": "عرض المجموعة"
+  },
+  "map": {
+    "title": "خريطة الطابعات",
+    "subtitle": "نظرة جغرافية شاملة على مواقع الطابعات",
+    "assigned": "مُعيَّنة",
+    "unassigned": "غير مُعيَّنة",
+    "viewPrinter": "عرض الطابعة",
+    "totalPinned": "{{count}} مُحدَّدة",
+    "unmappedWarning": "بدون إحداثيات",
+    "widgetTitle": "مواقع الطابعات",
+    "widgetViewAll": "عرض الخريطة الكاملة",
+    "searchPlaceholder": "ابحث عن موقع في العراق...",
+    "resetView": "العودة إلى عرض العراق",
+    "fullscreen": "عرض ملء الشاشة",
+    "exitFullscreen": "الخروج من ملء الشاشة",
+    "mappedPrinters": "طابعة على الخريطة",
+    "dropPin": "إسقاط دبوس",
+    "dropPinTitle": "إسقاط دبوس على الخريطة",
+    "dropPinInstruction": "انقر في أي مكان على الخريطة لوضع الدبوس",
+    "selectedLocation": "الموقع المحدد",
+    "confirmLocation": "تأكيد الموقع",
+    "locationOnFile": "الموقع محفوظ",
+    "captureLocation": "التقاط موقعي الحالي",
+    "gettingLocation": "جار تحديد موقعك...",
+    "locationCaptured": "تم التقاط الموقع",
+    "saveToRecord": "حفظ هذا الموقع في سجل الطابعة",
+    "locationDenied": "تم رفض الوصول إلى الموقع. يمكنك إسقاط دبوس يدوياً بدلاً من ذلك.",
+    "locationSaved": "تم حفظ موقع الطابعة",
+    "locationSaveError": "تعذر حفظ موقع الطابعة. يمكنك إضافته يدوياً من صفحة الطابعات.",
+    "addLocation": "إضافة موقع",
+    "updateLocation": "تحديث الموقع",
+    "noLocationSet": "لم يتم تحديد موقع",
+    "dropPinAlternative": "إسقاط دبوس على الخريطة"
   }
 }

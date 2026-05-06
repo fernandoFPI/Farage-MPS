@@ -19,5 +19,7 @@ router.delete('/:id',                         verifyToken,       ctrl.cancel);
 router.patch('/:id/set-baseline',             verifyToken,       ctrl.setBaseline);
 router.post('/:id/lock-printer',              ...submitReadings,  ctrl.lockPrinter);
 router.delete('/:id/lock-printer/:printerId', ...submitReadings,  ctrl.unlockPrinter);
+router.patch('/:id/submit-storage',           ...submitReadings,  ctrl.submitStorage);
+router.patch('/:id/reset-storage',            ...manageBilling,   ctrl.resetStorageSubmission);
 
 export default router;

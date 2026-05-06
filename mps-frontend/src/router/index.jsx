@@ -26,6 +26,7 @@ import NotFound from '../pages/NotFound'
 import ConsumablesPage from '../pages/consumables/ConsumablesPage'
 import ContractGroupsPage from '../pages/contract-groups/ContractGroupsPage'
 import ContractGroupDetail from '../pages/contract-groups/ContractGroupDetail'
+import MapPage from '../pages/map/MapPage'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -81,6 +82,7 @@ export default function RouterConfig() {
           <Route path="consumables" element={<ConsumablesPage />} />
           <Route path="contract-groups" element={<ContractGroupsPage />} />
           <Route path="contract-groups/:id" element={<ContractGroupDetail />} />
+          <Route path="map" element={<MapPage />} />
           <Route path="tickets" element={<TicketsPage />} />
           <Route path="performance" element={<PerformancePage />} />
           <Route path="performance/:id" element={<EngineerPerformancePage />} />

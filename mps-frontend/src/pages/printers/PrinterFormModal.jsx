@@ -1,13 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import * as Switch from '@radix-ui/react-switch'
-import { UserPlus } from 'lucide-react'
+import { MapContainer, TileLayer, Marker } from 'react-leaflet'
+import { UserPlus, MapPin } from 'lucide-react'
 import Modal from '../../components/Modal'
 import FormField, { inputCls } from '../../components/FormField'
 import ErrorAlert from '../../components/ErrorAlert'
+import PinDropModal from '../../components/PinDropModal'
 import { useCreatePrinter, useUpdatePrinter } from '../../api/hooks/usePrinters'
 
-const empty = { serialNumber: '', model: '', city: '', location: '', xsmDeviceId: '', xsmEnabled: false, isBwOnly: false }
+const empty = { serialNumber: '', model: '', city: '', location: '', xsmDeviceId: '', xsmEnabled: false, isBwOnly: false, latitude: '', longitude: '' }
 
 export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssign }) {
   const { t } = useTranslation()
@@ -19,26 +21,52 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
   const assignAfterSave = useRef(false)
 
   useEffect(() => {
-    setForm(initial ? { ...empty, ...initial, xsmDeviceId: initial.xsmDeviceId || '', isBwOnly: initial.isBwOnly ?? false } : empty)
+    setForm(initial ? {
+      ...empty,
+      ...initial,
+      xsmDeviceId: initial.xsmDeviceId || '',
+      isBwOnly: initial.isBwOnly ?? false,
+      latitude: initial.latitude ?? '',
+      longitude: initial.longitude ?? '',
+    } : empty)
     setError('')
     assignAfterSave.current = false
   }, [initial, open])
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const loading = create.isPending || update.isPending
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+
+  const parsedLat = form.latitude !== '' ? parseFloat(form.latitude) : null
+  const parsedLng = form.longitude !== '' ? parseFloat(form.longitude) : null
+  const hasCoords = parsedLat !== null && !isNaN(parsedLat) && parsedLng !== null && !isNaN(parsedLng)
+
+  function buildPayload() {
+    const lat = form.latitude !== '' ? parseFloat(form.latitude) : null
+    const lng = form.longitude !== '' ? parseFloat(form.longitude) : null
+    return { ...form, latitude: lat, longitude: lng }
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.serialNumber.trim() || !form.model.trim() || !form.city.trim() || !form.location.trim()) {
       return setError('Serial number, model, city, and location are required')
     }
+    const lat = form.latitude !== '' ? parseFloat(form.latitude) : null
+    const lng = form.longitude !== '' ? parseFloat(form.longitude) : null
+    if ((lat !== null) !== (lng !== null)) {
+      return setError('Both latitude and longitude must be provided together')
+    }
+    if (lat !== null && (lat < -90 || lat > 90)) return setError('Latitude must be between -90 and 90')
+    if (lng !== null && (lng < -180 || lng > 180)) return setError('Longitude must be between -180 and 180')
     setError('')
     try {
+      const payload = buildPayload()
       if (isEdit) {
-        await update.mutateAsync({ id: initial.id, ...form })
+        await update.mutateAsync({ id: initial.id, ...payload })
         onClose()
       } else {
-        const printer = await create.mutateAsync(form)
+        const printer = await create.mutateAsync(payload)
         if (assignAfterSave.current && onSaveAndAssign) {
           onSaveAndAssign(printer)
         } else {
@@ -105,6 +133,72 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
         <FormField label={t('printers.xsmDeviceId')}>
           <input className={inputCls} value={form.xsmDeviceId} onChange={e => set('xsmDeviceId', e.target.value)} />
         </FormField>
+        <div>
+          <div className="flex items-end gap-2">
+            <div className="flex-1 grid grid-cols-2 gap-3">
+              <FormField label={t('printers.latitude')}>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="-90"
+                  max="90"
+                  className={inputCls}
+                  value={form.latitude}
+                  onChange={e => set('latitude', e.target.value)}
+                  placeholder="e.g. 33.3"
+                />
+              </FormField>
+              <FormField label={t('printers.longitude')}>
+                <input
+                  type="number"
+                  step="0.0001"
+                  min="-180"
+                  max="180"
+                  className={inputCls}
+                  value={form.longitude}
+                  onChange={e => set('longitude', e.target.value)}
+                  placeholder="e.g. 43.6"
+                />
+              </FormField>
+            </div>
+            <button
+              type="button"
+              onClick={() => setPinModalOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:border-brand-400 hover:text-brand-600 dark:border-gray-700 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400 whitespace-nowrap"
+            >
+              <MapPin className="h-4 w-4" />
+              {t('map.dropPin')}
+            </button>
+          </div>
+
+          {hasCoords && (
+            <div style={{ height: '100px', borderRadius: '8px', overflow: 'hidden', marginTop: '8px', border: '1px solid #e5e7eb' }}>
+              <MapContainer
+                key={`${parsedLat}-${parsedLng}`}
+                center={[parsedLat, parsedLng]}
+                zoom={14}
+                zoomControl={false}
+                dragging={false}
+                scrollWheelZoom={false}
+                style={{ height: '100%', width: '100%' }}
+              >
+                <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                <Marker position={[parsedLat, parsedLng]} />
+              </MapContainer>
+            </div>
+          )}
+        </div>
+
+        <PinDropModal
+          open={pinModalOpen}
+          onClose={() => setPinModalOpen(false)}
+          onConfirm={({ latitude, longitude }) => {
+            set('latitude', latitude.toFixed(6))
+            set('longitude', longitude.toFixed(6))
+          }}
+          initialLatitude={hasCoords ? parsedLat : undefined}
+          initialLongitude={hasCoords ? parsedLng : undefined}
+        />
         <div className="flex items-center gap-3">
           <Switch.Root checked={form.xsmEnabled} onCheckedChange={v => set('xsmEnabled', v)}
             className="relative h-5 w-9 rounded-full bg-gray-300 transition-colors data-[state=checked]:bg-brand-500 dark:bg-gray-600">

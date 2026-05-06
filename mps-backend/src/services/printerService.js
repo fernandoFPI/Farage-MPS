@@ -7,12 +7,35 @@ export async function listPrinters(query) {
   return repo.findAll(filter);
 }
 
-export async function createPrinter({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly }) {
+function validateCoordinates(latitude, longitude) {
+  if (latitude == null && longitude == null) return;
+  if (latitude == null || longitude == null) {
+    const err = new Error('Both latitude and longitude must be provided together');
+    err.status = 400;
+    throw err;
+  }
+  const lat = parseFloat(latitude);
+  const lng = parseFloat(longitude);
+  if (isNaN(lat) || lat < -90 || lat > 90) {
+    const err = new Error('Latitude must be between -90 and 90');
+    err.status = 400;
+    throw err;
+  }
+  if (isNaN(lng) || lng < -180 || lng > 180) {
+    const err = new Error('Longitude must be between -180 and 180');
+    err.status = 400;
+    throw err;
+  }
+}
+
+export async function createPrinter({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, latitude, longitude }) {
   if (!serialNumber || !model || !city || !location) {
     const err = new Error('serialNumber, model, city, and location are required');
     err.status = 400;
     throw err;
   }
+
+  validateCoordinates(latitude ?? null, longitude ?? null);
 
   const exists = await repo.serialNumberExists(serialNumber);
   if (exists) {
@@ -21,7 +44,7 @@ export async function createPrinter({ serialNumber, model, city, location, xsmDe
     throw err;
   }
 
-  return repo.create({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly });
+  return repo.create({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, latitude: latitude ?? null, longitude: longitude ?? null });
 }
 
 export async function getPrinterById(id) {
@@ -40,6 +63,12 @@ export async function updatePrinter(id, fields) {
     const err = new Error('Printer not found');
     err.status = 404;
     throw err;
+  }
+  if (fields.latitude !== undefined || fields.longitude !== undefined) {
+    validateCoordinates(
+      fields.latitude !== undefined ? fields.latitude : existing.latitude,
+      fields.longitude !== undefined ? fields.longitude : existing.longitude,
+    );
   }
   return repo.update(id, fields);
 }

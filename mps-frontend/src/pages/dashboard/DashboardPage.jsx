@@ -8,9 +8,12 @@ import { useAuth } from '../../context/AuthContext'
 import { usePermission } from '../../hooks/usePermission'
 import { useDocTitle } from '../../hooks/useDocTitle'
 import { useDashboardStats } from '../../api/hooks/useDashboardStats'
+import { usePrinters } from '../../api/hooks/usePrinters'
+import { useAssignments } from '../../api/hooks/useAssignments'
 import { getRoleLabel } from '../../utils/roleLabels'
 import StatCard from '../../components/StatCard'
 import StatusBadge from '../../components/StatusBadge'
+import PrinterMap from '../../components/PrinterMap'
 import { formatPeriod } from '../../utils/dates'
 import i18n from '../../i18n'
 
@@ -32,7 +35,18 @@ export default function DashboardPage() {
 
   useDocTitle(t('nav.dashboard'))
 
+  const canManageContracts = usePermission('can_manage_contracts')
+
   const { isLoading, stats, recentCycles } = useDashboardStats()
+  const { data: printers = [] } = usePrinters()
+  const { data: assignments = [] } = useAssignments()
+
+  const today = new Date().toISOString().slice(0, 10)
+  const activeAssignmentMap = Object.fromEntries(
+    assignments
+      .filter(a => !a.assignedUntil || a.assignedUntil.slice(0, 10) >= today)
+      .reduce((map, a) => { if (!map.has(a.printerId)) map.set(a.printerId, a); return map }, new Map())
+  )
 
   const greeting = `${t(getGreetingKey())}, ${user?.fullName?.split(' ')[0] ?? ''}`
 
@@ -142,6 +156,31 @@ export default function DashboardPage() {
               </Link>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Map widget */}
+      {canManageContracts && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              {t('map.widgetTitle')}
+            </p>
+            <Link
+              to="/map"
+              className="text-xs text-brand-600 hover:underline dark:text-brand-400"
+            >
+              {t('map.widgetViewAll')} →
+            </Link>
+          </div>
+          <PrinterMap
+            printers={printers}
+            activeAssignmentMap={activeAssignmentMap}
+            height="350px"
+            showSearch={false}
+            showFullscreen={true}
+            showResetView={false}
+          />
         </div>
       )}
 

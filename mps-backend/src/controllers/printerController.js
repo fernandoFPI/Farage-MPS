@@ -8,9 +8,9 @@ export async function list(req, res, next) {
 
 export async function create(req, res, next) {
   try {
-    const { serialNumber, model, city, location, xsmDeviceId, xsmEnabled } = req.body;
+    const { serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, latitude, longitude } = req.body;
     res.status(201).json(
-      await service.createPrinter({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled }),
+      await service.createPrinter({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, latitude, longitude }),
     );
   } catch (err) { next(err); }
 }
@@ -23,10 +23,17 @@ export async function getById(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const { model, city, location, xsmDeviceId, xsmEnabled, lastSeenAt } = req.body;
+    const { model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, lastSeenAt, latitude, longitude } = req.body;
     res.json(
-      await service.updatePrinter(req.params.id, { model, city, location, xsmDeviceId, xsmEnabled, lastSeenAt }),
+      await service.updatePrinter(req.params.id, { model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, lastSeenAt, latitude, longitude }),
     );
+  } catch (err) { next(err); }
+}
+
+export async function updateCoordinates(req, res, next) {
+  try {
+    const { latitude, longitude } = req.body;
+    res.json(await service.updatePrinter(req.params.id, { latitude, longitude }));
   } catch (err) { next(err); }
 }
 

@@ -1,16 +1,18 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ChevronDown, CheckCircle, Clock, Circle, AlertTriangle, X, Camera, Image, ChevronRight } from 'lucide-react'
-import { useBillingCycles, useBillingCycle, useLockPrinter, useUnlockPrinter } from '../../api/hooks/useBillingCycles'
+import { Search, ChevronDown, CheckCircle, Clock, Circle, AlertTriangle, X, Camera, Image, ChevronRight, MapPin, Navigation } from 'lucide-react'
+import { MapContainer, TileLayer, Marker } from 'react-leaflet'
+import { useBillingCycles, useBillingCycle, useLockPrinter, useUnlockPrinter, useSubmitStorage } from '../../api/hooks/useBillingCycles'
 import { useMeterReadings, useSubmitReading } from '../../api/hooks/useMeterReadings'
 import { useSubmitConsumableReading } from '../../api/hooks/useConsumableReadings'
-import { useCustomerStorage, useUpdateCustomerStorage } from '../../api/hooks/useCustomerStorage'
+import { useCustomerStorage } from '../../api/hooks/useCustomerStorage'
 import { useAssignments } from '../../api/hooks/useAssignments'
-import { usePrinters } from '../../api/hooks/usePrinters'
+import { usePrinters, useUpdatePrinterCoordinates } from '../../api/hooks/usePrinters'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
 import FormField, { inputCls } from '../../components/FormField'
 import ErrorAlert from '../../components/ErrorAlert'
+import PinDropModal from '../../components/PinDropModal'
 import { fmtDate, fmtDateTime } from '../../utils/format'
 import { getConsumablesForPrinter, CONSUMABLE_FIELD_MAP } from '../../utils/consumables'
 
@@ -167,49 +169,29 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
   const [timeLeft, setTimeLeft] = useState(null)
   const [expired, setExpired] = useState(false)
   const [consumables, setConsumables] = useState({})
-  const [storageExpanded, setStorageExpanded] = useState(false)
-  const [storageFields, setStorageFields] = useState({})
-  const [storageInitialized, setStorageInitialized] = useState(false)
   const fileInputRef = useRef(null)
   const isPsg = cycle?.contract?.contractMode === 'psg'
-  const customerId = cycle?.contract?.customer?.id
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  const { data: storageData = [] } = useCustomerStorage(customerId)
+  // ── GPS / location state ──────────────────────────────────────────────────
+  const [gpsState, setGpsState] = useState('idle') // idle | loading | captured | denied
+  const [capturedCoords, setCapturedCoords] = useState(null)
+  const [saveLocation, setSaveLocation] = useState(true)
+  const [pinModalOpen, setPinModalOpen] = useState(false)
+  const printerHasCoords = printer.latitude != null && printer.longitude != null
 
-  // Pre-fill storage fields once data loads
-  useEffect(() => {
-    if (storageData.length > 0 && !storageInitialized) {
-      const init = {}
-      storageData.forEach(s => {
-        init[s.printerModel] = {
-          cQty: s.cQty ?? 0,
-          mQty: s.mQty ?? 0,
-          yQty: s.yQty ?? 0,
-          kQty: s.kQty ?? 0,
-          r1Qty: s.r1Qty ?? 0,
-          r2Qty: s.r2Qty ?? 0,
-          r3Qty: s.r3Qty ?? 0,
-          r4Qty: s.r4Qty ?? 0,
-          wasteTonQty: s.wasteTonQty ?? 0,
-          isBwOnly: s.isBwOnly ?? false,
-          _original: {
-            cQty: s.cQty ?? 0,
-            mQty: s.mQty ?? 0,
-            yQty: s.yQty ?? 0,
-            kQty: s.kQty ?? 0,
-            r1Qty: s.r1Qty ?? 0,
-            r2Qty: s.r2Qty ?? 0,
-            r3Qty: s.r3Qty ?? 0,
-            r4Qty: s.r4Qty ?? 0,
-            wasteTonQty: s.wasteTonQty ?? 0,
-          },
-        }
-      })
-      setStorageFields(init)
-      setStorageInitialized(true)
-    }
-  }, [storageData, storageInitialized])
+  function captureGPS() {
+    if (!navigator.geolocation) { setGpsState('denied'); return }
+    setGpsState('loading')
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        setCapturedCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude })
+        setGpsState('captured')
+      },
+      () => setGpsState('denied'),
+      { enableHighAccuracy: true, timeout: 15000 },
+    )
+  }
 
   useEffect(() => {
     if (!lockExpiry) return
@@ -248,34 +230,6 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
     setConsumables(prev => ({ ...prev, [key]: value }))
   }
 
-  function setStorageField(model, field, value) {
-    setStorageFields(prev => ({
-      ...prev,
-      [model]: { ...prev[model], [field]: value === '' ? '' : Number(value) },
-    }))
-  }
-
-  function getStorageChanges() {
-    return Object.entries(storageFields)
-      .filter(([, fields]) => {
-        const orig = fields._original
-        return Object.keys(orig).some(k => Number(fields[k]) !== Number(orig[k]))
-      })
-      .map(([model, fields]) => ({
-        printerModel: model,
-        cQty: Number(fields.cQty) || 0,
-        mQty: Number(fields.mQty) || 0,
-        yQty: Number(fields.yQty) || 0,
-        kQty: Number(fields.kQty) || 0,
-        r1Qty: Number(fields.r1Qty) || 0,
-        r2Qty: Number(fields.r2Qty) || 0,
-        r3Qty: Number(fields.r3Qty) || 0,
-        r4Qty: Number(fields.r4Qty) || 0,
-        wasteTonQty: Number(fields.wasteTonQty) || 0,
-        isBwOnly: fields.isBwOnly,
-      }))
-  }
-
   function buildConsumablePayload() {
     const keys = Object.keys(consumables).filter(k => consumables[k] !== '' && consumables[k] !== undefined)
     if (keys.length === 0) return null
@@ -306,7 +260,11 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
       photos: photos.map(p => ({ mimeType: p.mimeType, data: p.data })),
     }
 
-    onSubmit(meterPayload, buildConsumablePayload(), getStorageChanges())
+    const locationPayload = (gpsState === 'captured' || capturedCoords) && saveLocation
+      ? { printerId: printer.id, ...capturedCoords }
+      : null
+
+    onSubmit(meterPayload, buildConsumablePayload(), locationPayload)
   }
 
   const consumableKeys = getConsumablesForPrinter(isBwOnly)
@@ -424,6 +382,120 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
             </div>
           </div>
 
+          {/* ── Printer location ──────────────────────────────────────────── */}
+          <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                {t('printers.location')}
+              </p>
+            </div>
+            <div className="px-3 py-3">
+              {printerHasCoords ? (
+                <p className="flex items-center gap-1.5 text-sm text-green-600 dark:text-green-400">
+                  <MapPin className="h-4 w-4" />
+                  {t('map.locationOnFile')}
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
+                    {t('map.noLocationSet')}
+                  </p>
+
+                  {gpsState === 'idle' && (
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={captureGPS}
+                        className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600"
+                      >
+                        <Navigation className="h-4 w-4" />
+                        {t('map.captureLocation')}
+                      </button>
+                      <div className="flex items-center gap-2">
+                        <hr className="flex-1 border-gray-200 dark:border-gray-700" />
+                        <span className="text-xs text-gray-400">or</span>
+                        <hr className="flex-1 border-gray-200 dark:border-gray-700" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setPinModalOpen(true)}
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand-400 hover:text-brand-600 dark:border-gray-700 dark:text-gray-400"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        {t('map.dropPinAlternative')}
+                      </button>
+                    </div>
+                  )}
+
+                  {gpsState === 'loading' && (
+                    <p className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                      <Clock className="h-4 w-4 animate-spin" />
+                      {t('map.gettingLocation')}
+                    </p>
+                  )}
+
+                  {gpsState === 'captured' && capturedCoords && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4" />
+                        {t('map.locationCaptured')}
+                      </p>
+                      <div style={{ height: '100px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #e5e7eb' }}>
+                        <MapContainer
+                          key={`gps-${capturedCoords.latitude}-${capturedCoords.longitude}`}
+                          center={[capturedCoords.latitude, capturedCoords.longitude]}
+                          zoom={15}
+                          zoomControl={false}
+                          dragging={false}
+                          scrollWheelZoom={false}
+                          style={{ height: '100%', width: '100%' }}
+                        >
+                          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+                          <Marker position={[capturedCoords.latitude, capturedCoords.longitude]} />
+                        </MapContainer>
+                      </div>
+                      <p className="text-xs text-gray-400 font-mono">
+                        {capturedCoords.latitude.toFixed(6)}, {capturedCoords.longitude.toFixed(6)}
+                      </p>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveLocation}
+                          onChange={e => setSaveLocation(e.target.checked)}
+                          className="rounded border-gray-300"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">{t('map.saveToRecord')}</span>
+                      </label>
+                    </div>
+                  )}
+
+                  {gpsState === 'denied' && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-amber-600 dark:text-amber-400">{t('map.locationDenied')}</p>
+                      <button
+                        type="button"
+                        onClick={() => setPinModalOpen(true)}
+                        className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:border-brand-400 hover:text-brand-600 dark:border-gray-700 dark:text-gray-400"
+                      >
+                        <MapPin className="h-4 w-4" />
+                        {t('map.dropPinAlternative')}
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+
+          <PinDropModal
+            open={pinModalOpen}
+            onClose={() => setPinModalOpen(false)}
+            onConfirm={({ latitude, longitude }) => {
+              setCapturedCoords({ latitude, longitude })
+              setGpsState('captured')
+            }}
+          />
+
           {/* Photo upload */}
           <div>
             <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">{t('meterReadings.photos')} <span className="font-normal normal-case text-red-500">*</span></p>
@@ -466,61 +538,6 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
             )}
           </div>
 
-          {/* ── Customer Storage (collapsible) ──────────────────────────────── */}
-          {storageData.length > 0 && (
-            <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setStorageExpanded(e => !e)}
-                className="w-full flex items-center justify-between px-3 py-2.5 bg-gray-50 dark:bg-gray-800/50 text-start"
-              >
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                    {t('consumables.storageUpdate')}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('consumables.storageNote')}</p>
-                </div>
-                {storageExpanded
-                  ? <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                  : <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                }
-              </button>
-
-              {storageExpanded && (
-                <div className="px-3 py-3 space-y-4">
-                  {storageData.map(s => {
-                    const modelKey = s.printerModel
-                    const fields = storageFields[modelKey] ?? {}
-                    const modelConsumables = getConsumablesForPrinter(s.isBwOnly)
-                    return (
-                      <div key={modelKey}>
-                        <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2">{modelKey}</p>
-                        <div className="grid grid-cols-2 gap-2">
-                          {modelConsumables.map(c => {
-                            const { qtyKey, labelKey } = CONSUMABLE_FIELD_MAP[c]
-                            return (
-                              <FormField key={c} label={t(labelKey)}>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  min="0"
-                                  step="1"
-                                  className={inputCls}
-                                  value={fields[qtyKey] ?? 0}
-                                  onChange={e => setStorageField(modelKey, qtyKey, e.target.value)}
-                                />
-                              </FormField>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
           {error && <ErrorAlert message={error} />}
 
           <div className="flex gap-2 pt-1">
@@ -545,6 +562,153 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
   )
 }
 
+// ── Storage Submit Modal ──────────────────────────────────────────────────────
+
+function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
+  const customerId = cycle?.contract?.customer?.id
+  const { data: storageData = [] } = useCustomerStorage(customerId)
+  const submitStorageMutation = useSubmitStorage()
+
+  const [fields, setFields] = useState({})
+  const [initialized, setInitialized] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!open) { setInitialized(false); setError(''); return }
+  }, [open])
+
+  useEffect(() => {
+    if (storageData.length > 0 && !initialized) {
+      const init = {}
+      storageData.forEach(s => {
+        init[s.printerModel] = {
+          cQty: s.cQty ?? 0, mQty: s.mQty ?? 0, yQty: s.yQty ?? 0,
+          kQty: s.kQty ?? 0, r1Qty: s.r1Qty ?? 0, r2Qty: s.r2Qty ?? 0,
+          r3Qty: s.r3Qty ?? 0, r4Qty: s.r4Qty ?? 0, wasteTonQty: s.wasteTonQty ?? 0,
+          isBwOnly: s.isBwOnly ?? false,
+        }
+      })
+      setFields(init)
+      setInitialized(true)
+    }
+  }, [storageData, initialized])
+
+  function setField(model, key, val) {
+    setFields(prev => ({ ...prev, [model]: { ...prev[model], [key]: val === '' ? '' : Number(val) } }))
+  }
+
+  async function handleSubmit() {
+    setError('')
+    const storageUpdates = Object.entries(fields).map(([printerModel, f]) => ({
+      printerModel,
+      cQty: Number(f.cQty) || 0, mQty: Number(f.mQty) || 0,
+      yQty: Number(f.yQty) || 0, kQty: Number(f.kQty) || 0,
+      r1Qty: Number(f.r1Qty) || 0, r2Qty: Number(f.r2Qty) || 0,
+      r3Qty: Number(f.r3Qty) || 0, r4Qty: Number(f.r4Qty) || 0,
+      wasteTonQty: Number(f.wasteTonQty) || 0,
+    }))
+    try {
+      await submitStorageMutation.mutateAsync({ id: cycle.id, storageUpdates })
+      onSuccess()
+      onClose()
+    } catch (err) {
+      const data = err.response?.data
+      if (err.response?.status === 409) {
+        setError(`${t('tickets.storageAlreadySubmitted')} — ${t('tickets.storageSubmittedBy')} ${data?.submittedByName ?? ''}`)
+      } else {
+        setError(data?.error || err.message)
+      }
+    }
+  }
+
+  if (!open) return null
+
+  const allConsumablesByModel = [
+    { key: 'cQty',       label: 'Cyan (C)',    colorOnly: true },
+    { key: 'mQty',       label: 'Magenta (M)', colorOnly: true },
+    { key: 'yQty',       label: 'Yellow (Y)',  colorOnly: true },
+    { key: 'kQty',       label: 'Black (K)',   colorOnly: false },
+    { key: 'r1Qty',      label: 'Drum R1',     colorOnly: false },
+    { key: 'r2Qty',      label: 'Drum R2',     colorOnly: false },
+    { key: 'r3Qty',      label: 'Drum R3',     colorOnly: false },
+    { key: 'r4Qty',      label: 'Drum R4',     colorOnly: false },
+    { key: 'wasteTonQty', label: 'Waste Toner', colorOnly: false },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="w-full max-w-md rounded-xl bg-white dark:bg-gray-900 shadow-xl flex flex-col max-h-[90vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+          <div>
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">{t('tickets.storageSubmitTitle')}</h2>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{cycle?.cycleName}</p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          <p className="text-sm text-gray-500 dark:text-gray-400">{t('tickets.storageSubmitNote')}</p>
+
+          {storageData.length === 0 ? (
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">{t('common.noData')}</p>
+          ) : (
+            storageData.map(s => {
+              const modelFields = fields[s.printerModel] ?? {}
+              const modelConsumables = allConsumablesByModel.filter(c => !c.colorOnly || !s.isBwOnly)
+              return (
+                <div key={s.printerModel} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+                  <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{s.printerModel}</p>
+                  </div>
+                  <div className="px-3 py-3 grid grid-cols-2 gap-2">
+                    {modelConsumables.map(c => (
+                      <FormField key={c.key} label={c.label}>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min="0"
+                          className={inputCls}
+                          value={modelFields[c.key] ?? 0}
+                          onChange={e => setField(s.printerModel, c.key, e.target.value)}
+                        />
+                      </FormField>
+                    ))}
+                  </div>
+                </div>
+              )
+            })
+          )}
+
+          {error && <ErrorAlert message={error} />}
+        </div>
+
+        {/* Footer */}
+        <div className="flex gap-3 px-5 py-4 border-t border-gray-100 dark:border-gray-800">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-gray-300 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitStorageMutation.isPending || storageData.length === 0}
+            className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+          >
+            {submitStorageMutation.isPending ? t('common.loading') : t('tickets.submitStorage')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TicketsPage() {
@@ -561,6 +725,7 @@ export default function TicketsPage() {
   const [lockAcquiredAt, setLockAcquiredAt] = useState(null)
   const [lockError, setLockError] = useState('')
   const [submitError, setSubmitError] = useState('')
+  const [storageModalOpen, setStorageModalOpen] = useState(false)
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: openCycles = [] } = useBillingCycles({ status: 'open' })
@@ -572,11 +737,12 @@ export default function TicketsPage() {
     { enabled: !!selectedCycleId },
   )
 
-  const lockMutation         = useLockPrinter()
-  const unlockMutation       = useUnlockPrinter()
-  const submitMutation       = useSubmitReading()
-  const consumablesMutation  = useSubmitConsumableReading()
-  const storageUpdateMutation = useUpdateCustomerStorage()
+  const lockMutation        = useLockPrinter()
+  const unlockMutation      = useUnlockPrinter()
+  const submitMutation      = useSubmitReading()
+  const consumablesMutation = useSubmitConsumableReading()
+  const coordsMutation      = useUpdatePrinterCoordinates()
+  const storageSubmitMutation = useSubmitStorage()
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const printerMap = useMemo(
@@ -668,7 +834,7 @@ export default function TicketsPage() {
     setSubmitError('')
   }
 
-  async function handleSubmit(meterPayload, consumablePayload, storageChanges) {
+  async function handleSubmit(meterPayload, consumablePayload, locationPayload) {
     setSubmitError('')
     let meterReading
     try {
@@ -683,7 +849,7 @@ export default function TicketsPage() {
       return
     }
 
-    // Meter reading saved — now submit consumable reading (non-blocking)
+    // Consumable reading (non-blocking)
     if (consumablePayload && meterReading?.id) {
       try {
         await consumablesMutation.mutateAsync({
@@ -697,29 +863,22 @@ export default function TicketsPage() {
       }
     }
 
-    // Submit storage updates (non-blocking, per model)
-    const customerId = cycle?.contract?.customer?.id
-    if (customerId && storageChanges.length > 0) {
-      const failed = []
-      await Promise.allSettled(
-        storageChanges.map(change =>
-          storageUpdateMutation.mutateAsync({
-            customerId,
-            printerModel: change.printerModel,
-            billingCycleId: meterPayload.billingCycleId,
-            ...change,
-          }).catch(() => { failed.push(change.printerModel) }),
-        ),
-      )
-      if (failed.length > 0) {
-        showToast({ title: t('consumables.storageSaveError'), variant: 'warning' })
+    showToast({ title: `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}`, variant: 'success' })
+
+    // Save printer coordinates if captured
+    if (locationPayload) {
+      try {
+        await coordsMutation.mutateAsync({
+          id: locationPayload.printerId,
+          latitude: locationPayload.latitude,
+          longitude: locationPayload.longitude,
+        })
+        showToast({ title: t('map.locationSaved'), variant: 'success' })
+      } catch {
+        showToast({ title: t('map.locationSaveError'), variant: 'warning' })
       }
     }
 
-    showToast({
-      title: `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}`,
-      variant: 'success',
-    })
     setSelectedPrinterId(null)
     setLockExpiry(null)
     setLockAcquiredAt(null)
@@ -762,6 +921,10 @@ export default function TicketsPage() {
           <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('nav.billingCycles')}</p>
             <CycleDropdown cycles={openCycles} value={selectedCycleId} onChange={handleCycleChange} t={t} />
+            <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 italic">
+              ℹ {t('tickets.openCyclesOnly')}{' '}
+              <span className="not-italic">{t('tickets.viewPastReadings')}</span>
+            </p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -826,7 +989,7 @@ export default function TicketsPage() {
           {lockError && <ErrorAlert message={lockError} />}
 
           {/* Printer cards */}
-          <div className="space-y-2">
+          <div className="space-y-2" id="printer-cards">
             {printerRows.length === 0 && (
               <p className="text-center py-10 text-sm text-gray-400">{t('common.noData')}</p>
             )}
@@ -897,7 +1060,56 @@ export default function TicketsPage() {
               )
             })}
           </div>
+
+          {/* ── Submit Storage ─────────────────────────────────────────────── */}
+          {cycle?.contract?.customer?.id && (
+            <div className="mt-4">
+              <div className="flex items-center gap-3 mb-3">
+                <hr className="flex-1 border-gray-200 dark:border-gray-700" />
+                <span className="text-xs text-gray-400 dark:text-gray-500 font-medium uppercase tracking-wide">
+                  {t('consumables.title')}
+                </span>
+                <hr className="flex-1 border-gray-200 dark:border-gray-700" />
+              </div>
+
+              {cycle.storageSubmitted ? (
+                <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-900/10 px-4 py-3">
+                  <p className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                    <CheckCircle className="h-4 w-4" />
+                    {t('tickets.storageSubmitted')}
+                  </p>
+                  {cycle.storageSubmittedByName && (
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                      {t('tickets.storageSubmittedBy')} {cycle.storageSubmittedByName}
+                      {cycle.storageSubmittedAt && (
+                        <span> · {new Date(cycle.storageSubmittedAt).toLocaleString()}</span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setStorageModalOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:border-brand-400 hover:text-brand-600 dark:hover:border-brand-500 dark:hover:text-brand-400 transition-colors"
+                >
+                  📦 {t('tickets.submitStorage')}
+                </button>
+              )}
+            </div>
+          )}
         </div>
+      )}
+
+      {/* Storage modal */}
+      {selectedCycleId && cycle && (
+        <StorageSubmitModal
+          open={storageModalOpen}
+          onClose={() => setStorageModalOpen(false)}
+          cycle={cycle}
+          onSuccess={() => showToast({ title: t('tickets.storageSubmitSuccess'), variant: 'success' })}
+          t={t}
+        />
       )}
     </div>
   )

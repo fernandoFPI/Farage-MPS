@@ -1,4 +1,6 @@
 import * as service from '../services/billingCycleService.js';
+import * as cycleRepo from '../repositories/billingCycleRepository.js';
+import * as storageService from '../services/customerStorageService.js';
 
 export async function list(req, res, next) {
   try {
@@ -82,5 +84,50 @@ export async function setBaseline(req, res, next) {
       return res.status(403).json({ error: 'Admin only' });
     }
     res.json(await service.setBaseline(req.params.id, req.body, req.user.id));
+  } catch (err) { next(err); }
+}
+
+export async function submitStorage(req, res, next) {
+  try {
+    const cycle = await cycleRepo.findById(req.params.id);
+    if (!cycle) return res.status(404).json({ error: 'Billing cycle not found' });
+
+    if (cycle.storageSubmitted) {
+      return res.status(409).json({
+        error: 'Storage already submitted for this cycle',
+        submittedAt: cycle.storageSubmittedAt,
+        submittedByName: cycle.storageSubmittedByName,
+      });
+    }
+
+    const customerId = cycle.contract?.customer?.id;
+    if (!customerId) return res.status(400).json({ error: 'Cycle has no associated customer' });
+
+    // Process storage updates (one entry per model, non-blocking per model)
+    const { storageUpdates = [] } = req.body;
+    await Promise.all(
+      storageUpdates.map(({ printerModel, ...quantities }) =>
+        storageService.updateCustomerStorage(
+          customerId,
+          printerModel,
+          { ...quantities, billingCycleId: cycle.id },
+          req.user.id,
+        ),
+      ),
+    );
+
+    const updated = await cycleRepo.markStorageSubmitted(cycle.id, req.user.id);
+    res.json(updated);
+  } catch (err) { next(err); }
+}
+
+export async function resetStorageSubmission(req, res, next) {
+  try {
+    if (req.user.role?.name !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+    const cycle = await cycleRepo.findById(req.params.id);
+    if (!cycle) return res.status(404).json({ error: 'Billing cycle not found' });
+    res.json(await cycleRepo.resetStorage(cycle.id));
   } catch (err) { next(err); }
 }

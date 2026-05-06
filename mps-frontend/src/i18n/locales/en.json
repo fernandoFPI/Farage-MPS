@@ -18,7 +18,8 @@
     "importLogs": "Import Logs",
     "performance": "Performance",
     "consumables": "Consumables",
-    "contractGroups": "Contract Groups"
+    "contractGroups": "Contract Groups",
+    "map": "Map"
   },
   "auth": {
     "login": "Login",
@@ -162,7 +163,9 @@
     "alreadyExists": "Printer already exists",
     "contractNotFound": "Contract not found",
     "contractInactive": "Contract is inactive",
-    "row": "Row"
+    "row": "Row",
+    "latitude": "Latitude",
+    "longitude": "Longitude"
   },
   "assignments": {
     "title": "Assignments",
@@ -257,7 +260,16 @@
     "lockWarning": "Your session will expire in 5 minutes. Please submit or your lock will be released.",
     "cancelLock": "Cancel",
     "submitSuccess": "Reading submitted for",
-    "lockedError": "This printer is currently being submitted by"
+    "lockedError": "This printer is currently being submitted by",
+    "openCyclesOnly": "Only active (open) billing cycles are shown here.",
+    "viewPastReadings": "To view past readings go to Meter Readings.",
+    "submitStorage": "Submit Customer Storage",
+    "storageSubmitted": "Storage submitted",
+    "storageSubmittedBy": "by",
+    "storageAlreadySubmitted": "Storage already submitted for this cycle",
+    "storageSubmitSuccess": "Storage submitted successfully",
+    "storageSubmitTitle": "Submit Customer Storage",
+    "storageSubmitNote": "Update the stock quantities in the customer storage room."
   },
   "xsmImport": {
     "title": "XSM Import",
@@ -482,5 +494,38 @@
     "viewCycle": "View Cycle",
     "memberBanner": "This contract is part of group \"{{name}}\"",
     "viewGroup": "View Group"
+  },
+  "map": {
+    "title": "Printer Map",
+    "subtitle": "Geographic overview of all printer locations",
+    "assigned": "Assigned",
+    "unassigned": "Unassigned",
+    "viewPrinter": "View Printer",
+    "totalPinned": "{{count}} pinned",
+    "unmappedWarning": "without coordinates",
+    "widgetTitle": "Printer Locations",
+    "widgetViewAll": "View Full Map",
+    "searchPlaceholder": "Search location in Iraq...",
+    "resetView": "Reset to Iraq view",
+    "fullscreen": "View fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "mappedPrinters": "printers on map",
+    "dropPin": "Drop Pin",
+    "dropPinTitle": "Drop a Pin",
+    "dropPinInstruction": "Click anywhere on the map to place a pin",
+    "selectedLocation": "Selected location",
+    "confirmLocation": "Confirm Location",
+    "locationOnFile": "Location on file",
+    "captureLocation": "Capture My Location",
+    "gettingLocation": "Getting your location...",
+    "locationCaptured": "Location captured",
+    "saveToRecord": "Save this location to the printer record",
+    "locationDenied": "Location access denied. You can drop a pin manually instead.",
+    "locationSaved": "Printer location saved",
+    "locationSaveError": "Could not save printer location. You can add it manually from the Printers page.",
+    "addLocation": "Add Location",
+    "updateLocation": "Update Location",
+    "noLocationSet": "No location set",
+    "dropPinAlternative": "Drop Pin on Map"
   }
 }

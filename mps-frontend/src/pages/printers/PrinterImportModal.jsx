@@ -10,6 +10,8 @@ const HEADERS = [
   'Contract Number', 'Assigned From',
   'Fixed Charge Override', 'BW Price Override', 'Color Price Override',
   'Min BW Override', 'Min Color Override',
+  '',
+  'Latitude', 'Longitude',
 ]
 
 function downloadTemplate() {

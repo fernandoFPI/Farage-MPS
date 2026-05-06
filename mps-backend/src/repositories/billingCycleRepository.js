@@ -21,6 +21,10 @@ function mapRow(row) {
     baselineSetBy: row.baseline_set_by ?? null,
     baselineSetAt: row.baseline_set_at ?? null,
     baselineSetByName: row.baseline_set_by_name ?? null,
+    storageSubmitted: row.storage_submitted ?? false,
+    storageSubmittedAt: row.storage_submitted_at ?? null,
+    storageSubmittedBy: row.storage_submitted_by ?? null,
+    storageSubmittedByName: row.storage_submitted_by_name ?? null,
   };
 }
 
@@ -38,11 +42,13 @@ export async function findAll({ contractId, status } = {}) {
   const { rows } = await pool.query(
     `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, cu.name AS customer_name,
             bu.full_name AS baseline_set_by_name,
+            su.full_name AS storage_submitted_by_name,
             TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
      FROM billing_cycles bc
      JOIN contracts co ON bc.contract_id = co.id
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
+     LEFT JOIN users su ON bc.storage_submitted_by = su.id
      ${where}
      ORDER BY bc.created_at DESC`,
     values,
@@ -61,6 +67,8 @@ export async function findAll({ contractId, status } = {}) {
 export async function findById(id) {
   const { rows } = await pool.query(
     `SELECT bc.*,
+       bu.full_name AS baseline_set_by_name,
+       su.full_name AS storage_submitted_by_name,
        TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
        json_build_object(
          'id',                 co.id,
@@ -91,6 +99,7 @@ export async function findById(id) {
      JOIN contracts co ON bc.contract_id = co.id
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
+     LEFT JOIN users su ON bc.storage_submitted_by = su.id
      WHERE bc.id = $1`,
     [id],
   );
@@ -257,6 +266,26 @@ export async function setBaseline(id, isBaseline, userId) {
      SET is_baseline = $1, baseline_set_by = $2, baseline_set_at = NOW()
      WHERE id = $3`,
     [isBaseline, userId, id],
+  );
+  return findById(id);
+}
+
+export async function markStorageSubmitted(id, userId) {
+  await pool.query(
+    `UPDATE billing_cycles
+     SET storage_submitted = true, storage_submitted_at = NOW(), storage_submitted_by = $2
+     WHERE id = $1`,
+    [id, userId],
+  );
+  return findById(id);
+}
+
+export async function resetStorage(id) {
+  await pool.query(
+    `UPDATE billing_cycles
+     SET storage_submitted = false, storage_submitted_at = NULL, storage_submitted_by = NULL
+     WHERE id = $1`,
+    [id],
   );
   return findById(id);
 }

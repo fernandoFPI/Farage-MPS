@@ -91,3 +91,12 @@ export function useSetBaseline() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
   })
 }
+
+export function useSubmitStorage() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, storageUpdates }) =>
+      client.patch(`/api/billing-cycles/${id}/submit-storage`, { storageUpdates }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
+  })
+}
