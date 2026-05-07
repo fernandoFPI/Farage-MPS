@@ -17,6 +17,7 @@ import readingImportRoutes from './routes/readingImportRoutes.js';
 import consumableReadingRoutes from './routes/consumableReadingRoutes.js';
 import customerStorageRoutes from './routes/customerStorageRoutes.js';
 import contractGroupRoutes from './routes/contractGroupRoutes.js';
+import systemSettingsRoutes from './routes/systemSettingsRoutes.js';
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use('/api/performance', performanceRoutes);
 app.use('/api/consumable-readings', consumableReadingRoutes);
 app.use('/api/customer-storage', customerStorageRoutes);
 app.use('/api/contract-groups', contractGroupRoutes);
+app.use('/api/settings', systemSettingsRoutes);
 
 // Global error handler — must be last
 app.use((err, req, res, next) => {

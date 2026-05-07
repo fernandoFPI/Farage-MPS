@@ -36,6 +36,7 @@ import { formatAmount, formatNumber } from '../../utils/currency'
 import { useDocTitle } from '../../hooks/useDocTitle'
 import Breadcrumb from '../../components/Breadcrumb'
 import { fmtDate, fmtDateTime } from '../../utils/format'
+import { useSettings } from '../../api/hooks/useSettings'
 
 // ── Section heading ──────────────────────────────────────────────────────────
 function SectionHeader({ label, action }) {
@@ -108,90 +109,459 @@ function MinVolRow({ label, value, badge }) {
 }
 
 // ── Per-printer calculation card ──────────────────────────────────────────────
-// reading: the actual meter reading row (has a4Bw, a3Bw, etc.)
-// summaryPrinter: the summary entry (has billableBw, billableColor, isBaseline)
+function CalcSec({ children }) {
+  return <div className="mt-4 mb-1.5 first:mt-0 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{children}</div>
+}
+function Mono({ hi, children }) {
+  return <div className={`font-mono text-xs leading-5 ${hi ? 'font-semibold text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'}`}>{children}</div>
+}
+function CalcResult({ label, value }) {
+  return (
+    <div className="flex items-center gap-2 py-0.5">
+      <span className="text-sm text-gray-600 dark:text-gray-400 w-40">{label}</span>
+      <span className="text-sm font-bold text-brand-600 dark:text-brand-400">{Number(value).toLocaleString()} pages</span>
+    </div>
+  )
+}
+
 function PrinterCalcCard({ reading, summaryPrinter, cycleStart }) {
   const { data: prev } = usePreviousReading(reading.printerId, cycleStart)
-  const isBaseline = summaryPrinter?.isBaseline
-  const isBwOnly = summaryPrinter?.isBwOnly ?? false
+  const isBaseline   = summaryPrinter?.isBaseline
+  const isBwOnly     = summaryPrinter?.isBwOnly ?? false
+  const contractType = summaryPrinter?.contractType ?? 'osg'
 
-  const n = v => (v ?? 0).toLocaleString()
+  const n   = v => Number(v ?? 0).toLocaleString()
+  const sgn = v => { const a = Math.abs(v).toLocaleString(); return v < 0 ? `−${a}` : a }
 
-  const prevA4Bw   = prev?.a4Bw   ?? 0
-  const prevA3Bw   = prev?.a3Bw   ?? 0
-  const prevA4Color= prev?.a4Color ?? 0
-  const prevA3Color= prev?.a3Color ?? 0
-  const prevBwTotal = prevA4Bw + prevA3Bw
-  const prevColorTotal = prevA4Color + prevA3Color
+  const c = {
+    a4Bw: reading.a4Bw ?? 0, a3Bw: reading.a3Bw ?? 0,
+    a4Color: reading.a4Color ?? 0, a3Color: reading.a3Color ?? 0, xls: reading.xls ?? 0,
+    excessBw: reading.excessBw ?? 0, excessColor: reading.excessColor ?? 0,
+  }
+  const p = prev ? {
+    a4Bw: prev.a4Bw ?? 0, a3Bw: prev.a3Bw ?? 0,
+    a4Color: prev.a4Color ?? 0, a3Color: prev.a3Color ?? 0, xls: prev.xls ?? 0,
+    excessBw: prev.excessBw ?? 0, excessColor: prev.excessColor ?? 0,
+  } : null
 
-  const currA4Bw   = reading.a4Bw   ?? 0
-  const currA3Bw   = reading.a3Bw   ?? 0
-  const currA4Color= reading.a4Color ?? 0
-  const currA3Color= reading.a3Color ?? 0
-  const currBwTotal    = currA4Bw + currA3Bw
-  const currColorTotal = currA4Color + currA3Color
+  const modeCls = contractType === 'psg'
+    ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+    : contractType === 'psg_simple'
+    ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+  const modeLabel = contractType === 'psg' ? 'PSG' : contractType === 'psg_simple' ? 'PSG Simple' : 'OSG'
+
+  function renderBaseline() {
+    return (
+      <div className="px-4 py-4 space-y-3">
+        <div className="flex items-start gap-2 text-amber-700 dark:text-amber-400">
+          <span className="text-base select-none">📌</span>
+          <div>
+            <p className="text-sm font-semibold">Baseline reading — this cycle is the starting point.</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">No pages billed. Next cycle will calculate from these readings.</p>
+          </div>
+        </div>
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 px-4 py-3">
+          <CalcSec>Raw readings stored</CalcSec>
+          <div className="flex flex-wrap gap-4 font-mono text-xs text-gray-600 dark:text-gray-400 mt-1">
+            <span>A4 BW: <strong className="text-gray-800 dark:text-gray-200">{n(c.a4Bw)}</strong></span>
+            <span>A3 BW: <strong className="text-gray-800 dark:text-gray-200">{n(c.a3Bw)}</strong></span>
+            {!isBwOnly && <span>A4 Color: <strong className="text-gray-800 dark:text-gray-200">{n(c.a4Color)}</strong></span>}
+            {!isBwOnly && <span>A3 Color: <strong className="text-gray-800 dark:text-gray-200">{n(c.a3Color)}</strong></span>}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  function renderOsg() {
+    const currBwTotal    = c.a4Bw + c.a3Bw
+    const currColorTotal = c.a4Color + c.a3Color
+    const prevBwTotal    = p.a4Bw + p.a3Bw
+    const prevColorTotal = p.a4Color + p.a3Color
+    const exBw    = currBwTotal - prevBwTotal
+    const exColor = currColorTotal - prevColorTotal
+    const billBw    = summaryPrinter?.billableBw    ?? 0
+    const billColor = summaryPrinter?.billableColor ?? 0
+    const rawBillBw    = exBw    - p.excessBw
+    const rawBillColor = exColor - p.excessColor
+
+    return (
+      <div className="px-4 py-4">
+        <CalcSec>Raw Meter Readings</CalcSec>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-mono">
+            <thead>
+              <tr className="border-b border-gray-100 dark:border-gray-800">
+                <th className="py-1.5 pr-3 text-start w-20 text-gray-400 dark:text-gray-500 font-medium" />
+                <th className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium">A4 BW</th>
+                <th className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium">A3 BW</th>
+                <th className="py-1.5 px-2 text-end text-gray-500 dark:text-gray-400 font-semibold bg-gray-50/80 dark:bg-gray-800/30">BW Total</th>
+                {!isBwOnly && <th className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium">A4 Color</th>}
+                {!isBwOnly && <th className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium">A3 Color</th>}
+                {!isBwOnly && <th className="py-1.5 px-2 text-end text-gray-500 dark:text-gray-400 font-semibold bg-gray-50/80 dark:bg-gray-800/30">Color Total</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {[['Previous', p, prevBwTotal, prevColorTotal], ['Current', c, currBwTotal, currColorTotal]].map(([lbl, r, bwT, colorT]) => (
+                <tr key={lbl} className="border-b border-gray-50 dark:border-gray-800/50">
+                  <td className="py-1.5 pr-3 text-gray-500 dark:text-gray-400 font-sans">{lbl}</td>
+                  <td className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r.a4Bw)}</td>
+                  <td className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r.a3Bw)}</td>
+                  <td className="py-1.5 px-2 text-end font-medium text-gray-700 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/30">{n(bwT)}</td>
+                  {!isBwOnly && <td className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r.a4Color)}</td>}
+                  {!isBwOnly && <td className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r.a3Color)}</td>}
+                  {!isBwOnly && <td className="py-1.5 px-2 text-end font-medium text-gray-700 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/30">{n(colorT)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <CalcSec>Calculation</CalcSec>
+        <p className="mt-2 mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Step 1 — Monthly excess from raw counters:</p>
+        <div className="space-y-3 pl-3 mb-2">
+          <div>
+            <Mono>Excess BW    = ({n(c.a4Bw)} + {n(c.a3Bw)}) - ({n(p.a4Bw)} + {n(p.a3Bw)})</Mono>
+            <Mono>             = {n(currBwTotal)} - {n(prevBwTotal)}</Mono>
+            <Mono hi>             = {n(exBw)} pages</Mono>
+          </div>
+          {!isBwOnly && (
+            <div>
+              <Mono>Excess Color = ({n(c.a4Color)} + {n(c.a3Color)}) - ({n(p.a4Color)} + {n(p.a3Color)})</Mono>
+              <Mono>             = {n(currColorTotal)} - {n(prevColorTotal)}</Mono>
+              <Mono hi>             = {n(exColor)} pages</Mono>
+            </div>
+          )}
+        </div>
+
+        <p className="mt-3 mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Step 2 — Billable pages (this month excess - last month excess):</p>
+        <div className="space-y-1 pl-3 mb-2">
+          <div>
+            <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+              <span>Billable BW    = {n(exBw)} - {n(p.excessBw)} =</span>
+              {rawBillBw < 0 ? (
+                <>
+                  <span>{sgn(rawBillBw)}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                </>
+              ) : (
+                <>
+                  <span className="font-bold text-brand-600 dark:text-brand-400">{sgn(rawBillBw)}</span>
+                  <span>page{Math.abs(rawBillBw) !== 1 ? 's' : ''}</span>
+                </>
+              )}
+              <span className="text-gray-400 dark:text-gray-600 text-xs ml-1">← prev cycle excess</span>
+            </div>
+            {rawBillBw < 0 && (
+              <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">ℹ Negative result clamped to 0.</p>
+            )}
+          </div>
+          {!isBwOnly && (
+            <div>
+              <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+                <span>Billable Color = {n(exColor)} - {n(p.excessColor)} =</span>
+                {rawBillColor < 0 ? (
+                  <>
+                    <span>{sgn(rawBillColor)}</span>
+                    <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="font-bold text-brand-600 dark:text-brand-400">{sgn(rawBillColor)}</span>
+                    <span>pages</span>
+                  </>
+                )}
+              </div>
+              {rawBillColor < 0 && (
+                <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">ℹ Negative result clamped to 0.</p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <CalcSec>Result</CalcSec>
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 px-4 py-3 space-y-1">
+          <CalcResult label="Billable BW:" value={billBw} />
+          {!isBwOnly && <CalcResult label="Billable Color:" value={billColor} />}
+        </div>
+      </div>
+    )
+  }
+
+  function renderPsg() {
+    const cA4BwNet    = c.a4Bw - c.a3Bw
+    const cA3BwNet    = c.a3Bw
+    const cA4ColorNet = (c.a4Color - c.xls) - c.a3Color
+    const cA3ColorNet = c.a3Color
+    const pA4BwNet    = p.a4Bw - p.a3Bw
+    const pA3BwNet    = p.a3Bw
+    const pA4ColorNet = (p.a4Color - p.xls) - p.a3Color
+    const pA3ColorNet = p.a3Color
+    const a4BwPg    = cA4BwNet    - pA4BwNet
+    const a3BwPg    = cA3BwNet    - pA3BwNet
+    const a4ColorPg = cA4ColorNet - pA4ColorNet
+    const a3ColorPg = cA3ColorNet - pA3ColorNet
+    const totalA4   = Math.max(0, a4BwPg) + Math.max(0, a4ColorPg)
+    const totalA3   = Math.max(0, a3BwPg) + Math.max(0, a3ColorPg)
+
+    const xCols = isBwOnly
+      ? [['A4 BW', 'a4Bw'], ['A3 BW', 'a3Bw']]
+      : [['A4 BW', 'a4Bw'], ['A3 BW', 'a3Bw'], ['A4 Color', 'a4Color'], ['A3 Color', 'a3Color'], ['XLS', 'xls']]
+
+    return (
+      <div className="px-4 py-4">
+        <CalcSec>Raw Meter Readings</CalcSec>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-mono">
+            <thead>
+              <tr className="border-b border-gray-100 dark:border-gray-800">
+                <th className="py-1.5 pr-3 text-start w-20 text-gray-400 dark:text-gray-500 font-medium" />
+                {xCols.map(([l]) => (
+                  <th key={l} className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium whitespace-nowrap">{l}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[['Previous', p], ['Current', c]].map(([lbl, r]) => (
+                <tr key={lbl} className="border-b border-gray-50 dark:border-gray-800/50">
+                  <td className="py-1.5 pr-3 text-gray-500 dark:text-gray-400 font-sans">{lbl}</td>
+                  {xCols.map(([, k]) => (
+                    <td key={k} className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r[k])}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <CalcSec>Step 1 — Derive true net counters from current reading</CalcSec>
+        <div className="space-y-1.5 pl-3">
+          <div>
+            <Mono>True A4 BW    = A4 BW - A3 BW = {n(c.a4Bw)} - {n(c.a3Bw)}</Mono>
+            <Mono hi>              = {sgn(cA4BwNet)}</Mono>
+          </div>
+          <Mono>True A3 BW    = A3 BW = {n(c.a3Bw)}</Mono>
+          {!isBwOnly && (
+            <>
+              <div>
+                <Mono>True A4 Color = (A4 Color - XLS) - A3 Color = ({n(c.a4Color)} - {n(c.xls)}) - {n(c.a3Color)}</Mono>
+                <Mono hi>              = {sgn(cA4ColorNet)}</Mono>
+              </div>
+              <Mono>True A3 Color = A3 Color = {n(c.a3Color)}</Mono>
+            </>
+          )}
+        </div>
+
+        <CalcSec>Step 1 — Derive true net counters from previous reading</CalcSec>
+        <div className="space-y-0.5 pl-3">
+          <Mono>Prev True A4 BW    = {n(p.a4Bw)} - {n(p.a3Bw)} = {sgn(pA4BwNet)}</Mono>
+          <Mono>Prev True A3 BW    = {n(p.a3Bw)}</Mono>
+          {!isBwOnly && (
+            <>
+              <Mono>Prev True A4 Color = ({n(p.a4Color)} - {n(p.xls)}) - {n(p.a3Color)} = {sgn(pA4ColorNet)}</Mono>
+              <Mono>Prev True A3 Color = {n(p.a3Color)}</Mono>
+            </>
+          )}
+        </div>
+
+        {!isBwOnly && c.xls !== p.xls && (
+          <p className="mt-2 text-xs italic text-gray-400 dark:text-gray-500">
+            ℹ XLS changed from {n(p.xls)} to {n(c.xls)} between readings
+          </p>
+        )}
+
+        <CalcSec>Step 2 — Subtract previous net to get billable pages</CalcSec>
+        <div className="space-y-1 pl-3">
+          <div>
+            <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+              <span>A4 BW pages    = {sgn(cA4BwNet)} - ({sgn(pA4BwNet)}) =</span>
+              {a4BwPg < 0 ? (
+                <>
+                  <span>{sgn(a4BwPg)}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                </>
+              ) : (
+                <span className="font-semibold text-brand-600 dark:text-brand-400">{sgn(a4BwPg)} pages</span>
+              )}
+            </div>
+            {a4BwPg < 0 && (
+              <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">
+                ℹ Negative result clamped to 0. The A3 BW pages ({n(Math.max(0, a3BwPg))}) are billed under A3 Total.
+              </p>
+            )}
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+              <span>A3 BW pages    = {n(cA3BwNet)} - {n(pA3BwNet)} =</span>
+              {a3BwPg < 0 ? (
+                <>
+                  <span>{sgn(a3BwPg)}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                </>
+              ) : (
+                <span className="font-semibold text-brand-600 dark:text-brand-400">{sgn(a3BwPg)} pages</span>
+              )}
+            </div>
+            {a3BwPg < 0 && (
+              <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">
+                ℹ Negative result clamped to 0. The A4 BW pages ({n(Math.max(0, a4BwPg))}) are billed under A4 Total.
+              </p>
+            )}
+          </div>
+          {!isBwOnly && (
+            <>
+              <div>
+                <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+                  <span>A4 Color pages = {sgn(cA4ColorNet)} - ({sgn(pA4ColorNet)}) =</span>
+                  {a4ColorPg < 0 ? (
+                    <>
+                      <span>{sgn(a4ColorPg)}</span>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-brand-600 dark:text-brand-400">{sgn(a4ColorPg)} pages</span>
+                  )}
+                </div>
+                {a4ColorPg < 0 && (
+                  <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">
+                    ℹ Negative result clamped to 0. The A3 Color pages ({n(Math.max(0, a3ColorPg))}) are billed under A3 Total.
+                  </p>
+                )}
+              </div>
+              <div>
+                <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+                  <span>A3 Color pages = {n(cA3ColorNet)} - {n(pA3ColorNet)} =</span>
+                  {a3ColorPg < 0 ? (
+                    <>
+                      <span>{sgn(a3ColorPg)}</span>
+                      <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                    </>
+                  ) : (
+                    <span className="font-semibold text-brand-600 dark:text-brand-400">{sgn(a3ColorPg)} pages</span>
+                  )}
+                </div>
+                {a3ColorPg < 0 && (
+                  <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">
+                    ℹ Negative result clamped to 0. The A4 Color pages ({n(Math.max(0, a4ColorPg))}) are billed under A4 Total.
+                  </p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+
+        <CalcSec>Totals</CalcSec>
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 px-4 py-3 space-y-1.5">
+          <div className="flex items-baseline gap-3">
+            <span className="font-mono text-xs text-gray-500 dark:text-gray-400">Total A4 = A4 BW + A4 Color = {n(Math.max(0, a4BwPg))} + {n(Math.max(0, a4ColorPg))}</span>
+            <span className="font-bold text-brand-600 dark:text-brand-400 text-sm">= {n(totalA4)} pages</span>
+          </div>
+          {!isBwOnly && (
+            <div className="flex items-baseline gap-3">
+              <span className="font-mono text-xs text-gray-500 dark:text-gray-400">Total A3 = A3 BW + A3 Color = {n(Math.max(0, a3BwPg))} + {n(Math.max(0, a3ColorPg))}</span>
+              <span className="font-bold text-brand-600 dark:text-brand-400 text-sm">= {n(totalA3)} pages</span>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  function renderPsgSimple() {
+    const a4BwPg    = c.a4Bw    - p.a4Bw
+    const a4ColorPg = c.a4Color - p.a4Color
+    const totalA4   = Math.max(0, a4BwPg) + Math.max(0, a4ColorPg)
+
+    return (
+      <div className="px-4 py-4">
+        <CalcSec>Raw Meter Readings</CalcSec>
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs font-mono">
+            <thead>
+              <tr className="border-b border-gray-100 dark:border-gray-800">
+                <th className="py-1.5 pr-3 text-start w-20 text-gray-400 dark:text-gray-500 font-medium" />
+                <th className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium">A4 BW</th>
+                <th className="py-1.5 px-2 text-end text-gray-400 dark:text-gray-500 font-medium">A4 Color</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[['Previous', p], ['Current', c]].map(([lbl, r]) => (
+                <tr key={lbl} className="border-b border-gray-50 dark:border-gray-800/50">
+                  <td className="py-1.5 pr-3 text-gray-500 dark:text-gray-400 font-sans">{lbl}</td>
+                  <td className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r.a4Bw)}</td>
+                  <td className="py-1.5 px-2 text-end text-gray-600 dark:text-gray-400">{n(r.a4Color)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <CalcSec>Calculation — direct subtraction (no A3 or XLS adjustments)</CalcSec>
+        <div className="space-y-1 pl-3 mb-2">
+          <div>
+            <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+              <span>A4 BW pages    = {n(c.a4Bw)} - {n(p.a4Bw)} =</span>
+              {a4BwPg < 0 ? (
+                <>
+                  <span>{sgn(a4BwPg)}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                </>
+              ) : (
+                <span className="font-semibold text-brand-600 dark:text-brand-400">{sgn(a4BwPg)} pages</span>
+              )}
+            </div>
+            {a4BwPg < 0 && (
+              <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">ℹ Negative result clamped to 0.</p>
+            )}
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
+              <span>A4 Color pages = {n(c.a4Color)} - {n(p.a4Color)} =</span>
+              {a4ColorPg < 0 ? (
+                <>
+                  <span>{sgn(a4ColorPg)}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
+                </>
+              ) : (
+                <span className="font-semibold text-brand-600 dark:text-brand-400">{sgn(a4ColorPg)} pages</span>
+              )}
+            </div>
+            {a4ColorPg < 0 && (
+              <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">ℹ Negative result clamped to 0.</p>
+            )}
+          </div>
+        </div>
+
+        <CalcSec>Result</CalcSec>
+        <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 px-4 py-3 space-y-1">
+          <CalcResult label="Billable A4 BW:" value={Math.max(0, a4BwPg)} />
+          <CalcResult label="Billable A4 Color:" value={Math.max(0, a4ColorPg)} />
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-2 mt-1">
+            <CalcResult label="Total A4 pages:" value={totalA4} />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
-      <div className="px-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+      <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
         <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">{reading.serialNumber}</span>
-        <span className="mx-2 text-gray-300 dark:text-gray-600">—</span>
+        <span className="text-gray-300 dark:text-gray-600">—</span>
         <span className="text-sm text-gray-500 dark:text-gray-400">{reading.model}</span>
+        <span className="text-gray-300 dark:text-gray-600">—</span>
+        <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${modeCls}`}>{modeLabel}</span>
+        {isBwOnly && <span className="rounded-full bg-gray-200 dark:bg-gray-700 px-2 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400">BW Only</span>}
       </div>
-      {isBaseline || !prev ? (
-        <div className="px-4 py-3 text-sm text-amber-600 dark:text-amber-400 italic">
-          Baseline — no previous month
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-gray-100 dark:border-gray-800">
-                <th className="px-4 py-2 text-start font-medium text-gray-400 dark:text-gray-500 w-24"></th>
-                <th className="px-3 py-2 text-end font-medium text-gray-400 dark:text-gray-500">A4 BW</th>
-                <th className="px-3 py-2 text-end font-medium text-gray-400 dark:text-gray-500">A3 BW</th>
-                <th className="px-3 py-2 text-end font-medium text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-800/30">BW Total</th>
-                {!isBwOnly && <th className="px-3 py-2 text-end font-medium text-gray-400 dark:text-gray-500">A4 Color</th>}
-                {!isBwOnly && <th className="px-3 py-2 text-end font-medium text-gray-400 dark:text-gray-500">A3 Color</th>}
-                {!isBwOnly && <th className="px-3 py-2 text-end font-medium text-gray-500 dark:text-gray-400 bg-gray-50/80 dark:bg-gray-800/30">Color Total</th>}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-              <tr>
-                <td className="px-4 py-2 text-gray-500 dark:text-gray-400 font-medium">Previous</td>
-                <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(prevA4Bw)}</td>
-                <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(prevA3Bw)}</td>
-                <td className="px-3 py-2 text-end font-medium text-gray-700 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/30">{n(prevBwTotal)}</td>
-                {!isBwOnly && <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(prevA4Color)}</td>}
-                {!isBwOnly && <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(prevA3Color)}</td>}
-                {!isBwOnly && <td className="px-3 py-2 text-end font-medium text-gray-700 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/30">{n(prevColorTotal)}</td>}
-              </tr>
-              <tr>
-                <td className="px-4 py-2 text-gray-500 dark:text-gray-400 font-medium">Current</td>
-                <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(currA4Bw)}</td>
-                <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(currA3Bw)}</td>
-                <td className="px-3 py-2 text-end font-medium text-gray-700 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/30">{n(currBwTotal)}</td>
-                {!isBwOnly && <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(currA4Color)}</td>}
-                {!isBwOnly && <td className="px-3 py-2 text-end text-gray-600 dark:text-gray-400">{n(currA3Color)}</td>}
-                {!isBwOnly && <td className="px-3 py-2 text-end font-medium text-gray-700 dark:text-gray-300 bg-gray-50/80 dark:bg-gray-800/30">{n(currColorTotal)}</td>}
-              </tr>
-              <tr className="bg-brand-50/60 dark:bg-brand-900/10">
-                <td className="px-4 py-2 font-semibold text-brand-700 dark:text-brand-400">Excess ↑</td>
-                <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{n(Math.max(0, currA4Bw - prevA4Bw))}</td>
-                <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{n(Math.max(0, currA3Bw - prevA3Bw))}</td>
-                <td className="px-3 py-2 text-end font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20">{n(Math.max(0, currBwTotal - prevBwTotal))}</td>
-                {!isBwOnly && <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{n(Math.max(0, currA4Color - prevA4Color))}</td>}
-                {!isBwOnly && <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{n(Math.max(0, currA3Color - prevA3Color))}</td>}
-                {!isBwOnly && <td className="px-3 py-2 text-end font-bold text-brand-700 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20">{n(Math.max(0, currColorTotal - prevColorTotal))}</td>}
-              </tr>
-            </tbody>
-          </table>
-          <div className="flex items-center gap-6 px-4 py-2.5 border-t border-gray-100 dark:border-gray-800 text-sm">
-            <span className="text-gray-500 dark:text-gray-400">Billable BW: <span className="font-semibold text-gray-900 dark:text-gray-100">{n(summaryPrinter?.billableBw)} pages</span></span>
-            {!isBwOnly && <span className="text-gray-500 dark:text-gray-400">Billable Color: <span className="font-semibold text-gray-900 dark:text-gray-100">{n(summaryPrinter?.billableColor)} pages</span></span>}
-          </div>
-        </div>
-      )}
+      {(isBaseline || !p)
+        ? renderBaseline()
+        : contractType === 'psg'
+        ? renderPsg()
+        : contractType === 'psg_simple'
+        ? renderPsgSimple()
+        : renderOsg()}
     </div>
   )
 }
@@ -329,12 +699,12 @@ function BillingBreakdown({ billing, t, currency, overrides, allBwOnly }) {
   return (
     <div>
       <div className="mb-1 text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">A4</div>
-      <BillingRow label={t('billingCycles.a4BwPages')}    units={billing.a4BwUsage}    currency={currency} />
-      <BillingRow label={t('billingCycles.a4ColorPages')} units={billing.a4ColorUsage} currency={currency} />
+      <MinVolRow label={t('billingCycles.a4BwPages')}    value={formatNumber(billing.a4BwUsage    ?? 0)} />
+      <MinVolRow label={t('billingCycles.a4ColorPages')} value={formatNumber(billing.a4ColorUsage ?? 0)} />
       <BillingRow label={t('billingCycles.totalA4Pages')} units={billing.totalA4} price={billing.a4Price} total={billing.a4Cost} currency={currency} />
       <div className="mb-1 mt-3 text-xs text-gray-500 dark:text-gray-400 font-medium uppercase tracking-wide">A3</div>
-      <BillingRow label={t('billingCycles.a3BwPages')}    units={billing.a3BwUsage}    currency={currency} />
-      <BillingRow label={t('billingCycles.a3ColorPages')} units={billing.a3ColorUsage} currency={currency} />
+      <MinVolRow label={t('billingCycles.a3BwPages')}    value={formatNumber(billing.a3BwUsage    ?? 0)} />
+      <MinVolRow label={t('billingCycles.a3ColorPages')} value={formatNumber(billing.a3ColorUsage ?? 0)} />
       <BillingRow label={t('billingCycles.totalA3Pages')} units={billing.totalA3} price={billing.a3Price} total={billing.a3Cost} currency={currency} />
       <BillingRow label={t('billingCycles.total')} total={billing.total} isTotal currency={currency} />
     </div>
@@ -397,6 +767,8 @@ export default function BillingCycleDetail() {
   const canConfirm = usePermission('can_confirm_billing')
   const canManage = usePermission('can_manage_billing')
   const canPushToOdoo = usePermission('can_push_to_odoo')
+  const { data: appSettings } = useSettings()
+  const showCalculationDetails = appSettings?.show_calculation_details === 'true'
   const { user } = useAuth()
   const isAdmin = user?.role?.name === 'admin'
   const isEngineer = user?.role?.name === 'engineer'
@@ -523,7 +895,7 @@ export default function BillingCycleDetail() {
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-gray-500 dark:text-gray-400">
               <span>
                 <span className="text-gray-400">Customer:</span>{' '}
-                <Link to={`/customers/${cycle.contract?.customerId}`}
+                <Link to={`/customers/${cycle.contract?.customer?.id}`}
                   className="font-medium text-brand-600 hover:underline dark:text-brand-400">
                   {cycle.contract?.customer?.name ?? '—'}
                 </Link>
@@ -592,11 +964,11 @@ export default function BillingCycleDetail() {
                 <InfoRow label={t('contracts.invoiceReference')} value={cycle.contract.officialContractNumber} />
               )}
               <InfoRow label={t('billingCycles.customer')} value={
-                cycle.contract?.customerId
-                  ? <Link to={`/customers/${cycle.contract.customerId}`} className="text-brand-600 hover:underline dark:text-brand-400">
-                      {cycle.contract?.customer?.name ?? '—'}
+                cycle.contract?.customer?.id
+                  ? <Link to={`/customers/${cycle.contract.customer.id}`} className="text-brand-600 hover:underline dark:text-brand-400">
+                      {cycle.contract.customer.name}
                     </Link>
-                  : '—'
+                  : cycle.contract?.customer?.name ?? '—'
               } />
               <InfoRow label={t('common.createdAt')} value={fmtDate(cycle.createdAt)} />
             </div>
@@ -859,7 +1231,9 @@ export default function BillingCycleDetail() {
         </div>
 
         {/* ── Calculation Details ── */}
-        <CalcDetailsPanel readings={readings} summary={summary} cycleStart={cycle.periodStart} />
+        {showCalculationDetails && (
+          <CalcDetailsPanel readings={readings} summary={summary} cycleStart={cycle.periodStart} />
+        )}
 
         {/* ── Quarterly Invoice Summary (invoicing cycle only) ── */}
         {isInvoicingCycle && groupSummary && (

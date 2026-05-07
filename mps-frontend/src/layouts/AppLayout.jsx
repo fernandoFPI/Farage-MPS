@@ -5,7 +5,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   LayoutDashboard, Users, FileText, Printer,
   Gauge, Upload, Receipt, UserCog, ClipboardList,
-  LogOut, Menu, X, ChevronDown, Sun, Moon, Ticket, BarChart2, Package, Layers, Map,
+  LogOut, Menu, X, ChevronDown, Sun, Moon, Ticket, BarChart2, Package, Layers, Map, Settings,
 } from 'lucide-react'
 import i18n from '../i18n'
 import { useAuth } from '../context/AuthContext'
@@ -106,6 +106,13 @@ function SidebarContent({ onClose }) {
             <NavSep />
             <NavItem to="/users"        icon={UserCog}   label={t('nav.users')}       onClick={onClose} />
             <NavItem to="/performance"  icon={BarChart2} label={t('nav.performance')} onClick={onClose} />
+          </>
+        )}
+
+        {user?.role?.name === 'admin' && (
+          <>
+            <NavSep />
+            <NavItem to="/settings" icon={Settings} label={t('nav.settings')} onClick={onClose} />
           </>
         )}
       </nav>

@@ -19,7 +19,8 @@
     "performance": "Performance",
     "consumables": "Consumables",
     "contractGroups": "Contract Groups",
-    "map": "Map"
+    "map": "Map",
+    "settings": "Settings"
   },
   "auth": {
     "login": "Login",
@@ -50,6 +51,7 @@
     "status": "Status",
     "createdAt": "Created At",
     "on": "on",
+    "by": "by",
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "systemTheme": "System theme",
@@ -527,5 +529,14 @@
     "updateLocation": "Update Location",
     "noLocationSet": "No location set",
     "dropPinAlternative": "Drop Pin on Map"
+  },
+  "settings": {
+    "title": "System Settings",
+    "billingSection": "Billing & Calculation",
+    "calculationDetailsTitle": "Calculation Details Panel",
+    "calculationDetailsDesc": "Show the step-by-step calculation breakdown in billing cycle detail pages.",
+    "lastChanged": "Last changed",
+    "settingUpdated": "Setting updated",
+    "settingUpdateError": "Failed to update setting"
   }
 }

@@ -19,7 +19,8 @@
     "performance": "الأداء",
     "consumables": "المستلزمات",
     "contractGroups": "مجموعات العقود",
-    "map": "الخريطة"
+    "map": "الخريطة",
+    "settings": "الإعدادات"
   },
   "auth": {
     "login": "تسجيل الدخول",
@@ -59,7 +60,8 @@
     "deleted": "تم الحذف بنجاح",
     "created": "تم الإنشاء بنجاح",
     "error": "حدث خطأ",
-    "on": "??"
+    "on": "في",
+    "by": "بواسطة"
   },
   "dashboard": {
     "greeting_morning": "صباح الخير",
@@ -527,5 +529,14 @@
     "updateLocation": "تحديث الموقع",
     "noLocationSet": "لم يتم تحديد موقع",
     "dropPinAlternative": "إسقاط دبوس على الخريطة"
+  },
+  "settings": {
+    "title": "إعدادات النظام",
+    "billingSection": "الفوترة والحسابات",
+    "calculationDetailsTitle": "لوحة تفاصيل الحساب",
+    "calculationDetailsDesc": "عرض تفاصيل الحساب خطوة بخطوة في صفحات دورة الفوترة.",
+    "lastChanged": "آخر تعديل",
+    "settingUpdated": "تم تحديث الإعداد",
+    "settingUpdateError": "فشل تحديث الإعداد"
   }
 }
