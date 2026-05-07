@@ -2,12 +2,92 @@ import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Users, Clock, Image, AlertTriangle } from 'lucide-react'
+import {
+  BarChart, Bar,
+  PieChart, Pie, Cell,
+  XAxis, YAxis,
+  CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer,
+} from 'recharts'
 import { useEngineersPerformance } from '../../api/hooks/usePerformance'
+import { useAnalytics } from '../../api/hooks/useAnalytics'
+import { useDarkMode } from '../../hooks/useTheme'
 import LoadingSpinner from '../../components/LoadingSpinner'
 import EmptyState from '../../components/EmptyState'
 import PageHeader from '../../components/PageHeader'
 import StatCard from '../../components/StatCard'
 import { fmtDuration, fmtDateShort } from '../../utils/format'
+
+const STATUS_COLORS = {
+  open:      '#F59E0B',
+  confirmed: '#10B981',
+  closed:    '#6B7280',
+  active:    '#3B82F6',
+  draft:     '#9CA3AF',
+}
+
+function axisProps(isDark) {
+  return { tick: { fill: isDark ? '#9CA3AF' : '#6B7280', fontSize: 12 } }
+}
+function gridProps(isDark) {
+  return { stroke: isDark ? '#374151' : '#F3F4F6', strokeDasharray: '3 3' }
+}
+
+function ChartCard({ title, subtitle, children, className = '' }) {
+  return (
+    <div className={`bg-white dark:bg-gray-900 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 ${className}`}>
+      <div className="mb-4">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function ChartSkeleton() {
+  return <div className="animate-pulse bg-gray-100 dark:bg-gray-800 rounded-lg h-[300px]" />
+}
+
+function ChartEmpty({ label }) {
+  return (
+    <div className="flex items-center justify-center h-[300px] text-gray-400 dark:text-gray-500">
+      <p className="text-sm">{label}</p>
+    </div>
+  )
+}
+
+function BillingCycleStatusChart({ data }) {
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <PieChart>
+        <Pie data={data} dataKey="count" nameKey="status" cx="50%" cy="50%" outerRadius={100} label={({ status, count }) => `${status}: ${count}`}>
+          {data.map((entry) => (
+            <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? '#9CA3AF'} />
+          ))}
+        </Pie>
+        <Tooltip />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
+  )
+}
+
+function EngineerPerformanceChart({ data, isDark, t }) {
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data}>
+        <CartesianGrid {...gridProps(isDark)} />
+        <XAxis dataKey="engineer" {...axisProps(isDark)} />
+        <YAxis {...axisProps(isDark)} />
+        <Tooltip />
+        <Legend />
+        <Bar dataKey="total_readings" name={t('charts.readings')} fill="#3B82F6" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="flagged_readings" name={t('charts.flagged')} fill="#EF4444" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
 
 function photoColor(withPhotos, total) {
   if (total === 0) return 'text-gray-400'
@@ -20,7 +100,10 @@ function photoColor(withPhotos, total) {
 export default function PerformancePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { isDark } = useDarkMode()
   const { data: engineers = [], isLoading } = useEngineersPerformance()
+  const currentYear = new Date().getFullYear()
+  const { data: analytics, isLoading: analyticsLoading } = useAnalytics({ year: currentYear })
 
   const summary = useMemo(() => {
     const total = engineers.length
@@ -117,6 +200,27 @@ export default function PerformancePage() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ChartCard title={t('charts.billingCycleStatus')} subtitle={t('charts.billingCycleStatusDesc')}>
+          {analyticsLoading
+            ? <ChartSkeleton />
+            : !analytics?.billingCycleStatus?.length
+              ? <ChartEmpty label={t('charts.noData')} />
+              : <BillingCycleStatusChart data={analytics.billingCycleStatus} />
+          }
+        </ChartCard>
+
+        <ChartCard title={t('charts.engineerPerformance')} subtitle={t('charts.engineerPerformanceDesc')}>
+          {analyticsLoading
+            ? <ChartSkeleton />
+            : !analytics?.engineerPerformance?.length
+              ? <ChartEmpty label={t('charts.noData')} />
+              : <EngineerPerformanceChart data={analytics.engineerPerformance} isDark={isDark} t={t} />
+          }
+        </ChartCard>
       </div>
     </div>
   )

@@ -15,7 +15,8 @@
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('xlsx:', p.dependencies?.xlsx ?? p.devDependencies?.xlsx ?? 'NOT FOUND'\\)\")",
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('xlsx:', p.dependencies?.xlsx ?? 'NOT FOUND'\\)\")",
       "Bash(node --input-type=module --check)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('recharts:', p.dependencies.recharts || p.devDependencies?.recharts || 'NOT FOUND'\\)\")"
     ]
   }
 }

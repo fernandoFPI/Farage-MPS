@@ -28,6 +28,7 @@ import ContractGroupsPage from '../pages/contract-groups/ContractGroupsPage'
 import ContractGroupDetail from '../pages/contract-groups/ContractGroupDetail'
 import MapPage from '../pages/map/MapPage'
 import SettingsPage from '../pages/settings/SettingsPage'
+import ChartsPage from '../pages/charts/ChartsPage'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -88,6 +89,7 @@ export default function RouterConfig() {
           <Route path="performance" element={<PerformancePage />} />
           <Route path="performance/:id" element={<EngineerPerformancePage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="charts" element={<ChartsPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
