@@ -101,6 +101,21 @@ export function useSubmitStorage() {
   })
 }
 
+export function useCancelledCycles() {
+  return useQuery({
+    queryKey: ['billing-cycles-cancelled'],
+    queryFn: () => client.get('/api/billing-cycles/cancelled').then(r => r.data),
+  })
+}
+
+export function useHardDeleteCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => client.delete(`/api/billing-cycles/${id}/purge`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles-cancelled'] }),
+  })
+}
+
 export function useCityStatuses(cycleId) {
   return useQuery({
     queryKey: ['billing-cycles', cycleId, 'cities'],

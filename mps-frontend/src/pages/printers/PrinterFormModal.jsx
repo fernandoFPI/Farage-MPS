@@ -8,11 +8,14 @@ import FormField, { inputCls } from '../../components/FormField'
 import ErrorAlert from '../../components/ErrorAlert'
 import PinDropModal from '../../components/PinDropModal'
 import { useCreatePrinter, useUpdatePrinter } from '../../api/hooks/usePrinters'
+import { useAuth } from '../../context/AuthContext'
 
 const empty = { serialNumber: '', model: '', city: '', location: '', xsmDeviceId: '', xsmEnabled: false, isBwOnly: false, latitude: '', longitude: '' }
 
 export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssign }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const isAdmin = user?.role?.name === 'admin'
   const [form, setForm] = useState(empty)
   const [error, setError] = useState('')
   const create = useCreatePrinter()
@@ -116,8 +119,15 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
     >
       <form id="printer-form" onSubmit={handleSubmit} className="space-y-4">
         <FormField label={t('printers.serialNumber')} required>
-          <input className={inputCls} value={form.serialNumber} disabled={isEdit}
-            onChange={e => set('serialNumber', e.target.value)} />
+          <input
+            className={inputCls}
+            value={form.serialNumber}
+            disabled={isEdit && !isAdmin}
+            onChange={e => set('serialNumber', e.target.value)}
+          />
+          {isEdit && isAdmin && (
+            <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Admin only — changing this will update all references to this printer.</p>
+          )}
         </FormField>
         <FormField label={t('printers.model')} required>
           <input className={inputCls} value={form.model} onChange={e => set('model', e.target.value)} />

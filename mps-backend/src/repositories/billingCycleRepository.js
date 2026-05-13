@@ -232,6 +232,35 @@ export async function cancelById(id, userId) {
   return rowCount > 0;
 }
 
+export async function findAllCancelled() {
+  const { rows } = await pool.query(
+    `SELECT bc.*, co.contract_number, cu.name AS customer_name,
+            cu2.full_name AS cancelled_by_name,
+            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
+     FROM billing_cycles bc
+     JOIN contracts co ON bc.contract_id = co.id
+     JOIN customers cu ON co.customer_id = cu.id
+     LEFT JOIN users cu2 ON bc.cancelled_by_user_id = cu2.id
+     WHERE bc.is_cancelled = true
+     ORDER BY bc.cancelled_at DESC`,
+  );
+  return rows.map(row => ({
+    ...mapRow(row),
+    contractNumber: row.contract_number,
+    customerName: row.customer_name,
+    cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
+    cancelledByName: row.cancelled_by_name ?? null,
+  }));
+}
+
+export async function hardDeleteCancelledById(id) {
+  const { rowCount } = await pool.query(
+    `DELETE FROM billing_cycles WHERE id = $1 AND is_cancelled = true`,
+    [id],
+  );
+  return rowCount > 0;
+}
+
 export async function update(id, fields) {
   const columnMap = {
     status:        'status',

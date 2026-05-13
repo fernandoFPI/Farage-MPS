@@ -96,6 +96,7 @@ export async function create({ serialNumber, model, city, location, xsmDeviceId,
 
 export async function update(id, fields) {
   const columnMap = {
+    serialNumber: 'serial_number',
     model: 'model',
     city: 'city',
     location: 'location',

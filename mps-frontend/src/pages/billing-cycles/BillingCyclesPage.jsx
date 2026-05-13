@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid } from 'lucide-react'
+import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2 } from 'lucide-react'
 import AccordionGroup from '../../components/AccordionGroup'
 import {
   useBillingCycles,
   useCreateBillingCycle,
   useConfirmCycle,
+  useCancelledCycles,
+  useHardDeleteCycle,
 } from '../../api/hooks/useBillingCycles'
 import { useContracts } from '../../api/hooks/useContracts'
 import { usePermission } from '../../hooks/usePermission'
+import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
 import PageHeader from '../../components/PageHeader'
 import DataTable from '../../components/DataTable'
@@ -19,7 +22,7 @@ import Modal from '../../components/Modal'
 import FormField, { inputCls } from '../../components/FormField'
 import ErrorAlert from '../../components/ErrorAlert'
 import { formatPeriod } from '../../utils/dates'
-import { fmtDate } from '../../utils/format'
+import { fmtDate, fmtDateTime } from '../../utils/format'
 
 const STATUSES = ['open', 'pending_confirmation', 'confirmed', 'pending_quarterly', 'disputed', 'invoiced']
 const VIEW_KEY = 'mps_billing_cycles_view'
@@ -150,8 +153,11 @@ export default function BillingCyclesPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const { showToast } = useToast()
+  const { user } = useAuth()
+  const isAdmin = user?.role?.name === 'admin'
   const canManage = usePermission('can_manage_billing')
   const canConfirm = usePermission('can_confirm_billing')
+  const [tab, setTab] = useState('active')
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
   const [contractId, setContractId] = useState('')
@@ -177,6 +183,9 @@ export default function BillingCyclesPage() {
   const { data: cycles = [], isLoading } = useBillingCycles(params)
   const { data: allContracts = [] } = useContracts()
   const confirmMutation = useConfirmCycle()
+  const { data: cancelledCycles = [], isLoading: cancelledLoading } = useCancelledCycles()
+  const hardDeleteMutation = useHardDeleteCycle()
+  const [purgingCycle, setPurgingCycle] = useState(null)
 
   // Group cycles by customer name for accordion view
   const customerCycleGroups = useMemo(() => {
@@ -193,6 +202,16 @@ export default function BillingCyclesPage() {
     }
     return groups
   }, [cycles])
+
+  async function handlePurge() {
+    try {
+      await hardDeleteMutation.mutateAsync(purgingCycle.id)
+      showToast({ title: t('billingCycles.purged'), variant: 'success' })
+      setPurgingCycle(null)
+    } catch (err) {
+      showToast({ title: err.response?.data?.error || err.message, variant: 'error' })
+    }
+  }
 
   async function handleQuickConfirm() {
     setConfirmError('')
@@ -287,6 +306,48 @@ export default function BillingCyclesPage() {
     },
   ]
 
+  const cancelledColumns = [
+    {
+      key: 'cycleName',
+      label: t('billingCycles.title'),
+      render: r => (
+        <div>
+          <p className="font-medium text-gray-900 dark:text-gray-100">{r.cycleName}</p>
+          <p className="text-xs text-gray-400">{r.contractNumber ?? '—'}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'period',
+      label: t('billingCycles.period'),
+      render: r => formatPeriod(r.periodStart, r.periodEnd),
+    },
+    {
+      key: 'cancelledAt',
+      label: t('billingCycles.cancelledAt'),
+      render: r => (
+        <div>
+          <p className="text-sm text-gray-700 dark:text-gray-300">{fmtDateTime(r.cancelledAt)}</p>
+          {r.cancelledByName && <p className="text-xs text-gray-400">{r.cancelledByName}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'actions',
+      label: t('common.actions'),
+      render: r => (
+        <button
+          onClick={() => setPurgingCycle(r)}
+          className="flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-900/20"
+          title={t('billingCycles.purge')}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+          {t('billingCycles.purge')}
+        </button>
+      ),
+    },
+  ]
+
   return (
     <div>
       <PageHeader
@@ -318,7 +379,41 @@ export default function BillingCyclesPage() {
         }
       />
 
-      {view === 'list' ? (
+      {/* Admin tab bar */}
+      {isAdmin && (
+        <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setTab('active')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === 'active'
+                ? 'border-brand-500 text-brand-600 dark:text-brand-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            {t('billingCycles.title')}
+          </button>
+          <button
+            onClick={() => setTab('deleted')}
+            className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === 'deleted'
+                ? 'border-red-500 text-red-600 dark:text-red-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'
+            }`}
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t('billingCycles.deletedCycles')}
+            {cancelledCycles.length > 0 && (
+              <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-400">
+                {cancelledCycles.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {tab === 'deleted' && isAdmin ? (
+        <DataTable columns={cancelledColumns} data={cancelledCycles} loading={cancelledLoading} emptyMessage={t('common.noData')} />
+      ) : view === 'list' ? (
         <DataTable columns={columns} data={cycles} loading={isLoading} emptyMessage={t('common.noData')} />
       ) : isLoading ? (
         <div className="py-20 text-center text-sm text-gray-400">{t('common.loading')}</div>
@@ -393,6 +488,19 @@ export default function BillingCyclesPage() {
         loading={confirmMutation.isPending}
         confirmLabel={t('billingCycles.confirmCycle')}
         confirmClassName="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
+      />
+
+      <ConfirmDialog
+        open={!!purgingCycle}
+        onClose={() => setPurgingCycle(null)}
+        onConfirm={handlePurge}
+        title={t('billingCycles.purgeTitle')}
+        description={purgingCycle
+          ? `${t('billingCycles.purgeWarning')}\n\n${purgingCycle.cycleName}\n${t('billingCycles.period')}: ${formatPeriod(purgingCycle.periodStart, purgingCycle.periodEnd)}`
+          : ''}
+        loading={hardDeleteMutation.isPending}
+        confirmLabel={t('billingCycles.purge')}
+        confirmClassName="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
       />
     </div>
   )

@@ -577,6 +577,20 @@ export async function getGroupSummary(id) {
   };
 }
 
+export async function getCancelledCycles() {
+  return cycleRepo.findAllCancelled();
+}
+
+export async function hardDeleteCycle(id) {
+  const deleted = await cycleRepo.hardDeleteCancelledById(id);
+  if (!deleted) {
+    const err = new Error('Cancelled billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  return { message: 'Billing cycle permanently deleted' };
+}
+
 export async function cancelCycle(id, userId) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {

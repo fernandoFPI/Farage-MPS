@@ -7,7 +7,10 @@ const router = Router();
 const manageBilling  = [verifyToken, requirePermission('can_manage_billing')];
 const confirmBilling = [verifyToken, requirePermission('can_confirm_billing')];
 const submitReadings = [verifyToken, requirePermission('can_submit_readings')];
+const requireAdmin   = [verifyToken, (req, res, next) => req.user?.role?.name === 'admin' ? next() : res.status(403).json({ error: 'Admin only' })];
 
+router.get('/cancelled',     ...requireAdmin,   ctrl.listCancelled);
+router.delete('/:id/purge',  ...requireAdmin,   ctrl.hardDelete);
 router.get('/',              verifyToken,      ctrl.list);
 router.post('/',             ...manageBilling,  ctrl.create);
 router.get('/:id',           verifyToken,      ctrl.getById);

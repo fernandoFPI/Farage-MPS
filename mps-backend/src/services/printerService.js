@@ -64,6 +64,20 @@ export async function updatePrinter(id, fields) {
     err.status = 404;
     throw err;
   }
+  if (fields.serialNumber !== undefined && fields.serialNumber !== existing.serialNumber) {
+    if (!fields.serialNumber.trim()) {
+      const err = new Error('Serial number cannot be empty');
+      err.status = 400;
+      throw err;
+    }
+    const taken = await repo.serialNumberExists(fields.serialNumber.trim(), id);
+    if (taken) {
+      const err = new Error('Serial number already exists');
+      err.status = 409;
+      throw err;
+    }
+    fields = { ...fields, serialNumber: fields.serialNumber.trim() };
+  }
   if (fields.latitude !== undefined || fields.longitude !== undefined) {
     validateCoordinates(
       fields.latitude !== undefined ? fields.latitude : existing.latitude,

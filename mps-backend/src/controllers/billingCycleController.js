@@ -60,6 +60,18 @@ export async function cancel(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function listCancelled(req, res, next) {
+  try {
+    res.json(await service.getCancelledCycles());
+  } catch (err) { next(err); }
+}
+
+export async function hardDelete(req, res, next) {
+  try {
+    res.json(await service.hardDeleteCycle(req.params.id));
+  } catch (err) { next(err); }
+}
+
 export async function lockPrinter(req, res, next) {
   try {
     const result = await service.lockPrinter(req.params.id, req.body.printerId, req.user);
