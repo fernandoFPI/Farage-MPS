@@ -33,6 +33,27 @@ function BaselineBadge({ label }) {
   )
 }
 
+const CITY_DOT_COLOR = {
+  complete:  'bg-green-500',
+  confirmed: 'bg-green-500',
+  partial:   'bg-amber-400',
+  pending:   'bg-gray-300 dark:bg-gray-600',
+}
+
+function CityDots({ cityStatuses }) {
+  if (!cityStatuses || cityStatuses.length <= 1) return null
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      {cityStatuses.map(c => (
+        <span key={c.city} className="flex items-center gap-0.5" title={`${c.city}: ${c.status}`}>
+          <span className={`inline-block h-2 w-2 rounded-full ${CITY_DOT_COLOR[c.status] ?? 'bg-gray-300'}`} />
+          <span className="text-xs text-gray-500 dark:text-gray-400 hidden sm:inline">{c.city}</span>
+        </span>
+      ))}
+    </div>
+  )
+}
+
 function ViewToggle({ view, onChange, t }) {
   const btn = (v, Icon, label) => (
     <button
@@ -224,6 +245,7 @@ export default function BillingCyclesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={r.status} />
           {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
+          <CityDots cityStatuses={r.cityStatuses} />
         </div>
       ),
     },
@@ -328,6 +350,7 @@ export default function BillingCyclesPage() {
                 )}
               </div>
               <StatusBadge status={r.status} />
+              <CityDots cityStatuses={r.cityStatuses} />
               <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap hidden sm:block">
                 {formatPeriod(r.periodStart, r.periodEnd)}
               </span>

@@ -100,3 +100,35 @@ export function useSubmitStorage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
   })
 }
+
+export function useCityStatuses(cycleId) {
+  return useQuery({
+    queryKey: ['billing-cycles', cycleId, 'cities'],
+    queryFn: () => client.get(`/api/billing-cycles/${cycleId}/cities`).then(r => r.data),
+    enabled: !!cycleId,
+  })
+}
+
+export function useConfirmCity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ cycleId, city }) =>
+      client.patch(`/api/billing-cycles/${cycleId}/cities/${encodeURIComponent(city)}/confirm`).then(r => r.data),
+    onSuccess: (_data, { cycleId }) => {
+      qc.invalidateQueries({ queryKey: ['billing-cycles', cycleId, 'cities'] })
+      qc.invalidateQueries({ queryKey: ['billing-cycles', cycleId] })
+    },
+  })
+}
+
+export function useResetCity() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ cycleId, city }) =>
+      client.patch(`/api/billing-cycles/${cycleId}/cities/${encodeURIComponent(city)}/reset`).then(r => r.data),
+    onSuccess: (_data, { cycleId }) => {
+      qc.invalidateQueries({ queryKey: ['billing-cycles', cycleId, 'cities'] })
+      qc.invalidateQueries({ queryKey: ['billing-cycles', cycleId] })
+    },
+  })
+}

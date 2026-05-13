@@ -11,6 +11,9 @@ import {
   useReopenCycle,
   useCancelCycle,
   useSetBaseline,
+  useCityStatuses,
+  useConfirmCity,
+  useResetCity,
 } from '../../api/hooks/useBillingCycles'
 import { useBillingCycleGroupSummary, useDeleteCycleGroup, useCycleGroup } from '../../api/hooks/useCycleGroups'
 import { useMeterReadings, usePreviousReading } from '../../api/hooks/useMeterReadings'
@@ -757,6 +760,180 @@ function DisputeModal({ open, onClose, onSubmit, loading }) {
   )
 }
 
+// ── City Progress Section ──────────────────────────────────────────────────────
+
+function CityProgressBar({ submitted, total }) {
+  const pct = total > 0 ? Math.round((submitted / total) * 100) : 0
+  return (
+    <div className="flex items-center gap-2 flex-1 min-w-0">
+      <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden min-w-[80px]">
+        <div
+          className="h-full rounded-full transition-all duration-300"
+          style={{
+            width: `${pct}%`,
+            backgroundColor: pct === 100 ? '#10B981' : pct > 0 ? '#F59E0B' : '#D1D5DB',
+          }}
+        />
+      </div>
+      <span className="text-xs font-mono text-gray-500 dark:text-gray-400 whitespace-nowrap">{submitted}/{total}</span>
+    </div>
+  )
+}
+
+function CityStatusBadge({ city, t }) {
+  if (city.status === 'confirmed') {
+    return (
+      <span className="flex items-center gap-1 text-xs font-medium text-blue-600 dark:text-blue-400 whitespace-nowrap">
+        <CheckCircle className="h-3.5 w-3.5" />
+        {t('billingCycles.cityConfirmed')} {city.confirmedByName ?? ''}
+      </span>
+    )
+  }
+  if (city.status === 'complete') {
+    return (
+      <span className="flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400 whitespace-nowrap">
+        <CheckCircle className="h-3.5 w-3.5" />
+        {t('billingCycles.cityComplete')}
+      </span>
+    )
+  }
+  if (city.status === 'partial') {
+    const missing = city.totalPrinters - city.submittedPrinters
+    return (
+      <span className="flex items-center gap-1 text-xs font-medium text-amber-600 dark:text-amber-400 whitespace-nowrap">
+        ⏳ {t('billingCycles.cityPartial')} ({missing} {missing === 1 ? 'missing' : 'missing'})
+      </span>
+    )
+  }
+  return (
+    <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">
+      ○ {t('billingCycles.cityPending')}
+    </span>
+  )
+}
+
+function ConfirmCityDialog({ city, cycleId, onClose, t }) {
+  const confirmMutation = useConfirmCity()
+  const { showToast } = useToast()
+  const missing = city.totalPrinters - city.submittedPrinters
+
+  async function handleConfirm() {
+    try {
+      await confirmMutation.mutateAsync({ cycleId, city: city.city })
+      showToast({ title: `${city.city} confirmed`, variant: 'success' })
+      onClose()
+    } catch (err) {
+      showToast({ title: err.response?.data?.error || err.message, variant: 'error' })
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="w-full max-w-sm rounded-xl bg-white dark:bg-gray-900 shadow-xl p-6 space-y-4">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+          {t('billingCycles.confirmCityTitle')} {city.city}?
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          {city.submittedPrinters} of {city.totalPrinters} printers have submitted readings.
+          {missing > 0 && (
+            <span className="block mt-1 text-amber-600 dark:text-amber-400">
+              {missing} {t('billingCycles.confirmCityWarning')}
+            </span>
+          )}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={confirmMutation.isPending}
+            className="flex-1 rounded-lg bg-brand-500 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
+          >
+            {confirmMutation.isPending ? t('common.loading') : t('billingCycles.confirmCity')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CityProgressSection({ cycleId, canConfirmBilling, canManageBilling, t }) {
+  const { data: cities = [], isLoading } = useCityStatuses(cycleId)
+  const resetMutation = useResetCity()
+  const { showToast } = useToast()
+  const [confirmingCity, setConfirmingCity] = useState(null)
+
+  if (isLoading) return null
+  if (cities.length === 0) return null
+  if (cities.length === 1) return null  // single-city contracts don't need this section
+
+  const totalPrinters = cities.reduce((s, c) => s + c.totalPrinters, 0)
+  const totalSubmitted = cities.reduce((s, c) => s + c.submittedPrinters, 0)
+  const allReady = cities.every(c => c.status === 'complete' || c.status === 'confirmed')
+
+  async function handleReset(city) {
+    try {
+      await resetMutation.mutateAsync({ cycleId, city: city.city })
+      showToast({ title: `${city.city} reset`, variant: 'success' })
+    } catch (err) {
+      showToast({ title: err.response?.data?.error || err.message, variant: 'error' })
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">{t('billingCycles.cityProgress')}</h3>
+        <span className={`text-xs font-medium ${allReady ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'}`}>
+          {totalSubmitted} {t('billingCycles.overallProgress')} {totalPrinters} — {cities.length} {t('billingCycles.cities')}
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {cities.map(city => (
+          <div key={city.city} className="flex items-center gap-3 flex-wrap">
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200 w-24 flex-shrink-0 truncate">{city.city}</span>
+            <CityProgressBar submitted={city.submittedPrinters} total={city.totalPrinters} />
+            <CityStatusBadge city={city} t={t} />
+            <div className="flex items-center gap-2 ms-auto">
+              {(city.status === 'partial' || city.status === 'complete') && canConfirmBilling && (
+                <button
+                  onClick={() => setConfirmingCity(city)}
+                  className="rounded-md border border-brand-300 px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-700 dark:text-brand-400 dark:hover:bg-brand-900/20"
+                >
+                  {t('billingCycles.confirmCity')}
+                </button>
+              )}
+              {city.status === 'confirmed' && canManageBilling && (
+                <button
+                  onClick={() => handleReset(city)}
+                  disabled={resetMutation.isPending}
+                  className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 disabled:opacity-50"
+                >
+                  {t('billingCycles.resetCity')}
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {confirmingCity && (
+        <ConfirmCityDialog
+          city={confirmingCity}
+          cycleId={cycleId}
+          onClose={() => setConfirmingCity(null)}
+          t={t}
+        />
+      )}
+    </div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function BillingCycleDetail() {
   const { id } = useParams()
@@ -882,6 +1059,10 @@ export default function BillingCycleDetail() {
   const canGroupCycles = isThreeCycleQuarterly && status === 'confirmed' && !cycle.cycleGroupId
   const isPendingQuarterly = status === 'pending_quarterly'
   const isInvoicingCycle = cycle.groupPosition === 3 && !!cycle.cycleGroupId
+  const cityStatuses = cycle.cityStatuses ?? []
+  const isMultiCity = cityStatuses.length > 1
+  const allCitiesReady = cycle.allCitiesReady ?? true
+  const notReadyCities = cityStatuses.filter(c => c.status !== 'complete' && c.status !== 'confirmed')
 
   return (
     <>
@@ -1008,6 +1189,16 @@ export default function BillingCycleDetail() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ── City Submission Progress ── */}
+        {isMultiCity && (
+          <CityProgressSection
+            cycleId={id}
+            canConfirmBilling={canConfirm}
+            canManageBilling={canManage}
+            t={t}
+          />
         )}
 
         {/* ── Billing Summary ── */}
@@ -1456,12 +1647,31 @@ export default function BillingCycleDetail() {
           <div className="flex flex-wrap gap-3 mt-3">
             {/* Confirm */}
             {canConfirm && (status === 'open' || status === 'pending_confirmation') && (
-              <button
-                onClick={() => { setActionError(''); setConfirmOpen(true) }}
-                className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700"
-              >
-                <CheckCircle className="h-4 w-4" />{t('billingCycles.confirmCycle')}
-              </button>
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <span>
+                    <button
+                      onClick={() => { if (allCitiesReady || !isMultiCity) { setActionError(''); setConfirmOpen(true) } }}
+                      disabled={isMultiCity && !allCitiesReady}
+                      className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <CheckCircle className="h-4 w-4" />{t('billingCycles.confirmCycle')}
+                    </button>
+                  </span>
+                </Tooltip.Trigger>
+                {isMultiCity && !allCitiesReady && (
+                  <Tooltip.Portal>
+                    <Tooltip.Content
+                      className="z-50 max-w-xs rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-gray-700"
+                      sideOffset={6}
+                    >
+                      {t('billingCycles.cannotConfirmCities')}:{' '}
+                      {notReadyCities.map(c => `${c.city} (${c.submittedPrinters}/${c.totalPrinters})`).join(', ')}
+                      <Tooltip.Arrow className="fill-gray-900 dark:fill-gray-700" />
+                    </Tooltip.Content>
+                  </Tooltip.Portal>
+                )}
+              </Tooltip.Root>
             )}
 
             {/* Dispute */}

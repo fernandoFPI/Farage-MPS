@@ -1,4 +1,5 @@
 import pool from '../config/db.js';
+import { findByCycleId as findCityStatuses } from './cityCycleStatusRepository.js';
 
 function mapRow(row) {
   if (!row) return null;
@@ -43,7 +44,12 @@ export async function findAll({ contractId, status } = {}) {
     `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, cu.name AS customer_name,
             bu.full_name AS baseline_set_by_name,
             su.full_name AS storage_submitted_by_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
+            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+            COALESCE(
+              (SELECT json_agg(json_build_object('city', cs.city, 'status', cs.status, 'totalPrinters', cs.total_printers, 'submittedPrinters', cs.submitted_printers))
+               FROM billing_cycle_city_status cs WHERE cs.billing_cycle_id = bc.id),
+              '[]'::json
+            ) AS city_statuses
      FROM billing_cycles bc
      JOIN contracts co ON bc.contract_id = co.id
      JOIN customers cu ON co.customer_id = cu.id
@@ -54,13 +60,17 @@ export async function findAll({ contractId, status } = {}) {
     values,
   );
 
-  return rows.map((row) => ({
-    ...mapRow(row),
-    contractNumber: row.contract_number,
-    customerName: row.customer_name,
-    cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
-    contract: { contractNumber: row.contract_number, contractMode: row.contract_mode ?? 'osg', officialContractNumber: row.official_contract_number ?? null },
-  }));
+  return rows.map((row) => {
+    const cityStatuses = row.city_statuses ?? [];
+    return {
+      ...mapRow(row),
+      contractNumber: row.contract_number,
+      customerName: row.customer_name,
+      cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
+      contract: { contractNumber: row.contract_number, contractMode: row.contract_mode ?? 'osg', officialContractNumber: row.official_contract_number ?? null },
+      cityStatuses,
+    };
+  });
 }
 
 // Returns cycle with full contract pricing + customer — used by both billing and meter reading services
@@ -106,7 +116,10 @@ export async function findById(id) {
   if (!rows[0]) return null;
   const row = rows[0];
   const cycleName = `${row.contract.customer.name.trim()} — ${row.cycle_month.trim()}`;
-  return { ...mapRow(row), contract: row.contract, cycleName };
+  const cityStatuses = await findCityStatuses(row.id);
+  const allCitiesReady = cityStatuses.length > 0 &&
+    cityStatuses.every(c => c.status === 'complete' || c.status === 'confirmed');
+  return { ...mapRow(row), contract: row.contract, cycleName, cityStatuses, allCitiesReady };
 }
 
 // Find a specific cycle by contract + period — used by XSM import service

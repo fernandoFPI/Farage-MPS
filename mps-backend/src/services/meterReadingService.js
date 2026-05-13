@@ -10,6 +10,7 @@ import {
   calculateBillableUsage,
   validateUsage,
 } from './netCalculationService.js';
+import { syncCityStatus } from './cityCycleStatusService.js';
 
 const VALID_SOURCES = ['odoo', 'xsm', 'manual'];
 
@@ -257,6 +258,9 @@ export async function createReading(body, userId) {
   const updatedLocks = (cycle.lockedPrinters ?? []).filter(l => l.printerId !== printerId);
   await cycleRepo.updateLockedPrinters(billingCycleId, updatedLocks);
 
+  // 13. Sync city status (non-blocking — never fail the submission)
+  syncCityStatus(billingCycleId).catch(() => {});
+
   return {
     ...reading,
     ...billable,
@@ -280,7 +284,12 @@ export async function deleteReading(id) {
     throw err;
   }
 
+  const billingCycleId = reading.billingCycleId;
   await readingRepo.deleteById(id);
+
+  // Sync city status after deletion (non-blocking)
+  syncCityStatus(billingCycleId).catch(() => {});
+
   return { message: 'Reading deleted' };
 }
 

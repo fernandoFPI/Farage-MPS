@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { verifyToken, requirePermission } from '../middleware/auth.js';
 import * as ctrl from '../controllers/billingCycleController.js';
+import * as cityCtrl from '../controllers/cityCycleStatusController.js';
 
 const router = Router();
 const manageBilling  = [verifyToken, requirePermission('can_manage_billing')];
@@ -21,5 +22,10 @@ router.post('/:id/lock-printer',              ...submitReadings,  ctrl.lockPrint
 router.delete('/:id/lock-printer/:printerId', ...submitReadings,  ctrl.unlockPrinter);
 router.patch('/:id/submit-storage',           ...submitReadings,  ctrl.submitStorage);
 router.patch('/:id/reset-storage',            ...manageBilling,   ctrl.resetStorageSubmission);
+
+// City status routes
+router.get('/:id/cities',                     ...manageBilling,   cityCtrl.list);
+router.patch('/:id/cities/:city/confirm',     ...confirmBilling,  cityCtrl.confirm);
+router.patch('/:id/cities/:city/reset',       ...manageBilling,   cityCtrl.reset);
 
 export default router;

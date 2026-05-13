@@ -415,7 +415,19 @@
     "baselineConfirmDesc": "This cycle will show zero charges. The next cycle will calculate usage starting from this cycle's readings.",
     "removeBaselineTitle": "Remove baseline status?",
     "removeBaselineDesc": "Usage charges will be recalculated for this cycle.",
-    "baselineSummary": "Baseline cycle — no charges apply"
+    "baselineSummary": "Baseline cycle — no charges apply",
+    "cityProgress": "City Submission Progress",
+    "cityPending": "Pending",
+    "cityPartial": "Partial",
+    "cityComplete": "Complete",
+    "cityConfirmed": "Confirmed by",
+    "confirmCity": "Confirm City",
+    "resetCity": "Reset",
+    "confirmCityTitle": "Confirm",
+    "confirmCityWarning": "printers are missing. Are you sure?",
+    "overallProgress": "of printers submitted across",
+    "cities": "cities",
+    "cannotConfirmCities": "Cannot confirm — some cities still have pending readings"
   },
   "consumables": {
     "title": "Consumables",

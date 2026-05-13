@@ -787,6 +787,18 @@ export default function TicketsPage() {
       .sort((a, b) => STATUS_ORDER[a.status.type] - STATUS_ORDER[b.status.type])
   }, [contractPrinters, printerMap, submittedIds, activeLocks, printerFilter, user?.id])
 
+  const cityGroups = useMemo(() => {
+    const groups = {}
+    for (const row of printerRows) {
+      const city = row.printer.city || '—'
+      if (!groups[city]) groups[city] = []
+      groups[city].push(row)
+    }
+    return Object.entries(groups).sort(([a], [b]) => a.localeCompare(b))
+  }, [printerRows])
+
+  const isMultiCity = cityGroups.length > 1
+
   const selectedPrinter = selectedPrinterId ? printerMap[selectedPrinterId] : null
   const selectedAssignment = selectedPrinterId
     ? contractPrinters.find(a => a.printerId === selectedPrinterId)
@@ -988,74 +1000,102 @@ export default function TicketsPage() {
 
           {lockError && <ErrorAlert message={lockError} />}
 
-          {/* Printer cards */}
-          <div className="space-y-2" id="printer-cards">
+          {/* Printer cards — grouped by city when multi-city */}
+          <div className="space-y-4" id="printer-cards">
             {printerRows.length === 0 && (
               <p className="text-center py-10 text-sm text-gray-400">{t('common.noData')}</p>
             )}
-            {printerRows.map(({ printer, assignment, status }) => {
-              const isSelected = printer.id === selectedPrinterId
-              const submittedReading = status.type === 'submitted' ? readingByPrinterId[printer.id] : null
+            {cityGroups.map(([city, rows]) => {
+              const citySubmitted = rows.filter(r => r.status.type === 'submitted').length
+              const cityTotal = rows.length
+              const cityPct = cityTotal > 0 ? Math.round((citySubmitted / cityTotal) * 100) : 0
               return (
-                <div key={assignment.id}>
-                  <div
-                    className={cardCls(status)}
-                    onClick={() => handleSelectPrinterCard(printer, status)}
-                    role={status.type === 'not_submitted' || status.type === 'you_in_progress' ? 'button' : undefined}
-                    tabIndex={status.type === 'not_submitted' || status.type === 'you_in_progress' ? 0 : undefined}
-                    onKeyDown={e => e.key === 'Enter' && handleSelectPrinterCard(printer, status)}
-                  >
-                    {/* Lock / check icon */}
-                    <div className="flex-shrink-0 w-5 text-center">
-                      {status.type === 'submitted' && <CheckCircle className="h-4 w-4 text-green-500" />}
-                      {status.type === 'in_progress' && <AlertTriangle className="h-4 w-4 text-amber-500" />}
-                      {status.type === 'you_in_progress' && <Clock className="h-4 w-4 text-blue-500" />}
-                    </div>
-
-                    {/* Printer info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">{printer.serialNumber}</span>
-                        <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{printer.model}</span>
-                        {printer.isBwOnly && (
-                          <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">{t('printers.bwOnlyBadge')}</span>
-                        )}
+                <div key={city}>
+                  {/* City header — only shown for multi-city */}
+                  {isMultiCity && (
+                    <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+                        <ChevronRight className="h-3.5 w-3.5 text-brand-500" />
+                        📍 {city}
+                        <span className="font-normal text-gray-400">({cityTotal})</span>
                       </div>
-                      {printer.city && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{printer.city}{printer.location ? ` · ${printer.location}` : ''}</p>
-                      )}
-                      {submittedReading && (
-                        <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1.5">
-                          {submittedReading.submittedByName && <span>{submittedReading.submittedByName}</span>}
-                          {submittedReading.submittedAt && <span>· {fmtDateTime(submittedReading.submittedAt)}</span>}
-                          {submittedReading.photos?.length > 0 && (
-                            <span className="flex items-center gap-0.5">· <Image className="h-3 w-3" /> {submittedReading.photos.length}</span>
-                          )}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Status badge */}
-                    <PrinterStatusBadge status={status} t={t} />
-                  </div>
-
-                  {/* Inline submit form for selected printer */}
-                  {isSelected && selectedPrinter && cycle && (
-                    <div className="mt-2">
-                      <SubmitForm
-                        printer={selectedPrinter}
-                        cycle={cycle}
-                        assignment={selectedAssignment}
-                        onSubmit={handleSubmit}
-                        onCancel={handleCancel}
-                        isPending={submitMutation.isPending}
-                        error={submitError}
-                        lockExpiry={lockExpiry}
-                        isBwOnly={selectedPrinter?.isBwOnly ?? false}
-                        t={t}
-                      />
+                      <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-gray-800 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${cityPct}%`, backgroundColor: cityPct === 100 ? '#10B981' : cityPct > 0 ? '#F59E0B' : '#D1D5DB' }}
+                        />
+                      </div>
+                      <span className="text-xs font-mono text-gray-400 whitespace-nowrap">
+                        {citySubmitted}/{cityTotal}
+                        {cityPct === 100 ? ' ✓' : ''}
+                      </span>
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    {rows.map(({ printer, assignment, status }) => {
+                      const isSelected = printer.id === selectedPrinterId
+                      const submittedReading = status.type === 'submitted' ? readingByPrinterId[printer.id] : null
+                      return (
+                        <div key={assignment.id}>
+                          <div
+                            className={cardCls(status)}
+                            onClick={() => handleSelectPrinterCard(printer, status)}
+                            role={status.type === 'not_submitted' || status.type === 'you_in_progress' ? 'button' : undefined}
+                            tabIndex={status.type === 'not_submitted' || status.type === 'you_in_progress' ? 0 : undefined}
+                            onKeyDown={e => e.key === 'Enter' && handleSelectPrinterCard(printer, status)}
+                          >
+                            <div className="flex-shrink-0 w-5 text-center">
+                              {status.type === 'submitted' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                              {status.type === 'in_progress' && <AlertTriangle className="h-4 w-4 text-amber-500" />}
+                              {status.type === 'you_in_progress' && <Clock className="h-4 w-4 text-blue-500" />}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-sm font-medium text-gray-900 dark:text-gray-100">{printer.serialNumber}</span>
+                                <span className="text-sm text-gray-500 dark:text-gray-400 truncate">{printer.model}</span>
+                                {printer.isBwOnly && (
+                                  <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:bg-gray-700 dark:text-gray-400">{t('printers.bwOnlyBadge')}</span>
+                                )}
+                              </div>
+                              {!isMultiCity && printer.city && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{printer.city}{printer.location ? ` · ${printer.location}` : ''}</p>
+                              )}
+                              {isMultiCity && printer.location && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{printer.location}</p>
+                              )}
+                              {submittedReading && (
+                                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1.5">
+                                  {submittedReading.submittedByName && <span>{submittedReading.submittedByName}</span>}
+                                  {submittedReading.submittedAt && <span>· {fmtDateTime(submittedReading.submittedAt)}</span>}
+                                  {submittedReading.photos?.length > 0 && (
+                                    <span className="flex items-center gap-0.5">· <Image className="h-3 w-3" /> {submittedReading.photos.length}</span>
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                            <PrinterStatusBadge status={status} t={t} />
+                          </div>
+                          {isSelected && selectedPrinter && cycle && (
+                            <div className="mt-2">
+                              <SubmitForm
+                                printer={selectedPrinter}
+                                cycle={cycle}
+                                assignment={selectedAssignment}
+                                onSubmit={handleSubmit}
+                                onCancel={handleCancel}
+                                isPending={submitMutation.isPending}
+                                error={submitError}
+                                lockExpiry={lockExpiry}
+                                isBwOnly={selectedPrinter?.isBwOnly ?? false}
+                                t={t}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}

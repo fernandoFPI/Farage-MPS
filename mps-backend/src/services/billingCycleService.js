@@ -10,6 +10,7 @@ import {
   calculatePSGSimpleBilling,
   calculateGroupedMinVolumeBilling,
 } from './netCalculationService.js';
+import { canConfirmCycle } from './cityCycleStatusService.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -474,6 +475,12 @@ export async function confirmCycle(id) {
   // pending_quarterly → confirmed only when group is unlinked (handled by cycleGroupService)
   if (!['open', 'pending_confirmation'].includes(cycle.status)) {
     const err = new Error('Invalid status transition');
+    err.status = 400;
+    throw err;
+  }
+  const { canConfirm, reason } = await canConfirmCycle(id);
+  if (!canConfirm) {
+    const err = new Error(`Cannot confirm cycle — ${reason}`);
     err.status = 400;
     throw err;
   }
