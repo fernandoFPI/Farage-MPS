@@ -75,7 +75,7 @@ function SidebarContent({ onClose }) {
             <NavItem to="/contracts"       icon={FileText} label={t('nav.contracts')}       onClick={onClose} />
             <NavItem to="/printers"        icon={Printer}  label={t('nav.printers')}        onClick={onClose} />
             <NavItem to="/map"             icon={Map}      label={t('nav.map')}             onClick={onClose} />
-            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead') && (
+            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead' || user?.role?.name === 'mps_specialist') && (
               <NavItem to="/charts" icon={BarChart2} label={t('nav.charts')} onClick={onClose} />
             )}
             <NavItem to="/contract-groups" icon={Layers}   label={t('nav.contractGroups')}  onClick={onClose} />
@@ -100,7 +100,9 @@ function SidebarContent({ onClose }) {
             <NavSep />
             <NavItem to="/billing-cycles" icon={Receipt}       label={t('nav.billingCycles')} onClick={onClose} />
             <NavItem to="/consumables"    icon={Package}       label={t('nav.consumables')}   onClick={onClose} />
-            <NavItem to="/import-logs"    icon={ClipboardList} label={t('nav.importLogs')}    onClick={onClose} />
+            {user?.role?.name !== 'mps_specialist' && (
+              <NavItem to="/import-logs" icon={ClipboardList} label={t('nav.importLogs')} onClick={onClose} />
+            )}
           </>
         )}
 
