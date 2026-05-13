@@ -311,7 +311,8 @@
     "created": "User created successfully",
     "updated": "User updated successfully",
     "requiredFields": "Full name, email, and role are required.",
-    "passwordRequired": "Password is required for new users."
+    "passwordRequired": "Password is required for new users.",
+    "odooIntegrationWarning": "This role is for system integration only. Share these credentials only with the Odoo team."
   },
   "importLogs": {
     "title": "Import Logs",
@@ -386,10 +387,11 @@
     "disputeNotePlaceholder": "Describe the reason for the dispute...",
     "reopenCycle": "Reopen Cycle",
     "reopenPrompt": "Reopen this cycle and set status back to open?",
-    "pushToOdoo": "Push Invoice to Odoo",
-    "odooComingSoon": "Odoo integration coming soon. This will be activated in a future update.",
+    "awaitingOdoo": "Awaiting Invoice from Odoo",
+    "awaitingOdooDesc": "Odoo will automatically pick up this confirmed cycle and create the invoice.",
+    "invoicedInOdoo": "Invoice Created in Odoo",
     "odooInvoiceId": "Odoo Invoice ID",
-    "invoicedAt": "Invoiced At",
+    "invoicedAt": "Invoiced at",
     "noReadings": "No meter readings submitted yet",
     "noReadingsDesc": "The billing summary will appear once readings are added.",
     "submitReading": "Submit a Reading",

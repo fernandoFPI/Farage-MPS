@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { verifyToken } from '../middleware/auth.js';
+import { blockOdoo } from '../middleware/odooGuard.js';
 import {
   listGroups, getGroup, createGroup, updateGroup, deleteGroup,
   addMember, removeMember, getGroupSummary, getGroupByContract,
@@ -7,6 +8,7 @@ import {
 
 const router = Router();
 router.use(verifyToken);
+router.use(blockOdoo);
 
 router.get('/',                              listGroups);
 router.post('/',                             createGroup);

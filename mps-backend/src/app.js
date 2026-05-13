@@ -52,6 +52,14 @@ app.use('/api/contract-groups', contractGroupRoutes);
 app.use('/api/settings', systemSettingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 
+// Odoo integration audit logger
+app.use((req, res, next) => {
+  if (req.user?.role?.name === 'odoo_integration') {
+    console.log(`[ODOO] ${req.method} ${req.path} — ${new Date().toISOString()}`)
+  }
+  next()
+})
+
 // Global error handler — must be last
 app.use((err, req, res, next) => {
   console.error(err);

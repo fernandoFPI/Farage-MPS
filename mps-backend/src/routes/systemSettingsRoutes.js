@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { verifyToken } from '../middleware/auth.js'
+import { blockOdoo } from '../middleware/odooGuard.js'
 import * as controller from '../controllers/systemSettingsController.js'
 
 function requireAdmin(req, res, next) {
@@ -11,7 +12,7 @@ function requireAdmin(req, res, next) {
 
 const router = Router()
 
-router.get('/', verifyToken, controller.list)
-router.patch('/:key', verifyToken, requireAdmin, controller.update)
+router.get('/', verifyToken, blockOdoo, controller.list)
+router.patch('/:key', verifyToken, blockOdoo, requireAdmin, controller.update)
 
 export default router

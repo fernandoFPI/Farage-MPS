@@ -53,6 +53,16 @@ const roles = [
     can_manage_users: true,
     can_push_to_odoo: true,
   },
+  {
+    name: 'odoo_integration',
+    description: 'Dedicated role for Odoo ERP integration — read-only access to confirmed billing data',
+    can_submit_readings: false,
+    can_manage_billing: false,
+    can_confirm_billing: false,
+    can_manage_contracts: false,
+    can_manage_users: false,
+    can_push_to_odoo: true,
+  },
 ];
 
 const roleSql = `

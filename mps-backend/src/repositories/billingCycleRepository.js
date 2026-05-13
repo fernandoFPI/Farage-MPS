@@ -29,13 +29,14 @@ function mapRow(row) {
   };
 }
 
-export async function findAll({ contractId, status } = {}) {
+export async function findAll({ contractId, status, excludeInvoiced } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
 
-  if (contractId) { conditions.push(`bc.contract_id = $${idx++}`); values.push(contractId); }
-  if (status)     { conditions.push(`bc.status = $${idx++}`);       values.push(status); }
+  if (contractId)      { conditions.push(`bc.contract_id = $${idx++}`);   values.push(contractId); }
+  if (status)          { conditions.push(`bc.status = $${idx++}`);         values.push(status); }
+  if (excludeInvoiced) { conditions.push('bc.odoo_invoice_id IS NULL'); }
 
   conditions.push('bc.is_cancelled = false');
   const where = `WHERE ${conditions.join(' AND ')}`;
@@ -263,14 +264,16 @@ export async function hardDeleteCancelledById(id) {
 
 export async function update(id, fields) {
   const columnMap = {
-    status:        'status',
-    disputeNote:   'dispute_note',
-    confirmedAt:   'confirmed_at',
-    cycleGroupId:  'cycle_group_id',
-    groupPosition: 'group_position',
-    isBaseline:    'is_baseline',
-    baselineSetBy: 'baseline_set_by',
-    baselineSetAt: 'baseline_set_at',
+    status:         'status',
+    disputeNote:    'dispute_note',
+    confirmedAt:    'confirmed_at',
+    cycleGroupId:   'cycle_group_id',
+    groupPosition:  'group_position',
+    isBaseline:     'is_baseline',
+    baselineSetBy:  'baseline_set_by',
+    baselineSetAt:  'baseline_set_at',
+    odooInvoiceId:  'odoo_invoice_id',
+    invoicedAt:     'invoiced_at',
   };
 
   const setClauses = [];

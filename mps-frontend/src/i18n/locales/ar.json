@@ -311,7 +311,8 @@
     "created": "تم إنشاء المستخدم بنجاح",
     "updated": "تم تحديث المستخدم بنجاح",
     "requiredFields": "الاسم الكامل والبريد الإلكتروني والدور مطلوبة.",
-    "passwordRequired": "كلمة المرور مطلوبة للمستخدمين الجدد."
+    "passwordRequired": "كلمة المرور مطلوبة للمستخدمين الجدد.",
+    "odooIntegrationWarning": "هذا الدور مخصص للتكامل مع النظام فقط. شارك هذه البيانات مع فريق Odoo فقط."
   },
   "importLogs": {
     "title": "سجلات الاستيراد",
@@ -386,10 +387,11 @@
     "disputeNotePlaceholder": "اكتب سبب الاعتراض...",
     "reopenCycle": "إعادة فتح الدورة",
     "reopenPrompt": "إعادة فتح هذه الدورة وتغيير حالتها إلى مفتوحة؟",
-    "pushToOdoo": "رفع الفاتورة إلى Odoo",
-    "odooComingSoon": "تكامل Odoo قادم قريباً. سيتم تفعيله في تحديث مستقبلي.",
+    "awaitingOdoo": "في انتظار الفاتورة من Odoo",
+    "awaitingOdooDesc": "سيقوم Odoo تلقائياً بالتقاط هذه الدورة المؤكدة وإنشاء الفاتورة.",
+    "invoicedInOdoo": "تم إنشاء الفاتورة في Odoo",
     "odooInvoiceId": "رقم فاتورة Odoo",
-    "invoicedAt": "تاريخ الفوترة",
+    "invoicedAt": "وقت الفوترة",
     "noReadings": "لم يتم تسجيل قراءات عداد بعد",
     "noReadingsDesc": "سيظهر ملخص الفوترة بعد إضافة القراءات.",
     "submitReading": "تسجيل قراءة",

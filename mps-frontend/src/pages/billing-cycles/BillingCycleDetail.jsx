@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock } from 'lucide-react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   useBillingCycle,
@@ -943,8 +943,7 @@ export default function BillingCycleDetail() {
 
   const canConfirm = usePermission('can_confirm_billing')
   const canManage = usePermission('can_manage_billing')
-  const canPushToOdoo = usePermission('can_push_to_odoo')
-  const { data: appSettings } = useSettings()
+const { data: appSettings } = useSettings()
   const showCalculationDetails = appSettings?.show_calculation_details === 'true'
   const { user } = useAuth()
   const isAdmin = user?.role?.name === 'admin'
@@ -1015,10 +1014,6 @@ export default function BillingCycleDetail() {
     } catch (err) {
       setActionError(err.response?.data?.error || err.message)
     }
-  }
-
-  function handlePushToOdoo() {
-    showToast({ title: t('billingCycles.pushToOdoo'), description: t('billingCycles.odooComingSoon'), variant: 'info' })
   }
 
   async function handleCancel() {
@@ -1458,14 +1453,27 @@ export default function BillingCycleDetail() {
                 <span className="text-base font-bold text-teal-600 dark:text-teal-400">{formatAmount(groupSummary.grandTotal, currency)}</span>
               </div>
             </div>
-            {canPushToOdoo && (
-              <div className="mt-4">
-                <button
-                  onClick={handlePushToOdoo}
-                  className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-                >
-                  <ArrowUpCircle className="h-4 w-4" />{t('billingCycles.pushQuarterlyInvoice')}
-                </button>
+            {status === 'confirmed' && (
+              <div className="mt-4 flex items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
+                <Clock className="text-amber-500 flex-shrink-0" size={18} />
+                <div>
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-400">{t('billingCycles.awaitingOdoo')}</p>
+                  <p className="text-xs text-amber-600 dark:text-amber-500 mt-0.5">{t('billingCycles.awaitingOdooDesc')}</p>
+                </div>
+              </div>
+            )}
+            {status === 'invoiced' && (
+              <div className="mt-4 flex items-center gap-2 p-4 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                <CheckCircle className="text-green-500 flex-shrink-0" size={18} />
+                <div>
+                  <p className="text-sm font-medium text-green-800 dark:text-green-400">{t('billingCycles.invoicedInOdoo')}</p>
+                  {cycle.odooInvoiceId && (
+                    <p className="text-xs text-green-600 dark:text-green-500 mt-0.5">{t('billingCycles.odooInvoiceId')}: <span className="font-mono font-medium">{cycle.odooInvoiceId}</span></p>
+                  )}
+                  {cycle.invoicedAt && (
+                    <p className="text-xs text-green-600 dark:text-green-500">{t('billingCycles.invoicedAt')}: {fmtDateTime(cycle.invoicedAt)}</p>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1694,14 +1702,18 @@ export default function BillingCycleDetail() {
               </button>
             )}
 
-            {/* Push to Odoo */}
-            {canPushToOdoo && status === 'confirmed' && (
-              <button
-                onClick={handlePushToOdoo}
-                className="flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-700"
-              >
-                <ArrowUpCircle className="h-4 w-4" />{t('billingCycles.pushToOdoo')}
-              </button>
+            {/* Odoo invoice status */}
+            {status === 'confirmed' && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
+                <Clock className="text-amber-500 flex-shrink-0 h-4 w-4" />
+                <span className="text-sm font-medium text-amber-800 dark:text-amber-400">{t('billingCycles.awaitingOdoo')}</span>
+              </div>
+            )}
+            {status === 'invoiced' && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800">
+                <CheckCircle className="text-green-500 flex-shrink-0 h-4 w-4" />
+                <span className="text-sm font-medium text-green-800 dark:text-green-400">{t('billingCycles.invoicedInOdoo')}</span>
+              </div>
             )}
 
             {/* Group Cycles — three_cycle_quarterly + confirmed + not grouped */}

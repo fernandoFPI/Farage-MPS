@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, UserX } from 'lucide-react'
+import { Plus, Pencil, UserX, AlertTriangle } from 'lucide-react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   useUsers,
@@ -118,6 +118,13 @@ function UserFormModal({ initial, onClose }) {
             ))}
           </select>
         </FormField>
+
+        {selectedRole?.name === 'odoo_integration' && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+            <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">{t('users.odooIntegrationWarning')}</p>
+          </div>
+        )}
 
         {selectedRole && (
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">

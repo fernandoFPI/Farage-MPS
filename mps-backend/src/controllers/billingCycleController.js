@@ -4,7 +4,7 @@ import * as storageService from '../services/customerStorageService.js';
 
 export async function list(req, res, next) {
   try {
-    res.json(await service.listCycles(req.query));
+    res.json(await service.listCycles(req.query, req.user));
   } catch (err) { next(err); }
 }
 
@@ -130,6 +130,12 @@ export async function submitStorage(req, res, next) {
 
     const updated = await cycleRepo.markStorageSubmitted(cycle.id, req.user.id);
     res.json(updated);
+  } catch (err) { next(err); }
+}
+
+export async function markInvoiced(req, res, next) {
+  try {
+    res.json(await service.markInvoiced(req.params.id, req.body));
   } catch (err) { next(err); }
 }
 

@@ -1,6 +1,7 @@
 import * as cycleRepo from '../repositories/billingCycleRepository.js';
 import * as readingRepo from '../repositories/meterReadingRepository.js';
 import * as contractGroupRepo from '../repositories/contractGroupRepository.js';
+import pool from '../config/db.js';
 import {
   calculateBillableUsage,
   validateUsage,
@@ -23,11 +24,16 @@ function toBaghdadMonthKey(value) {
   return `${year}-${month}`;
 }
 
-export async function listCycles(query) {
-  return cycleRepo.findAll({
+export async function listCycles(query, user) {
+  const params = {
     contractId: query.contractId,
     status:     query.status,
-  });
+  };
+  if (user?.role?.name === 'odoo_integration') {
+    params.status = 'confirmed';
+    params.excludeInvoiced = true;
+  }
+  return cycleRepo.findAll(params);
 }
 
 export async function createCycle({ contractId, periodStart, periodEnd }, userId) {
@@ -605,6 +611,59 @@ export async function cancelCycle(id, userId) {
   }
   await cycleRepo.cancelById(id, userId);
   return { message: 'Billing cycle cancelled' };
+}
+
+export async function markInvoiced(id, body) {
+  const { odooInvoiceId } = body;
+
+  if (!odooInvoiceId) {
+    const err = new Error('odooInvoiceId is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const cycle = await cycleRepo.findById(id);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+
+  if (cycle.status !== 'confirmed') {
+    const err = new Error(`Cannot mark as invoiced — cycle status is "${cycle.status}". Only confirmed cycles can be invoiced.`);
+    err.status = 400;
+    throw err;
+  }
+
+  if (cycle.odooInvoiceId) {
+    const err = new Error(`This cycle is already invoiced with Odoo invoice ID: ${cycle.odooInvoiceId}`);
+    err.status = 409;
+    throw err;
+  }
+
+  const updated = await cycleRepo.update(id, {
+    status: 'invoiced',
+    odooInvoiceId,
+    invoicedAt: new Date(),
+  });
+
+  try {
+    await pool.query(
+      `INSERT INTO invoice_logs (billing_cycle_id, success, odoo_invoice_id, attempt_number)
+       VALUES ($1, true, $2, 1)`,
+      [id, odooInvoiceId],
+    );
+  } catch (e) {
+    console.error('Could not write invoice log:', e.message);
+  }
+
+  return {
+    message: 'Billing cycle marked as invoiced',
+    cycleId: id,
+    odooInvoiceId,
+    invoicedAt: updated.invoicedAt,
+    cycleName: updated.cycleName,
+  };
 }
 
 export async function setBaseline(id, { isBaseline }, userId) {
