@@ -137,7 +137,9 @@
     "modeBadgePsgSimple": "PSG Simple",
     "officialContractNumber": "Official Contract Number",
     "officialContractNumberHelper": "This number will appear on the invoice. Leave blank to use the contract number above.",
-    "invoiceReference": "Invoice Reference"
+    "invoiceReference": "Invoice Reference",
+    "serviceType": "Service Type",
+    "serviceTypeHelper": "Used for Odoo account mapping. No effect on billing calculations."
   },
   "printers": {
     "title": "Printers",

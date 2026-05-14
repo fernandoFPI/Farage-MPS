@@ -116,3 +116,65 @@ export async function memberAlreadyInGroup(contractId) {
   );
   return rows.length > 0;
 }
+
+// Find all billing cycles for group members that fall within a given period month
+export async function findGroupCyclesForPeriod(groupId, periodStart) {
+  const { rows } = await pool.query(
+    `SELECT bc.id, bc.status, bc.odoo_invoice_id,
+            bc.period_start, bc.period_end, bc.contract_id,
+            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+            cu.name AS customer_name,
+            co.contract_number, co.official_contract_number
+     FROM billing_cycles bc
+     JOIN contract_group_members cgm ON cgm.contract_id = bc.contract_id
+     JOIN contracts co ON co.id = bc.contract_id
+     JOIN customers cu ON cu.id = co.customer_id
+     WHERE cgm.group_id = $1
+       AND DATE_TRUNC('month', bc.period_start AT TIME ZONE 'UTC') =
+           DATE_TRUNC('month', $2::timestamptz AT TIME ZONE 'UTC')
+       AND bc.is_cancelled = false`,
+    [groupId, periodStart],
+  );
+  return rows.map(row => ({
+    id: row.id,
+    status: row.status,
+    odooInvoiceId: row.odoo_invoice_id,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    contractId: row.contract_id,
+    contractNumber: row.contract_number,
+    officialContractNumber: row.official_contract_number,
+    customerName: row.customer_name,
+    cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
+  }));
+}
+
+// Mark multiple cycles as invoiced in a single transaction
+export async function markCyclesInvoiced(invoices) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const results = [];
+    for (const { cycleId, odooInvoiceId, cycleName } of invoices) {
+      await client.query(
+        `UPDATE billing_cycles
+         SET status = 'invoiced', odoo_invoice_id = $1, invoiced_at = NOW()
+         WHERE id = $2`,
+        [odooInvoiceId, cycleId],
+      );
+      await client.query(
+        `INSERT INTO invoice_logs (billing_cycle_id, success, odoo_invoice_id, attempt_number)
+         VALUES ($1, true, $2, 1)`,
+        [cycleId, odooInvoiceId],
+      );
+      results.push({ cycleId, cycleName, odooInvoiceId });
+    }
+    await client.query('COMMIT');
+    return results;
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}

@@ -347,6 +347,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     cycleName:              cycle.cycleName,
     contractNumber:         cycle.contract.contractNumber,
     officialContractNumber: cycle.contract.officialContractNumber ?? null,
+    serviceType:            cycle.contract.serviceType ?? null,
     customerName:           cycle.contract.customer.name,
     periodStart:            cycle.periodStart,
     periodEnd:              cycle.periodEnd,

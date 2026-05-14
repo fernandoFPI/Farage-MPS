@@ -26,6 +26,9 @@ function mapRow(row) {
     storageSubmittedAt: row.storage_submitted_at ?? null,
     storageSubmittedBy: row.storage_submitted_by ?? null,
     storageSubmittedByName: row.storage_submitted_by_name ?? null,
+    contractGroupId:   row.contract_group_id   ?? null,
+    contractGroupName: row.contract_group_name ?? null,
+    isGrouped:         !!row.contract_group_id,
   };
 }
 
@@ -42,10 +45,12 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
   const where = `WHERE ${conditions.join(' AND ')}`;
 
   const { rows } = await pool.query(
-    `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, cu.name AS customer_name,
+    `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, co.service_type, cu.name AS customer_name,
             bu.full_name AS baseline_set_by_name,
             su.full_name AS storage_submitted_by_name,
             TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+            cg.id   AS contract_group_id,
+            cg.name AS contract_group_name,
             COALESCE(
               (SELECT json_agg(json_build_object('city', cs.city, 'status', cs.status, 'totalPrinters', cs.total_printers, 'submittedPrinters', cs.submitted_printers))
                FROM billing_cycle_city_status cs WHERE cs.billing_cycle_id = bc.id),
@@ -56,6 +61,10 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      LEFT JOIN users su ON bc.storage_submitted_by = su.id
+     LEFT JOIN contract_groups cg ON cg.id = (
+       SELECT cgm.group_id FROM contract_group_members cgm
+       WHERE cgm.contract_id = bc.contract_id LIMIT 1
+     )
      ${where}
      ORDER BY bc.created_at DESC`,
     values,
@@ -68,7 +77,7 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
       contractNumber: row.contract_number,
       customerName: row.customer_name,
       cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
-      contract: { contractNumber: row.contract_number, contractMode: row.contract_mode ?? 'osg', officialContractNumber: row.official_contract_number ?? null },
+      contract: { contractNumber: row.contract_number, contractMode: row.contract_mode ?? 'osg', officialContractNumber: row.official_contract_number ?? null, serviceType: row.service_type ?? null },
       cityStatuses,
     };
   });
@@ -81,6 +90,8 @@ export async function findById(id) {
        bu.full_name AS baseline_set_by_name,
        su.full_name AS storage_submitted_by_name,
        TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+       cg.id   AS contract_group_id,
+       cg.name AS contract_group_name,
        json_build_object(
          'id',                 co.id,
          'contractNumber',          co.contract_number,
@@ -101,6 +112,7 @@ export async function findById(id) {
          'contractMode',       co.contract_mode,
          'invoiceFrequency',   co.invoice_frequency,
          'combinedInvoice',    co.combined_invoice,
+         'serviceType',        co.service_type,
          'customer', json_build_object(
            'id',   cu.id,
            'name', cu.name
@@ -111,6 +123,10 @@ export async function findById(id) {
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      LEFT JOIN users su ON bc.storage_submitted_by = su.id
+     LEFT JOIN contract_groups cg ON cg.id = (
+       SELECT cgm.group_id FROM contract_group_members cgm
+       WHERE cgm.contract_id = bc.contract_id LIMIT 1
+     )
      WHERE bc.id = $1`,
     [id],
   );

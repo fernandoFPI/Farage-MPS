@@ -9,6 +9,12 @@ import { useCustomers } from '../../api/hooks/useCustomers'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+const SERVICE_TYPES = {
+  osg:        ['MPS', 'FSMA', 'LS', 'LO'],
+  psg:        ['FSMA', 'SMA', 'LO'],
+  psg_simple: ['FSMA', 'SMA', 'LO'],
+}
+
 const empty = {
   customerId: '', contractNumber: '', officialContractNumber: '', billingType: 'per_click', contractMode: 'osg', currency: 'IQD',
   fixedCharge: '', bwPrice: '', colorPrice: '',
@@ -16,6 +22,7 @@ const empty = {
   a4Price: '', a3Price: '', startDate: '', endDate: '',
   confirmationSlaDays: '5', isActive: true,
   invoiceFrequency: 'monthly', quarterStartMonths: [], combinedInvoice: false,
+  serviceType: '',
 }
 
 function ModeBadge({ mode }) {
@@ -62,6 +69,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         invoiceFrequency: initial.invoiceFrequency ?? 'monthly',
         quarterStartMonths: initial.quarterStartMonths ?? [],
         combinedInvoice: initial.combinedInvoice ?? false,
+        serviceType: initial.serviceType ?? '',
       })
     } else {
       setForm({ ...empty, customerId: defaultCustomerId || '' })
@@ -77,6 +85,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
       ...f,
       contractMode: mode,
       billingType: (mode === 'psg' || mode === 'psg_simple') ? 'per_click' : f.billingType,
+      serviceType: SERVICE_TYPES[mode]?.includes(f.serviceType) ? f.serviceType : '',
     }))
   }
 
@@ -121,6 +130,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         // PSG fields
         a4Price: isPsgAny ? (Number(form.a4Price) || 0) : 0,
         a3Price: isPsg    ? (Number(form.a3Price) || 0) : 0,
+        serviceType: form.serviceType || null,
       }
       if (isEdit) await update.mutateAsync({ id: initial.id, ...payload })
       else await create.mutateAsync(payload)
@@ -230,6 +240,21 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
           </label>
           <input className={inputCls} value={form.officialContractNumber} onChange={e => set('officialContractNumber', e.target.value)} placeholder={form.contractNumber || '—'} />
           <p className="text-xs text-gray-400 dark:text-gray-500">{t('contracts.officialContractNumberHelper')}</p>
+        </div>
+
+        {/* Service Type */}
+        <div className="space-y-1">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {t('contracts.serviceType')}
+            <span className="ms-1 text-xs font-normal text-gray-400">({t('common.optional')})</span>
+          </label>
+          <select className={inputCls} value={form.serviceType} onChange={e => set('serviceType', e.target.value)}>
+            <option value="">—</option>
+            {(SERVICE_TYPES[form.contractMode] ?? []).map(st => (
+              <option key={st} value={st}>{st}</option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-400 dark:text-gray-500">{t('contracts.serviceTypeHelper')}</p>
         </div>
 
         {/* OSG-only fields */}

@@ -3,6 +3,11 @@ import * as repo from '../repositories/contractRepository.js';
 const VALID_BILLING_TYPES = ['per_click', 'minimum_volume'];
 const VALID_INVOICE_FREQUENCIES = ['monthly', 'quarterly', 'three_cycle_quarterly'];
 const VALID_CONTRACT_MODES = ['osg', 'psg', 'psg_simple'];
+const SERVICE_TYPES = {
+  osg:        ['MPS', 'FSMA', 'LS', 'LO'],
+  psg:        ['FSMA', 'SMA', 'LO'],
+  psg_simple: ['FSMA', 'SMA', 'LO'],
+};
 
 function validateInvoiceFrequency(data) {
   const freq = data.invoiceFrequency ?? 'monthly';
@@ -97,6 +102,7 @@ export async function listContracts(query) {
   if (query.customerId) filter.customerId = query.customerId;
   if (query.isActive !== undefined) filter.isActive = query.isActive === 'true';
   if (query.contractMode) filter.contractMode = query.contractMode;
+  if (query.serviceType) filter.serviceType = query.serviceType;
   return repo.findAll(filter);
 }
 
@@ -132,6 +138,15 @@ export async function createContract(data) {
   }
 
   validateInvoiceFrequency(normalised);
+
+  if (normalised.serviceType) {
+    const allowed = SERVICE_TYPES[normalised.contractMode] ?? [];
+    if (!allowed.includes(normalised.serviceType)) {
+      const err = new Error(`serviceType must be one of: ${allowed.join(', ')} for ${normalised.contractMode} contracts`);
+      err.status = 400;
+      throw err;
+    }
+  }
 
   const numExists = await repo.contractNumberExists(contractNumber);
   if (numExists) {
@@ -180,6 +195,15 @@ export async function updateContract(id, fields) {
 
   if (fields.invoiceFrequency !== undefined || fields.quarterStartMonths !== undefined) {
     validateInvoiceFrequency(normalised);
+  }
+
+  if (normalised.serviceType) {
+    const allowed = SERVICE_TYPES[normalised.contractMode] ?? [];
+    if (!allowed.includes(normalised.serviceType)) {
+      const err = new Error(`serviceType must be one of: ${allowed.join(', ')} for ${normalised.contractMode} contracts`);
+      err.status = 400;
+      throw err;
+    }
   }
 
   const startDate = normalised.startDate ?? existing.startDate;

@@ -1105,6 +1105,14 @@ const { data: appSettings } = useSettings()
                   : cycle.contract?.contractMode === 'psg_simple' ? 'PSG Simple'
                   : 'OSG'}
               </span>
+              {cycle.contract?.serviceType && (
+                <>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                    {cycle.contract.serviceType}
+                  </span>
+                </>
+              )}
               <span className="text-gray-300 dark:text-gray-600">|</span>
               <span>
                 <span className="text-gray-400">Period:</span>{' '}

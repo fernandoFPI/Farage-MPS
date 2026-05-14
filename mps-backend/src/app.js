@@ -55,7 +55,7 @@ app.use('/api/analytics', analyticsRoutes);
 // Odoo integration audit logger
 app.use((req, res, next) => {
   if (req.user?.role?.name === 'odoo_integration') {
-    console.log(`[ODOO] ${req.method} ${req.path} — ${new Date().toISOString()}`)
+    console.log(`[ODOO] ${req.method} ${req.path} — ${new Date().toISOString()} — user: ${req.user.email}`)
   }
   next()
 })

@@ -137,7 +137,9 @@
     "modeBadgePsgSimple": "PSG بسيط",
     "officialContractNumber": "رقم العقد الرسمي",
     "officialContractNumberHelper": "سيظهر هذا الرقم في الفاتورة. اتركه فارغاً لاستخدام رقم العقد أعلاه.",
-    "invoiceReference": "مرجع الفاتورة"
+    "invoiceReference": "مرجع الفاتورة",
+    "serviceType": "نوع الخدمة",
+    "serviceTypeHelper": "يُستخدم لتعيين الحساب في Odoo. لا يؤثر على حسابات الفوترة."
   },
   "printers": {
     "title": "الطابعات",

@@ -58,3 +58,21 @@ export async function getGroupByContract(req, res, next) {
     res.json(groups);
   } catch (e) { next(e); }
 }
+
+export async function billingSummary(req, res, next) {
+  try {
+    const { periodStart } = req.query;
+    res.json(await svc.getGroupBillingSummaryForOdoo(req.params.id, periodStart));
+  } catch (e) { next(e); }
+}
+
+export async function markInvoiced(req, res, next) {
+  try {
+    res.json(await svc.markGroupInvoiced(req.params.id, req.body));
+  } catch (e) {
+    if (e.status === 409 && e.alreadyInvoiced) {
+      return res.status(409).json({ error: e.message, alreadyInvoiced: e.alreadyInvoiced });
+    }
+    next(e);
+  }
+}

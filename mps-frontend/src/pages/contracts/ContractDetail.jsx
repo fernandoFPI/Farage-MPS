@@ -86,6 +86,13 @@ export default function ContractDetail() {
                 {isPsg ? t('contracts.modeBadgePsg') : t('contracts.modeBadgeOsg')}
               </span>
             } />
+            {contract.serviceType && (
+              <InfoRow label={t('contracts.serviceType')} value={
+                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">
+                  {contract.serviceType}
+                </span>
+              } />
+            )}
             {!isPsg && <InfoRow label={t('contracts.billingType')} value={<StatusBadge status={contract.billingType} />} />}
             <InfoRow label={t('contracts.isActive')} value={<StatusBadge status={contract.isActive ? 'active' : 'inactive'} />} />
             <InfoRow label={t('contracts.startDate')} value={fmtDate(contract.startDate)} />

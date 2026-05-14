@@ -28,10 +28,11 @@ function mapRow(row) {
     combinedInvoice: row.combined_invoice ?? false,
     contractMode: row.contract_mode ?? 'osg',
     officialContractNumber: row.official_contract_number ?? null,
+    serviceType: row.service_type ?? null,
   };
 }
 
-export async function findAll({ customerId, isActive, contractMode } = {}) {
+export async function findAll({ customerId, isActive, contractMode, serviceType } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -47,6 +48,10 @@ export async function findAll({ customerId, isActive, contractMode } = {}) {
   if (contractMode !== undefined) {
     conditions.push(`co.contract_mode = $${idx++}`);
     values.push(contractMode);
+  }
+  if (serviceType !== undefined) {
+    conditions.push(`co.service_type = $${idx++}`);
+    values.push(serviceType);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -137,8 +142,8 @@ export async function create(data) {
        a4_price, a3_price,
        start_date, end_date, confirmation_sla_days, is_active,
        invoice_frequency, quarter_start_months, combined_invoice,
-       contract_mode, official_contract_number
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
+       contract_mode, official_contract_number, service_type
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
      RETURNING id`,
     [
       data.customerId,
@@ -164,6 +169,7 @@ export async function create(data) {
       data.combinedInvoice ?? false,
       data.contractMode ?? 'osg',
       data.officialContractNumber ?? null,
+      data.serviceType ?? null,
     ],
   );
   return findById(rows[0].id);
@@ -192,6 +198,7 @@ export async function update(id, fields) {
     quarterStartMonths: 'quarter_start_months',
     combinedInvoice: 'combined_invoice',
     officialContractNumber: 'official_contract_number',
+    serviceType: 'service_type',
   };
 
   const setClauses = [];

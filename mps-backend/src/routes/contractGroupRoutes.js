@@ -1,23 +1,28 @@
 import { Router } from 'express';
-import { verifyToken } from '../middleware/auth.js';
-import { blockOdoo } from '../middleware/odooGuard.js';
+import { verifyToken, requirePermission } from '../middleware/auth.js';
+import { blockOdoo, requireOdooOrFinance } from '../middleware/odooGuard.js';
 import {
   listGroups, getGroup, createGroup, updateGroup, deleteGroup,
   addMember, removeMember, getGroupSummary, getGroupByContract,
+  billingSummary, markInvoiced,
 } from '../controllers/contractGroupController.js';
 
 const router = Router();
-router.use(verifyToken);
-router.use(blockOdoo);
+const manage = [verifyToken, blockOdoo, requirePermission('can_manage_contracts')];
 
-router.get('/',                              listGroups);
-router.post('/',                             createGroup);
-router.get('/by-contract/:contractId',       getGroupByContract);
-router.get('/:id',                           getGroup);
-router.put('/:id',                           updateGroup);
-router.delete('/:id',                        deleteGroup);
-router.get('/:id/summary',                   getGroupSummary);
-router.post('/:id/members',                  addMember);
-router.delete('/:id/members/:contractId',    removeMember);
+// Management endpoints — blocked for Odoo
+router.get('/',                              verifyToken, blockOdoo, listGroups);
+router.post('/',                             ...manage,              createGroup);
+router.get('/by-contract/:contractId',       verifyToken, blockOdoo, getGroupByContract);
+router.get('/:id',                           verifyToken, blockOdoo, getGroup);
+router.put('/:id',                           ...manage,              updateGroup);
+router.delete('/:id',                        ...manage,              deleteGroup);
+router.get('/:id/summary',                   verifyToken, blockOdoo, getGroupSummary);
+router.post('/:id/members',                  ...manage,              addMember);
+router.delete('/:id/members/:contractId',    ...manage,              removeMember);
+
+// Odoo-accessible endpoints
+router.get('/:id/billing-summary',           verifyToken, requireOdooOrFinance, billingSummary);
+router.post('/:id/mark-invoiced',            verifyToken, requireOdooOrFinance, markInvoiced);
 
 export default router;

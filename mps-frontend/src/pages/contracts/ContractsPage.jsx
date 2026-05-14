@@ -18,6 +18,7 @@ export default function ContractsPage() {
   const [customerId, setCustomerId] = useState('')
   const [isActive, setIsActive] = useState('')
   const [contractMode, setContractMode] = useState('')
+  const [serviceType, setServiceType] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -27,6 +28,7 @@ export default function ContractsPage() {
   if (customerId) params.customerId = customerId
   if (isActive !== '') params.isActive = isActive
   if (contractMode) params.contractMode = contractMode
+  if (serviceType) params.serviceType = serviceType
 
   const { data, isLoading } = useContracts(params)
   const { data: customers = [] } = useCustomers()
@@ -58,6 +60,11 @@ export default function ContractsPage() {
           {r.contractMode === 'psg' ? t('contracts.modeBadgePsg') : t('contracts.modeBadgeOsg')}
         </span>
       ),
+    },
+    { key: 'serviceType', label: t('contracts.serviceType'), className: 'hidden md:table-cell',
+      render: r => r.serviceType
+        ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{r.serviceType}</span>
+        : <span className="text-xs text-gray-400">—</span>,
     },
     { key: 'billingType', label: t('contracts.billingType'), className: 'hidden lg:table-cell',
       render: r => r.contractMode === 'psg' ? <span className="text-xs text-gray-400">—</span> : <StatusBadge status={r.billingType} /> },
@@ -102,6 +109,11 @@ export default function ContractsPage() {
               <option value="">{t('contracts.contractMode')}: All</option>
               <option value="osg">{t('contracts.modeBadgeOsg')}</option>
               <option value="psg">{t('contracts.modeBadgePsg')}</option>
+            </select>
+            <select value={serviceType} onChange={e => setServiceType(e.target.value)}
+              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">
+              <option value="">{t('contracts.serviceType')}: All</option>
+              {['MPS', 'FSMA', 'LS', 'LO', 'SMA'].map(st => <option key={st} value={st}>{st}</option>)}
             </select>
             <button onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
               <Plus className="h-4 w-4" />{t('contracts.addContract')}
