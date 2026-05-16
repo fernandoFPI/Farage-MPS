@@ -1734,8 +1734,8 @@ const { data: appSettings } = useSettings()
               </button>
             )}
 
-            {/* Baseline toggle — admin only */}
-            {isAdmin && (
+            {/* Baseline toggle — admin and mps_specialist */}
+            {(isAdmin || canManage) && (
               cycle.isBaseline ? (
                 <button
                   onClick={() => { setActionError(''); setRemoveBaselineOpen(true) }}
