@@ -279,7 +279,7 @@ export async function findAllCancelled() {
 
 export async function hardDeleteCancelledById(id) {
   const { rowCount } = await pool.query(
-    `DELETE FROM billing_cycles WHERE id = $1 AND is_cancelled = true`,
+    `DELETE FROM billing_cycles WHERE id = $1 AND (is_cancelled = true OR deleted_at IS NOT NULL)`,
     [id],
   );
   return rowCount > 0;

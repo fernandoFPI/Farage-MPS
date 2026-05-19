@@ -16,7 +16,6 @@ import SubmitReadingPage from '../pages/meter-readings/SubmitReadingPage'
 import XsmImportPage from '../pages/xsm-import/XsmImportPage'
 import BillingCyclesPage from '../pages/billing-cycles/BillingCyclesPage'
 import BillingCycleDetail from '../pages/billing-cycles/BillingCycleDetail'
-import DeletedCyclesPage from '../pages/billing-cycles/DeletedCyclesPage'
 import CycleGroupDetail from '../pages/billing-cycles/CycleGroupDetail'
 import UsersPage from '../pages/users/UsersPage'
 import ImportLogsPage from '../pages/import-logs/ImportLogsPage'
@@ -78,7 +77,6 @@ export default function RouterConfig() {
           <Route path="meter-readings/submit" element={<SubmitReadingPage />} />
           <Route path="xsm-import" element={<XsmImportPage />} />
           <Route path="billing-cycles" element={<BillingCyclesPage />} />
-          <Route path="billing-cycles/deleted" element={<DeletedCyclesPage />} />
           <Route path="billing-cycles/:id" element={<BillingCycleDetail />} />
           <Route path="cycle-groups/:id" element={<CycleGroupDetail />} />
           <Route path="users" element={<UsersPage />} />

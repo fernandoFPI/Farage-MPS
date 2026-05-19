@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2 } from 'lucide-react'
+import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw } from 'lucide-react'
 import AccordionGroup from '../../components/AccordionGroup'
 import {
   useBillingCycles,
   useCreateBillingCycle,
   useConfirmCycle,
-  useCancelledCycles,
+  useDeletedCycles,
   useHardDeleteCycle,
+  useRestoreCycle,
 } from '../../api/hooks/useBillingCycles'
 import { useContracts } from '../../api/hooks/useContracts'
 import { usePermission } from '../../hooks/usePermission'
@@ -183,9 +184,11 @@ export default function BillingCyclesPage() {
   const { data: cycles = [], isLoading } = useBillingCycles(params)
   const { data: allContracts = [] } = useContracts()
   const confirmMutation = useConfirmCycle()
-  const { data: cancelledCycles = [], isLoading: cancelledLoading } = useCancelledCycles()
+  const { data: deletedCycles = [], isLoading: deletedLoading } = useDeletedCycles()
   const hardDeleteMutation = useHardDeleteCycle()
+  const restoreMutation = useRestoreCycle()
   const [purgingCycle, setPurgingCycle] = useState(null)
+  const [restoringCycle, setRestoringCycle] = useState(null)
 
   // Group cycles by customer name for accordion view
   const customerCycleGroups = useMemo(() => {
@@ -208,6 +211,16 @@ export default function BillingCyclesPage() {
       await hardDeleteMutation.mutateAsync(purgingCycle.id)
       showToast({ title: t('billingCycles.purged'), variant: 'success' })
       setPurgingCycle(null)
+    } catch (err) {
+      showToast({ title: err.response?.data?.error || err.message, variant: 'error' })
+    }
+  }
+
+  async function handleRestore() {
+    try {
+      await restoreMutation.mutateAsync(restoringCycle.id)
+      showToast({ title: t('billingCycles.restored'), variant: 'success' })
+      setRestoringCycle(null)
     } catch (err) {
       showToast({ title: err.response?.data?.error || err.message, variant: 'error' })
     }
@@ -323,12 +336,12 @@ export default function BillingCyclesPage() {
       render: r => formatPeriod(r.periodStart, r.periodEnd),
     },
     {
-      key: 'cancelledAt',
-      label: t('billingCycles.cancelledAt'),
+      key: 'deletedAt',
+      label: t('billingCycles.deletedAt'),
       render: r => (
         <div>
-          <p className="text-sm text-gray-700 dark:text-gray-300">{fmtDateTime(r.cancelledAt)}</p>
-          {r.cancelledByName && <p className="text-xs text-gray-400">{r.cancelledByName}</p>}
+          <p className="text-sm text-gray-700 dark:text-gray-300">{fmtDateTime(r.deletedAt)}</p>
+          {r.deletedByName && <p className="text-xs text-gray-400">{r.deletedByName}</p>}
         </div>
       ),
     },
@@ -336,14 +349,22 @@ export default function BillingCyclesPage() {
       key: 'actions',
       label: t('common.actions'),
       render: r => (
-        <button
-          onClick={() => setPurgingCycle(r)}
-          className="flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-900/20"
-          title={t('billingCycles.purge')}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          {t('billingCycles.purge')}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setRestoringCycle(r)}
+            className="flex items-center gap-1.5 rounded-lg border border-brand-200 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-50 dark:border-brand-800/50 dark:text-brand-400 dark:hover:bg-brand-900/20"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {t('billingCycles.restore')}
+          </button>
+          <button
+            onClick={() => setPurgingCycle(r)}
+            className="flex items-center gap-1.5 rounded-lg border border-red-200 px-2.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-800/50 dark:text-red-400 dark:hover:bg-red-900/20"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            {t('billingCycles.purge')}
+          </button>
+        </div>
       ),
     },
   ]
@@ -367,14 +388,6 @@ export default function BillingCyclesPage() {
               ))}
             </select>
             <ViewToggle view={view} onChange={changeView} t={t} />
-            {isAdmin && (
-              <Link
-                to="/billing-cycles/deleted"
-                className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
-              >
-                <Trash2 className="h-4 w-4" />{t('billingCycles.recycleBin')}
-              </Link>
-            )}
             {canManage && (
               <button
                 onClick={() => setCreateOpen(true)}
@@ -410,9 +423,9 @@ export default function BillingCyclesPage() {
           >
             <Trash2 className="h-3.5 w-3.5" />
             {t('billingCycles.deletedCycles')}
-            {cancelledCycles.length > 0 && (
+            {deletedCycles.length > 0 && (
               <span className="rounded-full bg-red-100 px-1.5 py-0.5 text-xs font-semibold text-red-600 dark:bg-red-900/30 dark:text-red-400">
-                {cancelledCycles.length}
+                {deletedCycles.length}
               </span>
             )}
           </button>
@@ -420,7 +433,7 @@ export default function BillingCyclesPage() {
       )}
 
       {tab === 'deleted' && isAdmin ? (
-        <DataTable columns={cancelledColumns} data={cancelledCycles} loading={cancelledLoading} emptyMessage={t('common.noData')} />
+        <DataTable columns={cancelledColumns} data={deletedCycles} loading={deletedLoading} emptyMessage={t('billingCycles.recycleBinEmpty')} />
       ) : view === 'list' ? (
         <DataTable columns={columns} data={cycles} loading={isLoading} emptyMessage={t('common.noData')} />
       ) : isLoading ? (
@@ -509,6 +522,19 @@ export default function BillingCyclesPage() {
         loading={hardDeleteMutation.isPending}
         confirmLabel={t('billingCycles.purge')}
         confirmClassName="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+      />
+
+      <ConfirmDialog
+        open={!!restoringCycle}
+        onClose={() => setRestoringCycle(null)}
+        onConfirm={handleRestore}
+        title={t('billingCycles.restoreTitle')}
+        description={restoringCycle
+          ? `${restoringCycle.cycleName}\n${t('billingCycles.period')}: ${formatPeriod(restoringCycle.periodStart, restoringCycle.periodEnd)}`
+          : ''}
+        loading={restoreMutation.isPending}
+        confirmLabel={t('billingCycles.restore')}
+        confirmClassName="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
       />
     </div>
   )
