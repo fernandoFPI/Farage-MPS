@@ -29,6 +29,8 @@ function mapRow(row) {
     contractGroupId:   row.contract_group_id   ?? null,
     contractGroupName: row.contract_group_name ?? null,
     isGrouped:         !!row.contract_group_id,
+    deletedAt:         row.deleted_at         ?? null,
+    deletedByUserId:   row.deleted_by_user_id ?? null,
   };
 }
 
@@ -42,6 +44,7 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
   if (excludeInvoiced) { conditions.push('bc.odoo_invoice_id IS NULL'); }
 
   conditions.push('bc.is_cancelled = false');
+  conditions.push('bc.deleted_at IS NULL');
   const where = `WHERE ${conditions.join(' AND ')}`;
 
   const { rows } = await pool.query(
@@ -127,7 +130,7 @@ export async function findById(id) {
        SELECT cgm.group_id FROM contract_group_members cgm
        WHERE cgm.contract_id = bc.contract_id LIMIT 1
      )
-     WHERE bc.id = $1`,
+     WHERE bc.id = $1 AND bc.deleted_at IS NULL`,
     [id],
   );
   if (!rows[0]) return null;
@@ -148,6 +151,7 @@ export async function findByContractAndPeriod(contractId, periodStart) {
      WHERE contract_id = $1
        AND period_start = $2
        AND bc.is_cancelled = false
+       AND bc.deleted_at IS NULL
      LIMIT 1`,
     [contractId, periodStart],
   );
@@ -160,7 +164,8 @@ export async function cycleExists(contractId, periodStart) {
      FROM billing_cycles
      WHERE contract_id = $1
        AND period_start = $2
-       AND is_cancelled = false`,
+       AND is_cancelled = false
+       AND deleted_at IS NULL`,
     [contractId, periodStart],
   );
   return rows.length > 0;
@@ -193,6 +198,7 @@ export async function findLaterConfirmedCycles(contractId, afterPeriodStart) {
      WHERE contract_id = $1
        AND period_start > $2
        AND status IN ('confirmed', 'invoiced')
+       AND deleted_at IS NULL
      LIMIT 1`,
     [contractId, afterPeriodStart],
   );
@@ -229,6 +235,7 @@ export async function findByCycleGroupId(cycleGroupId) {
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      WHERE bc.cycle_group_id = $1
+       AND bc.deleted_at IS NULL
      ORDER BY bc.group_position ASC`,
     [cycleGroupId],
   );
@@ -339,6 +346,47 @@ export async function markStorageSubmitted(id, userId) {
     [id, userId],
   );
   return findById(id);
+}
+
+export async function softDelete(id, userId) {
+  const { rowCount } = await pool.query(
+    `UPDATE billing_cycles
+     SET deleted_at = NOW(), deleted_by_user_id = $2
+     WHERE id = $1 AND deleted_at IS NULL`,
+    [id, userId],
+  );
+  return rowCount > 0;
+}
+
+export async function findAllDeleted() {
+  const { rows } = await pool.query(
+    `SELECT bc.*, co.contract_number, cu.name AS customer_name,
+            du.full_name AS deleted_by_name,
+            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
+     FROM billing_cycles bc
+     JOIN contracts co ON bc.contract_id = co.id
+     JOIN customers cu ON co.customer_id = cu.id
+     LEFT JOIN users du ON bc.deleted_by_user_id = du.id
+     WHERE bc.deleted_at IS NOT NULL
+     ORDER BY bc.deleted_at DESC`,
+  );
+  return rows.map(row => ({
+    ...mapRow(row),
+    contractNumber: row.contract_number,
+    customerName: row.customer_name,
+    cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
+    deletedByName: row.deleted_by_name ?? null,
+  }));
+}
+
+export async function restore(id) {
+  const { rowCount } = await pool.query(
+    `UPDATE billing_cycles
+     SET deleted_at = NULL, deleted_by_user_id = NULL
+     WHERE id = $1 AND deleted_at IS NOT NULL`,
+    [id],
+  );
+  return rowCount > 0;
 }
 
 export async function resetStorage(id) {

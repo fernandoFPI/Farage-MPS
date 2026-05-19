@@ -588,6 +588,41 @@ export async function getCancelledCycles() {
   return cycleRepo.findAllCancelled();
 }
 
+export async function softDeleteCycle(id, userId) {
+  const cycle = await cycleRepo.findById(id);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  if (cycle.status === 'invoiced') {
+    const err = new Error('Cannot delete an invoiced billing cycle');
+    err.status = 400;
+    throw err;
+  }
+  if (cycle.cycleGroupId) {
+    const err = new Error('Cannot delete a cycle that is part of a quarterly group');
+    err.status = 400;
+    throw err;
+  }
+  await cycleRepo.softDelete(id, userId);
+  return { message: 'Billing cycle moved to recycle bin' };
+}
+
+export async function getDeletedCycles() {
+  return cycleRepo.findAllDeleted();
+}
+
+export async function restoreCycle(id) {
+  const restored = await cycleRepo.restore(id);
+  if (!restored) {
+    const err = new Error('Deleted billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  return { message: 'Billing cycle restored' };
+}
+
 export async function hardDeleteCycle(id) {
   const deleted = await cycleRepo.hardDeleteCancelledById(id);
   if (!deleted) {

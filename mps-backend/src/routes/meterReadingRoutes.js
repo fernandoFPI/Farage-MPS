@@ -6,6 +6,7 @@ import * as ctrl from '../controllers/meterReadingController.js';
 const router = Router();
 
 router.get('/previous',   verifyToken, blockOdoo,                                           ctrl.getPrevious);
+router.delete('/bulk',    verifyToken, blockOdoo,                                           ctrl.bulkDelete);
 router.get('/',           verifyToken, blockOdoo,                                           ctrl.list);
 router.post('/',          verifyToken, blockOdoo, requirePermission('can_submit_readings'), ctrl.create);
 router.get('/:id/photos', verifyToken, blockOdoo,                                           ctrl.getPhotos);

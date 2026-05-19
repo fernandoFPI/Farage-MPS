@@ -56,7 +56,19 @@ export async function cancel(req, res, next) {
     if (req.user.role?.name !== 'admin') {
       return res.status(403).json({ error: 'Admin only' });
     }
-    res.json(await service.cancelCycle(req.params.id, req.user.id));
+    res.json(await service.softDeleteCycle(req.params.id, req.user.id));
+  } catch (err) { next(err); }
+}
+
+export async function listDeleted(req, res, next) {
+  try {
+    res.json(await service.getDeletedCycles());
+  } catch (err) { next(err); }
+}
+
+export async function restoreCycle(req, res, next) {
+  try {
+    res.json(await service.restoreCycle(req.params.id));
   } catch (err) { next(err); }
 }
 

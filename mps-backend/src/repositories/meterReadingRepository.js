@@ -308,3 +308,26 @@ export async function deleteById(id) {
   const { rowCount } = await pool.query(`DELETE FROM meter_readings WHERE id = $1`, [id]);
   return rowCount > 0;
 }
+
+export async function findManyByIds(ids) {
+  if (!ids.length) return [];
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+  const { rows } = await pool.query(
+    `SELECT mr.id, mr.billing_cycle_id, bc.status AS cycle_status
+     FROM meter_readings mr
+     JOIN billing_cycles bc ON mr.billing_cycle_id = bc.id
+     WHERE mr.id IN (${placeholders})`,
+    ids,
+  );
+  return rows;
+}
+
+export async function deleteManyByIds(ids) {
+  if (!ids.length) return 0;
+  const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
+  const { rowCount } = await pool.query(
+    `DELETE FROM meter_readings WHERE id IN (${placeholders})`,
+    ids,
+  );
+  return rowCount;
+}

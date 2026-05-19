@@ -364,3 +364,43 @@ export async function updateReading(id, body) {
 export async function getPreviousReading(printerId, beforeDate) {
   return readingRepo.getPreviousReading(printerId, beforeDate);
 }
+
+export async function bulkDeleteReadings(ids, confirmDelete) {
+  if (!Array.isArray(ids) || ids.length === 0) {
+    const err = new Error('ids must be a non-empty array');
+    err.status = 400;
+    throw err;
+  }
+  if (ids.length > 100) {
+    const err = new Error('Cannot bulk delete more than 100 readings at once');
+    err.status = 400;
+    throw err;
+  }
+
+  const rows = await readingRepo.findManyByIds(ids);
+  const found = new Set(rows.map(r => r.id));
+  const missing = ids.filter(id => !found.has(id));
+  if (missing.length > 0) {
+    const err = new Error(`Readings not found: ${missing.join(', ')}`);
+    err.status = 404;
+    throw err;
+  }
+
+  const invoicedIds = rows.filter(r => r.cycle_status === 'invoiced').map(r => r.id);
+  if (invoicedIds.length > 0) {
+    const err = new Error('Cannot delete readings from invoiced billing cycles');
+    err.status = 400;
+    throw err;
+  }
+
+  const confirmedIds = rows.filter(r => r.cycle_status === 'confirmed').map(r => r.id);
+  if (confirmedIds.length > 0 && !confirmDelete) {
+    const err = new Error(`${confirmedIds.length} reading(s) belong to confirmed billing cycles. Pass confirmDelete: true to proceed.`);
+    err.status = 409;
+    err.confirmedCount = confirmedIds.length;
+    throw err;
+  }
+
+  const deleted = await readingRepo.deleteManyByIds(ids);
+  return { deleted };
+}

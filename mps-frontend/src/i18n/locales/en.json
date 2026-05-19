@@ -247,7 +247,14 @@
     "cyclesMatched": "Billing cycles matched",
     "importAnother": "Import Another File",
     "viewLogs": "View Import Logs",
-    "readingImportLogs": "Reading Import Logs"
+    "readingImportLogs": "Reading Import Logs",
+    "selectedCount": "{{count}} reading(s) selected",
+    "bulkDelete": "Delete Selected",
+    "bulkDeleteTitle": "Delete Readings",
+    "bulkDeleteDescription": "You are about to permanently delete {{count}} reading(s). This action cannot be undone.",
+    "bulkDeleteSuccess": "{{count}} reading(s) deleted",
+    "bulkDeleteConfirmedWarning": "{{count}} of the selected reading(s) belong to confirmed billing cycles. Tick the checkbox below to confirm you want to proceed.",
+    "bulkDeleteConfirmCheckbox": "I understand — delete readings from confirmed cycles"
   },
   "tickets": {
     "title": "My Tickets",
@@ -437,7 +444,21 @@
     "confirmCityWarning": "printers are missing. Are you sure?",
     "overallProgress": "of printers submitted across",
     "cities": "cities",
-    "cannotConfirmCities": "Cannot confirm — some cities still have pending readings"
+    "cannotConfirmCities": "Cannot confirm — some cities still have pending readings",
+    "recycleBin": "Recycle Bin",
+    "recycleBinNote": "Cycles in the recycle bin are hidden from all active views. Restore a cycle to make it active again.",
+    "recycleBinEmpty": "No deleted cycles",
+    "deletedAt": "Deleted At",
+    "deleteDialogTitle": "Delete this cycle?",
+    "deleteDialogBody": "This cycle will be moved to the Recycle Bin. It can be restored later by an admin.",
+    "deleteDialogReadings": "{{count}} reading(s) will be hidden along with this cycle.",
+    "deleteCycleButton": "Delete Cycle",
+    "moveToRecycleBin": "Move to Recycle Bin",
+    "movedToRecycleBin": "Billing cycle moved to recycle bin",
+    "invoicedCannotDelete": "Cannot delete an invoiced cycle",
+    "restore": "Restore",
+    "restoreTitle": "Restore this cycle?",
+    "restored": "Billing cycle restored"
   },
   "consumables": {
     "title": "Consumables",

@@ -108,6 +108,24 @@ export function useCancelledCycles() {
   })
 }
 
+export function useDeletedCycles() {
+  return useQuery({
+    queryKey: ['billing-cycles-deleted'],
+    queryFn: () => client.get('/api/billing-cycles/deleted').then(r => r.data),
+  })
+}
+
+export function useRestoreCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => client.post(`/api/billing-cycles/${id}/restore`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['billing-cycles-deleted'] })
+      qc.invalidateQueries({ queryKey: ['billing-cycles'] })
+    },
+  })
+}
+
 export function useHardDeleteCycle() {
   const qc = useQueryClient()
   return useMutation({

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Plus, Trash2, AlertTriangle, Pencil, X, Info, List, LayoutGrid, Image, FileUp } from 'lucide-react'
 import ReadingImportModal from './ReadingImportModal'
 import * as Tooltip from '@radix-ui/react-tooltip'
-import { useMeterReadings, useDeleteReading, useUpdateReading } from '../../api/hooks/useMeterReadings'
+import { useMeterReadings, useDeleteReading, useUpdateReading, useBulkDeleteReadings } from '../../api/hooks/useMeterReadings'
 import PhotoViewerModal from '../../components/PhotoViewerModal'
 import { useBillingCycles } from '../../api/hooks/useBillingCycles'
 import { usePrinters } from '../../api/hooks/usePrinters'
@@ -54,6 +54,7 @@ export default function MeterReadingsPage() {
   const { t } = useTranslation()
   const { showToast } = useToast()
   const { user } = useAuth()
+  const isAdmin = user?.role?.name === 'admin'
   const isEngineer = user?.role?.name === 'engineer'
   const canSubmit = usePermission('can_submit_readings')
   const canManage = usePermission('can_manage_billing')
@@ -78,6 +79,11 @@ export default function MeterReadingsPage() {
   const [photoReadingId, setPhotoReadingId] = useState(null)
   const [showImportModal, setShowImportModal] = useState(false)
 
+  const [selectedIds, setSelectedIds] = useState(new Set())
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+  const [bulkDeleteConfirmed, setBulkDeleteConfirmed] = useState(false)
+  const [bulkDeleteError, setBulkDeleteError] = useState('')
+
   const params = {}
   if (billingCycleId) params.billingCycleId = billingCycleId
   if (source) params.source = source
@@ -90,6 +96,7 @@ export default function MeterReadingsPage() {
   const { data: customers = [] } = useCustomers()
   const deleteMutation = useDeleteReading()
   const updateMutation = useUpdateReading()
+  const bulkDeleteMutation = useBulkDeleteReadings()
 
   const printerMap = useMemo(() => Object.fromEntries(printers.map(p => [p.id, p])), [printers])
   const cycleMap   = useMemo(() => Object.fromEntries(cycles.map(c => [c.id, c])), [cycles])
@@ -115,6 +122,48 @@ export default function MeterReadingsPage() {
       showToast({ title: t('meterReadings.deleteSuccess'), variant: 'success' })
     } catch (err) {
       setDeleteError(err.response?.data?.error || err.message)
+    }
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === readings.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(readings.map(r => r.id)))
+    }
+  }
+
+  function openBulkDelete() {
+    setBulkDeleteError('')
+    setBulkDeleteConfirmed(false)
+    setBulkDeleteOpen(true)
+  }
+
+  async function handleBulkDelete() {
+    setBulkDeleteError('')
+    try {
+      const result = await bulkDeleteMutation.mutateAsync({
+        ids: [...selectedIds],
+        confirmDelete: bulkDeleteConfirmed,
+      })
+      showToast({ title: t('meterReadings.bulkDeleteSuccess', { count: result.deleted }), variant: 'success' })
+      setSelectedIds(new Set())
+      setBulkDeleteOpen(false)
+    } catch (err) {
+      if (err.response?.status === 409) {
+        setBulkDeleteError(t('meterReadings.bulkDeleteConfirmedWarning', { count: err.response.data.confirmedCount }))
+        setBulkDeleteConfirmed(false)
+      } else {
+        setBulkDeleteError(err.response?.data?.error || err.message)
+      }
     }
   }
 
@@ -230,6 +279,29 @@ export default function MeterReadingsPage() {
 
         {deleteError && <div className="mb-4"><ErrorAlert message={deleteError} /></div>}
 
+        {/* Bulk selection toolbar */}
+        {isAdmin && selectedIds.size > 0 && (
+          <div className="mb-4 flex items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 dark:border-red-800/40 dark:bg-red-950/20">
+            <span className="text-sm font-medium text-red-700 dark:text-red-400">
+              {t('meterReadings.selectedCount', { count: selectedIds.size })}
+            </span>
+            <button
+              onClick={openBulkDelete}
+              className="ms-auto flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              {t('meterReadings.bulkDelete')}
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-100 dark:border-red-800/40 dark:text-red-400 dark:hover:bg-red-900/20"
+            >
+              <X className="h-3.5 w-3.5" />
+              {t('common.cancel')}
+            </button>
+          </div>
+        )}
+
         {isLoading ? (
           <LoadingSpinner className="py-20" />
         ) : !readings.length ? (
@@ -239,6 +311,16 @@ export default function MeterReadingsPage() {
             <table className="min-w-full divide-y divide-gray-100 dark:divide-gray-800">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>
+                  {isAdmin && (
+                    <th className="px-4 py-3 text-start">
+                      <input
+                        type="checkbox"
+                        checked={readings.length > 0 && selectedIds.size === readings.length}
+                        onChange={toggleSelectAll}
+                        className="rounded border-gray-300 dark:border-gray-600"
+                      />
+                    </th>
+                  )}
                   {[
                     t('printers.serialNumber'),
                     t('printers.model'),
@@ -267,8 +349,19 @@ export default function MeterReadingsPage() {
                   const cycle         = cycleMap[r.billingCycleId]
                   const cycleOpen     = cycle?.status === 'open'
                   const cycleEditable = cycle && ['open', 'pending_confirmation'].includes(cycle.status)
+                  const isSelected    = selectedIds.has(r.id)
                   return [
-                    <tr key={r.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <tr key={r.id} className={`hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${isSelected ? 'bg-red-50 dark:bg-red-950/20' : ''}`}>
+                      {isAdmin && (
+                        <td className="px-4 py-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => toggleSelect(r.id)}
+                            className="rounded border-gray-300 dark:border-gray-600"
+                          />
+                        </td>
+                      )}
                       <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-100">
                         <span className="flex items-center gap-1.5">
                           {r.serialNumber ?? '—'}
@@ -335,7 +428,7 @@ export default function MeterReadingsPage() {
                     </tr>,
                     r.usage ? (
                       <tr key={`${r.id}-usage`} className="bg-gray-50/50 dark:bg-gray-800/20">
-                        <td colSpan={isEngineer ? 14 : 15} className="px-4 py-1.5 text-xs text-gray-500 dark:text-gray-500">
+                        <td colSpan={isEngineer ? (isAdmin ? 15 : 14) : (isAdmin ? 16 : 15)} className="px-4 py-1.5 text-xs text-gray-500 dark:text-gray-500">
                           <span className="font-medium text-gray-400 dark:text-gray-500">{t('meterReadings.usage')}:</span>
                           {' '}A4 BW: {r.usage.a4Bw ?? 0}
                           {' | '}A3 BW: {r.usage.a3Bw ?? 0}
@@ -580,6 +673,55 @@ export default function MeterReadingsPage() {
 
     {showImportModal && (
       <ReadingImportModal onClose={() => setShowImportModal(false)} />
+    )}
+
+    {bulkDeleteOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="w-full max-w-md rounded-xl bg-white shadow-xl dark:bg-gray-900">
+          <div className="border-b px-5 py-4 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">
+              {t('meterReadings.bulkDeleteTitle')}
+            </h2>
+          </div>
+          <div className="px-5 py-4 space-y-4">
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {t('meterReadings.bulkDeleteDescription', { count: selectedIds.size })}
+            </p>
+            {bulkDeleteError && (
+              <div className="space-y-3">
+                <ErrorAlert message={bulkDeleteError} />
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={bulkDeleteConfirmed}
+                    onChange={e => setBulkDeleteConfirmed(e.target.checked)}
+                    className="mt-0.5 rounded border-gray-300 dark:border-gray-600"
+                  />
+                  <span className="text-sm text-gray-700 dark:text-gray-300">
+                    {t('meterReadings.bulkDeleteConfirmCheckbox')}
+                  </span>
+                </label>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 border-t px-5 py-4 dark:border-gray-700">
+            <button
+              onClick={() => setBulkDeleteOpen(false)}
+              disabled={bulkDeleteMutation.isPending}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-50"
+            >
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDeleteMutation.isPending || (!!bulkDeleteError && !bulkDeleteConfirmed)}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {bulkDeleteMutation.isPending ? t('common.loading') : t('meterReadings.bulkDelete')}
+            </button>
+          </div>
+        </div>
+      </div>
     )}
   </>
   )

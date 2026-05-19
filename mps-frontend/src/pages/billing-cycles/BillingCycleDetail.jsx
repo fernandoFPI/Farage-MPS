@@ -1020,7 +1020,7 @@ const { data: appSettings } = useSettings()
     setActionError('')
     try {
       await cancelMutation.mutateAsync(id)
-      showToast({ title: 'Billing cycle cancelled', variant: 'success' })
+      showToast({ title: t('billingCycles.movedToRecycleBin'), variant: 'success' })
       navigate('/billing-cycles')
     } catch (err) {
       setActionError(err.response?.data?.error || err.message)
@@ -1765,7 +1765,7 @@ const { data: appSettings } = useSettings()
                       disabled={status === 'invoiced'}
                       className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <Trash2 className="h-4 w-4" />Delete Cycle
+                      <Trash2 className="h-4 w-4" />{t('billingCycles.deleteCycleButton')}
                     </button>
                   </span>
                 </Tooltip.Trigger>
@@ -1773,7 +1773,7 @@ const { data: appSettings } = useSettings()
                   <Tooltip.Portal>
                     <Tooltip.Content side="top"
                       className="rounded-lg bg-gray-900 px-3 py-2 text-xs text-white shadow-lg dark:bg-gray-700">
-                      Cannot cancel an invoiced cycle
+                      {t('billingCycles.invoicedCannotDelete')}
                       <Tooltip.Arrow className="fill-gray-900 dark:fill-gray-700" />
                     </Tooltip.Content>
                   </Tooltip.Portal>
@@ -1854,13 +1854,16 @@ const { data: appSettings } = useSettings()
           open={deleteOpen}
           onClose={() => setDeleteOpen(false)}
           onConfirm={handleCancel}
-          title="Delete Billing Cycle"
+          title={t('billingCycles.deleteDialogTitle')}
           description={[
             `${cycle.cycleName ?? cycle.contract?.contractNumber ?? '—'}`,
-            '\n\nThis will mark the cycle as cancelled. Meter readings will be preserved. The cycle will no longer appear in the list.',
+            summary?.printers?.length > 0
+              ? `\n${t('billingCycles.deleteDialogReadings', { count: summary.printers.length })}`
+              : '',
+            `\n\n${t('billingCycles.deleteDialogBody')}`,
           ].join('')}
           loading={cancelMutation.isPending}
-          confirmLabel="Delete Cycle"
+          confirmLabel={t('billingCycles.moveToRecycleBin')}
           confirmClassName="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
         />
       </div>

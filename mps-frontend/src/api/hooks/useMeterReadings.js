@@ -48,6 +48,18 @@ export function useReadingPhotos(id) {
   })
 }
 
+export function useBulkDeleteReadings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ ids, confirmDelete }) =>
+      client.delete('/api/meter-readings/bulk', { data: { ids, confirmDelete } }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['meter-readings'] })
+      qc.invalidateQueries({ queryKey: ['billing-cycles'] })
+    },
+  })
+}
+
 export function usePreviousReading(printerId, beforeDate) {
   return useQuery({
     queryKey: ['meter-readings', 'previous', printerId, beforeDate],

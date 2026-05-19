@@ -247,7 +247,14 @@
     "cyclesMatched": "دورات الفوترة المُطابَقة",
     "importAnother": "استيراد ملف آخر",
     "viewLogs": "عرض سجلات الاستيراد",
-    "readingImportLogs": "سجلات استيراد القراءات"
+    "readingImportLogs": "سجلات استيراد القراءات",
+    "selectedCount": "تم تحديد {{count}} قراءة",
+    "bulkDelete": "حذف المحدد",
+    "bulkDeleteTitle": "حذف القراءات",
+    "bulkDeleteDescription": "أنت على وشك حذف {{count}} قراءة نهائياً. لا يمكن التراجع عن هذا الإجراء.",
+    "bulkDeleteSuccess": "تم حذف {{count}} قراءة",
+    "bulkDeleteConfirmedWarning": "{{count}} من القراءات المحددة تنتمي إلى دورات فوترة مؤكدة. ضع علامة في المربع أدناه لتأكيد المتابعة.",
+    "bulkDeleteConfirmCheckbox": "أفهم ذلك — احذف القراءات من الدورات المؤكدة"
   },
   "tickets": {
     "title": "تذاكري",
@@ -437,7 +444,21 @@
     "confirmCityWarning": "طابعات مفقودة. هل أنت متأكد؟",
     "overallProgress": "من الطابعات تم تسليمها عبر",
     "cities": "مدن",
-    "cannotConfirmCities": "لا يمكن التأكيد — بعض المدن لا تزال لديها قراءات معلقة"
+    "cannotConfirmCities": "لا يمكن التأكيد — بعض المدن لا تزال لديها قراءات معلقة",
+    "recycleBin": "سلة المحذوفات",
+    "recycleBinNote": "الدورات في سلة المحذوفات مخفية من جميع العروض النشطة. استعد دورة لتصبح نشطة مرة أخرى.",
+    "recycleBinEmpty": "لا توجد دورات محذوفة",
+    "deletedAt": "تاريخ الحذف",
+    "deleteDialogTitle": "حذف هذه الدورة؟",
+    "deleteDialogBody": "ستُنقل هذه الدورة إلى سلة المحذوفات. يمكن استعادتها لاحقاً من قِبل المسؤول.",
+    "deleteDialogReadings": "سيتم إخفاء {{count}} قراءة مع هذه الدورة.",
+    "deleteCycleButton": "حذف الدورة",
+    "moveToRecycleBin": "نقل إلى سلة المحذوفات",
+    "movedToRecycleBin": "تم نقل دورة الفوترة إلى سلة المحذوفات",
+    "invoicedCannotDelete": "لا يمكن حذف دورة تمت فوترتها",
+    "restore": "استعادة",
+    "restoreTitle": "استعادة هذه الدورة؟",
+    "restored": "تمت استعادة دورة الفوترة"
   },
   "consumables": {
     "title": "المستلزمات",

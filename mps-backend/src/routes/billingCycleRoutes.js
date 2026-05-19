@@ -18,7 +18,9 @@ router.post('/:id/mark-invoiced', verifyToken, odooRateLimit, requireOdooOrFinan
 
 // Admin-only routes (must be before /:id)
 router.get('/cancelled',     ...requireAdmin,   ctrl.listCancelled);
+router.get('/deleted',       ...requireAdmin,   ctrl.listDeleted);
 router.delete('/:id/purge',  ...requireAdmin,   ctrl.hardDelete);
+router.post('/:id/restore',  ...requireAdmin,   ctrl.restoreCycle);
 
 // Standard routes blocked for Odoo
 router.post('/',             ...manageBilling,  ctrl.create);

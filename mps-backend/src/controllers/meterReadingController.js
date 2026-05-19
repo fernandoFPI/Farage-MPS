@@ -43,6 +43,28 @@ export async function getPhotos(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function bulkDelete(req, res, next) {
+  try {
+    if (req.user?.role?.name !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+    const { ids, confirmDelete } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids must be a non-empty array' });
+    }
+    if (ids.length > 100) {
+      return res.status(400).json({ error: 'Cannot bulk delete more than 100 readings at once' });
+    }
+    const result = await service.bulkDeleteReadings(ids, !!confirmDelete);
+    res.json(result);
+  } catch (err) {
+    if (err.status === 409) {
+      return res.status(409).json({ error: err.message, confirmedCount: err.confirmedCount });
+    }
+    next(err);
+  }
+}
+
 export async function getPrevious(req, res, next) {
   try {
     const { printerId, beforeDate } = req.query;
