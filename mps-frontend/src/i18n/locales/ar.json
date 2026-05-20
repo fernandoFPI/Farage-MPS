@@ -139,7 +139,27 @@
     "officialContractNumberHelper": "سيظهر هذا الرقم في الفاتورة. اتركه فارغاً لاستخدام رقم العقد أعلاه.",
     "invoiceReference": "مرجع الفاتورة",
     "serviceType": "نوع الخدمة",
-    "serviceTypeHelper": "يُستخدم لتعيين الحساب في Odoo. لا يؤثر على حسابات الفوترة."
+    "serviceTypeHelper": "يُستخدم لتعيين الحساب في Odoo. لا يؤثر على حسابات الفوترة.",
+    "invoiceRules": "قواعد الفاتورة",
+    "customRules": "مخصص",
+    "invoiceRulesNote": "تتحكم هذه الإعدادات في كيفية تجميع الفوترة ومتى يتم إصدار فواتير الرسوم الثابتة والزائدة.",
+    "fixedChargeFrequency": "تكرار الرسوم الثابتة",
+    "excessFrequency": "تكرار الرسوم الزائدة",
+    "overrideInvoicing": "فوترة الطابعات المخصصة",
+    "groupingStrategy": "تجميع الطابعات",
+    "contractStartDate": "تاريخ بدء العقد (لحساب الفترات)",
+    "contractStartDateHelper": "يُستخدم لتحديد أشهر الفترات. مطلوب عند استخدام تكرار غير شهري.",
+    "invoiceRulesStartDateRequired": "تاريخ بدء العقد مطلوب عند استخدام تكرار غير شهري.",
+    "freqMonthly": "شهري",
+    "freqQuarterly": "ربع سنوي",
+    "freqSemiAnnual": "نصف سنوي",
+    "freqAnnual": "سنوي",
+    "overrideSeparate": "فاتورة منفصلة لكل طابعة مخصصة",
+    "overrideMerge": "مجمّع — جميع الطابعات في فاتورة واحدة",
+    "groupContract": "لكل عقد — فاتورة واحدة",
+    "groupCity": "حسب المدينة",
+    "groupLocation": "حسب الموقع",
+    "groupPrinter": "لكل طابعة"
   },
   "printers": {
     "title": "الطابعات",
@@ -458,7 +478,13 @@
     "invoicedCannotDelete": "لا يمكن حذف دورة تمت فوترتها",
     "restore": "استعادة",
     "restoreTitle": "استعادة هذه الدورة؟",
-    "restored": "تمت استعادة دورة الفوترة"
+    "restored": "تمت استعادة دورة الفوترة",
+    "fixedChargeDeferred": "تم تأجيل الرسوم الثابتة لهذه الفترة",
+    "excessDeferred": "تم تأجيل رسوم الزيادة لهذه الفترة",
+    "nextChargeDate": "تاريخ الفوترة التالي",
+    "fixedChargeMultiplied": "الرسوم الثابتة تشمل {{multiplier}} أشهر",
+    "groupedByCity": "يتم تجميع الطابعات وفوترتها حسب المدينة",
+    "city": "المدينة"
   },
   "consumables": {
     "title": "المستلزمات",

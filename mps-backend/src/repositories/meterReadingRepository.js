@@ -197,6 +197,8 @@ export async function findAllWithPrinterInfo(billingCycleId, contractId) {
        mr.*,
        p.serial_number,
        p.model,
+       p.city,
+       p.location,
        p.is_bw_only,
        (
          SELECT cp.contract_type
@@ -257,6 +259,8 @@ export async function findAllWithPrinterInfo(billingCycleId, contractId) {
     ...mapRow(row),
     serialNumber: row.serial_number,
     model: row.model,
+    city: row.city ?? null,
+    location: row.location ?? null,
     isBwOnly: row.is_bw_only ?? false,
     contractType: row.contract_type,
     printerFixedCharge:          row.printer_fixed_charge             != null ? Number(row.printer_fixed_charge)             : null,

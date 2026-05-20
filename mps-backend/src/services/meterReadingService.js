@@ -26,10 +26,7 @@ async function attachUsage(reading) {
     cycle.periodStart,
   );
   const previousExcess = prevReading
-    ? {
-        excessBw: prevReading.cycleIsBaseline ? 0 : prevReading.excessBw,
-        excessColor: prevReading.cycleIsBaseline ? 0 : prevReading.excessColor,
-      }
+    ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
     : null;
 
   const currentExcess = { excessBw: reading.excessBw, excessColor: reading.excessColor };
@@ -182,7 +179,9 @@ export async function createReading(body, userId) {
   const a3ColorFinal = isBwOnly ? 0 : (a3Color ?? 0);
   const xls = isBwOnly ? 0 : (body.xls ?? 0);
 
-  // 7. Previous reading (before period_start) — provides raw baseline and stored excess; skip baseline cycles
+  // 7. Previous reading (before period_start) — provides raw counter reference for this period's delta.
+  // Baseline cycles are included: their counters are the correct subtraction reference even though
+  // the baseline cycle itself is billed as zero.
   const prevReading = await readingRepo.getPreviousCycleReading(
     printerId,
     cycle.id,
@@ -205,10 +204,7 @@ export async function createReading(body, userId) {
 
   const currentExcess  = { excessBw: net.excessBw, excessColor: net.excessColor };
   const previousExcess = prevReading
-    ? {
-        excessBw: prevReading.cycleIsBaseline ? 0 : prevReading.excessBw,
-        excessColor: prevReading.cycleIsBaseline ? 0 : prevReading.excessColor,
-      }
+    ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
     : null;
 
   // 9. Billable = growth in excess since last reading (0 if this is the baseline).

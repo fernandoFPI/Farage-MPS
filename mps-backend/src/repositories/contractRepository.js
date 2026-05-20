@@ -23,12 +23,10 @@ function mapRow(row) {
     confirmationSlaDays: row.confirmation_sla_days,
     isActive: row.is_active,
     createdAt: row.created_at,
-    invoiceFrequency: row.invoice_frequency ?? 'monthly',
-    quarterStartMonths: row.quarter_start_months ?? null,
-    combinedInvoice: row.combined_invoice ?? false,
     contractMode: row.contract_mode ?? 'osg',
     officialContractNumber: row.official_contract_number ?? null,
     serviceType: row.service_type ?? null,
+    invoiceRules: row.invoice_rules ?? null,
   };
 }
 
@@ -141,9 +139,8 @@ export async function create(data) {
        excess_bw_price, excess_color_price,
        a4_price, a3_price,
        start_date, end_date, confirmation_sla_days, is_active,
-       invoice_frequency, quarter_start_months, combined_invoice,
-       contract_mode, official_contract_number, service_type
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
+       contract_mode, official_contract_number, service_type, invoice_rules
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
      RETURNING id`,
     [
       data.customerId,
@@ -164,12 +161,10 @@ export async function create(data) {
       data.endDate ?? null,
       data.confirmationSlaDays ?? 5,
       data.isActive ?? true,
-      data.invoiceFrequency ?? 'monthly',
-      data.quarterStartMonths ?? null,
-      data.combinedInvoice ?? false,
       data.contractMode ?? 'osg',
       data.officialContractNumber ?? null,
       data.serviceType ?? null,
+      data.invoiceRules != null ? JSON.stringify(data.invoiceRules) : null,
     ],
   );
   return findById(rows[0].id);
@@ -194,11 +189,9 @@ export async function update(id, fields) {
     endDate: 'end_date',
     confirmationSlaDays: 'confirmation_sla_days',
     isActive: 'is_active',
-    invoiceFrequency: 'invoice_frequency',
-    quarterStartMonths: 'quarter_start_months',
-    combinedInvoice: 'combined_invoice',
     officialContractNumber: 'official_contract_number',
     serviceType: 'service_type',
+    invoiceRules: 'invoice_rules',
   };
 
   const setClauses = [];

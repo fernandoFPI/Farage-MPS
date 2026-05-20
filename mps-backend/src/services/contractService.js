@@ -1,7 +1,7 @@
 import * as repo from '../repositories/contractRepository.js';
+import { getDefaultRules } from '../utils/invoiceRulesEngine.js';
 
 const VALID_BILLING_TYPES = ['per_click', 'minimum_volume'];
-const VALID_INVOICE_FREQUENCIES = ['monthly', 'quarterly', 'three_cycle_quarterly'];
 const VALID_CONTRACT_MODES = ['osg', 'psg', 'psg_simple'];
 const SERVICE_TYPES = {
   osg:        ['MPS', 'FSMA', 'LS', 'LO'],
@@ -9,25 +9,35 @@ const SERVICE_TYPES = {
   psg_simple: ['FSMA', 'SMA', 'LO'],
 };
 
-function validateInvoiceFrequency(data) {
-  const freq = data.invoiceFrequency ?? 'monthly';
-  if (!VALID_INVOICE_FREQUENCIES.includes(freq)) {
-    const err = new Error('invoiceFrequency must be monthly, quarterly, or three_cycle_quarterly');
-    err.status = 400;
-    throw err;
+const VALID_FREQ = ['monthly', 'quarterly', 'semi_annual', 'annual'];
+const VALID_OVERRIDE_INVOICING = ['separate', 'merge'];
+const VALID_GROUPING = ['contract', 'city', 'location', 'printer'];
+
+function validateInvoiceRules(rules) {
+  if (!rules || typeof rules !== 'object') return;
+  const { fixedChargeFrequency, excessFrequency, overrideInvoicing, groupingStrategy, contractStartDate } = rules;
+  if (fixedChargeFrequency && !VALID_FREQ.includes(fixedChargeFrequency)) {
+    const err = new Error('invoiceRules.fixedChargeFrequency must be monthly, quarterly, semi_annual, or annual');
+    err.status = 400; throw err;
   }
-  if (freq === 'quarterly' || freq === 'three_cycle_quarterly') {
-    const months = data.quarterStartMonths;
-    if (!Array.isArray(months) || months.length !== 3) {
-      const err = new Error('quarterStartMonths must be an array of exactly 3 months');
-      err.status = 400;
-      throw err;
-    }
-    if (!months.every(m => Number.isInteger(m) && m >= 1 && m <= 12)) {
-      const err = new Error('quarterStartMonths values must be integers between 1 and 12');
-      err.status = 400;
-      throw err;
-    }
+  if (excessFrequency && !VALID_FREQ.includes(excessFrequency)) {
+    const err = new Error('invoiceRules.excessFrequency must be monthly, quarterly, semi_annual, or annual');
+    err.status = 400; throw err;
+  }
+  if (overrideInvoicing && !VALID_OVERRIDE_INVOICING.includes(overrideInvoicing)) {
+    const err = new Error('invoiceRules.overrideInvoicing must be separate or merge');
+    err.status = 400; throw err;
+  }
+  if (groupingStrategy && !VALID_GROUPING.includes(groupingStrategy)) {
+    const err = new Error('invoiceRules.groupingStrategy must be contract, city, location, or printer');
+    err.status = 400; throw err;
+  }
+  const needsStartDate =
+    (fixedChargeFrequency && fixedChargeFrequency !== 'monthly') ||
+    (excessFrequency && excessFrequency !== 'monthly');
+  if (needsStartDate && !contractStartDate) {
+    const err = new Error('invoiceRules.contractStartDate is required when frequency is not monthly');
+    err.status = 400; throw err;
   }
 }
 
@@ -137,7 +147,10 @@ export async function createContract(data) {
     throw err;
   }
 
-  validateInvoiceFrequency(normalised);
+  if (normalised.invoiceRules !== undefined) {
+    validateInvoiceRules(normalised.invoiceRules);
+    normalised.invoiceRules = { ...getDefaultRules(), ...normalised.invoiceRules };
+  }
 
   if (normalised.serviceType) {
     const allowed = SERVICE_TYPES[normalised.contractMode] ?? [];
@@ -193,8 +206,9 @@ export async function updateContract(id, fields) {
     throw err;
   }
 
-  if (fields.invoiceFrequency !== undefined || fields.quarterStartMonths !== undefined) {
-    validateInvoiceFrequency(normalised);
+  if (fields.invoiceRules !== undefined) {
+    validateInvoiceRules(fields.invoiceRules);
+    normalised.invoiceRules = { ...getDefaultRules(), ...(existing.invoiceRules ?? {}), ...fields.invoiceRules };
   }
 
   if (normalised.serviceType) {

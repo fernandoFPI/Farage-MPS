@@ -12,6 +12,7 @@ import {
   calculateGroupedMinVolumeBilling,
 } from './netCalculationService.js';
 import { canConfirmCycle } from './cityCycleStatusService.js';
+import { applyInvoiceRules } from '../utils/invoiceRulesEngine.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -173,6 +174,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
   const isPsgAny          = isPsgContract || isPsgSimpleContract;
 
   const printerResults = [];
+  const printerEntries = [];
   // Default OSG group — printers with no price override
   const osgDefaultBillable = { billableBw: 0, billableColor: 0 };
   const osgDefaultSerialNumbers = [];
@@ -185,7 +187,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
   for (const reading of printers) {
 
     // Previous cycle supplies the raw starting counters.
-    // If that previous cycle was baseline, its stored excess counts as zero for billing growth.
+    // Baseline cycles still provide the reference point — only their own billing is zeroed.
     const prevReading = await readingRepo.getPreviousCycleReading(
       reading.printerId,
       cycle.id,
@@ -193,10 +195,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     );
     const currentExcess  = { excessBw: reading.excessBw, excessColor: reading.excessColor };
     const previousExcess = prevReading
-      ? {
-          excessBw: prevReading.cycleIsBaseline ? 0 : prevReading.excessBw,
-          excessColor: prevReading.cycleIsBaseline ? 0 : prevReading.excessColor,
-        }
+      ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
       : null;
 
     // PSG / PSG Simple: excess_bw/excess_color store the period delta — use directly.
@@ -258,12 +257,18 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       ? validation.reason
       : (billable.negativeFlag ? 'Negative billable usage — possible meter reset or duplicate reading' : null);
 
+    const printerContractType = isPsgSimpleContract ? 'psg_simple' : isPsgContract ? 'psg' : 'osg';
+    const hasOverride = !isPsgAny && (
+      reading.printerFixedCharge != null || reading.printerBwPrice != null || reading.printerColorPrice != null
+      || reading.printerOverrideMinBwPages != null || reading.printerOverrideMinColorPages != null
+    );
+
     printerResults.push({
       printerId:    reading.printerId,
       serialNumber: reading.serialNumber,
       model:        reading.model,
       isBwOnly:     reading.isBwOnly ?? false,
-      contractType: isPsgSimpleContract ? 'psg_simple' : isPsgContract ? 'psg' : 'osg',
+      contractType: printerContractType,
       fixedCharge:  reading.printerFixedCharge ?? null,
       bwPrice:      reading.printerBwPrice     ?? null,
       colorPrice:   reading.printerColorPrice  ?? null,
@@ -279,6 +284,36 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       flagged:      isFlagged,
       flagReason,
     });
+
+    // Build entry for invoice rules engine
+    const perPrinterPsgBreakdown = prevReading && isPsgContract
+      ? {
+          a4BwUsage:    Math.max(0, (reading.a4Bw    ?? 0) - (prevReading.a4Bw    ?? 0)),
+          a3BwUsage:    Math.max(0, (reading.a3Bw    ?? 0) - (prevReading.a3Bw    ?? 0)),
+          a4ColorUsage: Math.max(0, (reading.a4Color ?? 0) - (prevReading.a4Color ?? 0)),
+          a3ColorUsage: Math.max(0, (reading.a3Color ?? 0) - (prevReading.a3Color ?? 0)),
+        }
+      : { a4BwUsage: 0, a3BwUsage: 0, a4ColorUsage: 0, a3ColorUsage: 0 };
+
+    printerEntries.push({
+      printerId:    reading.printerId,
+      serialNumber: reading.serialNumber,
+      model:        reading.model,
+      isBwOnly:     reading.isBwOnly ?? false,
+      city:         reading.city     ?? null,
+      location:     reading.location ?? null,
+      contractType: printerContractType,
+      hasOverride,
+      billable:     { billableBw: billable.billableBw, billableColor: billable.billableColor },
+      psgBreakdown: perPrinterPsgBreakdown,
+      priceOverride: {
+        fixedCharge:           reading.printerFixedCharge           ?? null,
+        bwPrice:               reading.printerBwPrice               ?? null,
+        colorPrice:            reading.printerColorPrice            ?? null,
+        overrideMinBwPages:    reading.printerOverrideMinBwPages    ?? null,
+        overrideMinColorPages: reading.printerOverrideMinColorPages ?? null,
+      },
+    });
   }
 
   // Aggregate totals across all printers
@@ -290,57 +325,12 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     totalBillableColor: allOsgBillableColor + psgBillable.billableColor,
   };
 
-  // Build one invoice per billing group
-  const invoices = [];
-  let grandTotal = 0;
-
-  if (!isPsgAny) {
-    if (osgDefaultSerialNumbers.length > 0) {
-      const b = calculateOSGBilling(osgDefaultBillable, cycle.contract);
-      grandTotal += b.total;
-      invoices.push({
-        type: 'osg_default',
-        serialNumbers: osgDefaultSerialNumbers,
-        allBwOnly: osgDefaultAllBwOnly && osgDefaultSerialNumbers.length > 0,
-        billing: b,
-      });
-    }
-
-    for (const ov of osgOverrides) {
-      const effectiveContract = {
-        ...cycle.contract,
-        fixedCharge:   ov.fixedCharge           ?? cycle.contract.fixedCharge,
-        bwPrice:       ov.bwPrice               ?? cycle.contract.bwPrice,
-        colorPrice:    ov.colorPrice            ?? cycle.contract.colorPrice,
-        minBwPages:    ov.overrideMinBwPages    ?? cycle.contract.minBwPages,
-        minColorPages: ov.overrideMinColorPages ?? cycle.contract.minColorPages,
-      };
-      const b = calculateOSGBilling(ov.billable, effectiveContract);
-      grandTotal += b.total;
-      invoices.push({
-        type: 'osg_override',
-        serialNumber: ov.serialNumber,
-        printerId: ov.printerId,
-        allBwOnly: ov.isBwOnly ?? false,
-        overrides: {
-          fixedCharge:   ov.fixedCharge           != null,
-          bwPrice:       ov.bwPrice               != null,
-          colorPrice:    ov.colorPrice            != null,
-          minBwPages:    ov.overrideMinBwPages    != null,
-          minColorPages: ov.overrideMinColorPages != null,
-        },
-        billing: b,
-      });
-    }
-  } else if (isPsgSimpleContract) {
-    const b = calculatePSGSimpleBilling(psgBillable, cycle.contract);
-    grandTotal += b.total;
-    invoices.push({ type: 'psg_simple', billing: b });
-  } else {
-    const b = calculatePSGBilling(psgBreakdown, cycle.contract);
-    grandTotal += b.total;
-    invoices.push({ type: 'psg', billing: b });
-  }
+  // Route through invoice rules engine — handles grouping + frequency rules
+  const { invoices, grandTotal, rulesMeta } = applyInvoiceRules({
+    printers: printerEntries,
+    contract: cycle.contract,
+    cycle,
+  });
 
   return {
     cycleId:                cycle.id,
@@ -355,6 +345,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     printers:               printerResults,
     totals,
     invoices,
+    rulesMeta,
     billing:        { billingType: cycle.contract.billingType, total: grandTotal },
     grandTotal,
   };
@@ -574,7 +565,6 @@ export async function getGroupSummary(id) {
     officialContractNumber: cycle.contract.officialContractNumber ?? null,
     customerName:           cycle.contract.customer.name,
     currency: cycle.contract.currency ?? 'IQD',
-    invoiceFrequency: cycle.contract.invoiceFrequency,
     combinedInvoice,
     cycles: combinedInvoice
       ? cyclesData.map(c => ({ cycleName: c.cycleName, total: c.total }))

@@ -139,7 +139,27 @@
     "officialContractNumberHelper": "This number will appear on the invoice. Leave blank to use the contract number above.",
     "invoiceReference": "Invoice Reference",
     "serviceType": "Service Type",
-    "serviceTypeHelper": "Used for Odoo account mapping. No effect on billing calculations."
+    "serviceTypeHelper": "Used for Odoo account mapping. No effect on billing calculations.",
+    "invoiceRules": "Invoice Rules",
+    "customRules": "Custom",
+    "invoiceRulesNote": "These settings control how billing is grouped and when fixed/excess charges are invoiced. Default behavior invoices everything monthly at the contract level.",
+    "fixedChargeFrequency": "Fixed Charge Frequency",
+    "excessFrequency": "Excess Frequency",
+    "overrideInvoicing": "Override Printer Invoicing",
+    "groupingStrategy": "Printer Grouping",
+    "contractStartDate": "Contract Start Date (for period calculation)",
+    "contractStartDateHelper": "Used to determine which months are billing periods. Required when any frequency is non-monthly.",
+    "invoiceRulesStartDateRequired": "Contract start date is required when using non-monthly frequency.",
+    "freqMonthly": "Monthly",
+    "freqQuarterly": "Quarterly",
+    "freqSemiAnnual": "Semi-Annual",
+    "freqAnnual": "Annual",
+    "overrideSeparate": "Separate invoice per override printer",
+    "overrideMerge": "Combined — all printers in one invoice",
+    "groupContract": "Per Contract — one invoice",
+    "groupCity": "By city",
+    "groupLocation": "By location",
+    "groupPrinter": "Per printer"
   },
   "printers": {
     "title": "Printers",
@@ -458,7 +478,13 @@
     "invoicedCannotDelete": "Cannot delete an invoiced cycle",
     "restore": "Restore",
     "restoreTitle": "Restore this cycle?",
-    "restored": "Billing cycle restored"
+    "restored": "Billing cycle restored",
+    "fixedChargeDeferred": "Fixed charge deferred this period",
+    "excessDeferred": "Excess charges deferred this period",
+    "nextChargeDate": "Next billing date",
+    "fixedChargeMultiplied": "Fixed charge includes {{multiplier}} months",
+    "groupedByCity": "Printers are grouped and invoiced by city",
+    "city": "City"
   },
   "consumables": {
     "title": "Consumables",

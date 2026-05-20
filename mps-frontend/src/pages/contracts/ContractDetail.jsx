@@ -122,6 +122,31 @@ export default function ContractDetail() {
         </div>
       </div>
 
+      {/* Invoice Rules */}
+      {contract.invoiceRules && (() => {
+        const r = contract.invoiceRules
+        const DEFAULT = { fixedChargeFrequency: 'monthly', excessFrequency: 'monthly', overrideInvoicing: 'separate', groupingStrategy: 'contract' }
+        const badge = (val, def) => val !== def
+          ? <span className="ms-1.5 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">{val}</span>
+          : <span className="text-gray-700 dark:text-gray-300">{val}</span>
+        return (
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('contracts.invoiceRules')}</h2>
+            <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
+              <div>
+                <InfoRow label={t('contracts.fixedChargeFrequency')} value={badge(r.fixedChargeFrequency, DEFAULT.fixedChargeFrequency)} />
+                <InfoRow label={t('contracts.excessFrequency')} value={badge(r.excessFrequency, DEFAULT.excessFrequency)} />
+                {r.contractStartDate && <InfoRow label={t('contracts.contractStartDate')} value={r.contractStartDate} />}
+              </div>
+              <div>
+                <InfoRow label={t('contracts.overrideInvoicing')} value={badge(r.overrideInvoicing, DEFAULT.overrideInvoicing)} />
+                <InfoRow label={t('contracts.groupingStrategy')} value={badge(r.groupingStrategy, DEFAULT.groupingStrategy)} />
+              </div>
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Printers */}
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between mb-4">

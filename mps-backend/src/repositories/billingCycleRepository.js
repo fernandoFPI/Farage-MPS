@@ -113,9 +113,8 @@ export async function findById(id) {
          'currency',           co.currency,
          'contractType',       co.contract_type,
          'contractMode',       co.contract_mode,
-         'invoiceFrequency',   co.invoice_frequency,
-         'combinedInvoice',    co.combined_invoice,
          'serviceType',        co.service_type,
+         'invoiceRules',       co.invoice_rules,
          'customer', json_build_object(
            'id',   cu.id,
            'name', cu.name
@@ -226,8 +225,7 @@ export async function findByCycleGroupId(cycleGroupId) {
          'isActive',         co.is_active,
          'currency',         co.currency,
          'contractType',     co.contract_type,
-         'invoiceFrequency', co.invoice_frequency,
-         'combinedInvoice',  co.combined_invoice,
+         'invoiceRules',     co.invoice_rules,
          'customer', json_build_object('id', cu.id, 'name', cu.name)
        ) AS contract
      FROM billing_cycles bc

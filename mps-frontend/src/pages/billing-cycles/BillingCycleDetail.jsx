@@ -1050,8 +1050,7 @@ const { data: appSettings } = useSettings()
   const { status } = cycle
   const currency = cycle.contract?.currency ?? 'IQD'
   const hasReadings = (summary?.printers?.length ?? 0) > 0
-  const isThreeCycleQuarterly = cycle.contract?.invoiceFrequency === 'three_cycle_quarterly'
-  const canGroupCycles = isThreeCycleQuarterly && status === 'confirmed' && !cycle.cycleGroupId
+  const canGroupCycles = false
   const isPendingQuarterly = status === 'pending_quarterly'
   const isInvoicingCycle = cycle.groupPosition === 3 && !!cycle.cycleGroupId
   const cityStatuses = cycle.cityStatuses ?? []
@@ -1311,6 +1310,37 @@ const { data: appSettings } = useSettings()
               ) : summary.invoices?.length > 0 && (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('billingCycles.billing')}</p>
+
+                  {/* Invoice rules notices */}
+                  {summary.rulesMeta && (
+                    <div className="mb-3 space-y-2">
+                      {!summary.rulesMeta.isFixedChargeDue && (
+                        <div className="flex items-start gap-2 rounded-lg bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-700 dark:text-sky-400">
+                          <span className="mt-0.5 shrink-0">ℹ</span>
+                          <span>{t('billingCycles.fixedChargeDeferred')}{summary.rulesMeta.nextFixedChargeDate ? ` — ${t('billingCycles.nextChargeDate')}: ${summary.rulesMeta.nextFixedChargeDate}` : ''}</span>
+                        </div>
+                      )}
+                      {summary.rulesMeta.isFixedChargeDue && summary.rulesMeta.fixedChargeMultiplier > 1 && (
+                        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                          <span className="mt-0.5 shrink-0">ℹ</span>
+                          <span>{t('billingCycles.fixedChargeMultiplied', { multiplier: summary.rulesMeta.fixedChargeMultiplier })}</span>
+                        </div>
+                      )}
+                      {!summary.rulesMeta.isExcessDue && (
+                        <div className="flex items-start gap-2 rounded-lg bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-700 dark:text-sky-400">
+                          <span className="mt-0.5 shrink-0">ℹ</span>
+                          <span>{t('billingCycles.excessDeferred')}{summary.rulesMeta.nextExcessDate ? ` — ${t('billingCycles.nextChargeDate')}: ${summary.rulesMeta.nextExcessDate}` : ''}</span>
+                        </div>
+                      )}
+                      {summary.rulesMeta.groupingStrategy === 'city' && (
+                        <div className="flex items-start gap-2 rounded-lg bg-gray-50 dark:bg-gray-800/30 px-3 py-2 text-xs text-gray-600 dark:text-gray-400">
+                          <span className="mt-0.5 shrink-0">ℹ</span>
+                          <span>{t('billingCycles.groupedByCity')}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   <div className="space-y-3">
                     {summary.invoices.map((inv, i) => (
                       <div key={i} className="rounded-lg border border-gray-100 p-4 dark:border-gray-800">
@@ -1318,7 +1348,7 @@ const { data: appSettings } = useSettings()
                         <div className="mb-3 pb-2 border-b border-gray-100 dark:border-gray-800">
                           <p className="text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400">
                             {inv.type === 'osg_default'
-                              ? t('billingCycles.defaultGroup')
+                              ? (inv.groupKey ? `${t('billingCycles.city')}: ${inv.groupKey}` : t('billingCycles.defaultGroup'))
                               : inv.type === 'osg_override'
                               ? `${t('printers.serialNumber')}: ${inv.serialNumber}`
                               : inv.type === 'psg_simple'
@@ -1724,7 +1754,6 @@ const { data: appSettings } = useSettings()
               </div>
             )}
 
-            {/* Group Cycles — three_cycle_quarterly + confirmed + not grouped */}
             {canGroupCycles && (
               <button
                 onClick={() => { setActionError(''); setGroupCyclesOpen(true) }}
