@@ -4,9 +4,7 @@ import * as cpRepo from '../repositories/contractPrinterRepository.js';
 import * as printerRepo from '../repositories/printerRepository.js';
 import * as contractRepo from '../repositories/contractRepository.js';
 import {
-  calculateOSGNet,
   calculatePSGNet,
-  calculatePSGSimpleNet,
   calculateBillableUsage,
   validateUsage,
 } from './netCalculationService.js';
@@ -30,10 +28,7 @@ async function attachUsage(reading) {
     : null;
 
   const currentExcess = { excessBw: reading.excessBw, excessColor: reading.excessColor };
-  // PSG Simple / PSG: stored excess is already the billable delta — use directly
-  const billable = (contractType === 'psg_simple' || contractType === 'psg')
-    ? { billableBw: reading.excessBw, billableColor: reading.excessColor, isBaseline: reading.excessBw === 0 && reading.excessColor === 0 }
-    : calculateBillableUsage(currentExcess, previousExcess);
+  const billable = calculateBillableUsage(currentExcess, previousExcess);
 
   // For PSG: also expose derived net values
   let psgNet = {};
@@ -179,40 +174,40 @@ export async function createReading(body, userId) {
   const a3ColorFinal = isBwOnly ? 0 : (a3Color ?? 0);
   const xls = isBwOnly ? 0 : (body.xls ?? 0);
 
-  // 7. Previous reading (before period_start) — provides raw counter reference for this period's delta.
-  // Baseline cycles are included: their counters are the correct subtraction reference even though
-  // the baseline cycle itself is billed as zero.
+  // 7. Previous reading (before period_start) — needed as reference for calculateBillableUsage.
+  // Baseline cycles are included: their cumulative counters are the correct subtraction reference.
   const prevReading = await readingRepo.getPreviousCycleReading(
     printerId,
     cycle.id,
     cycle.periodStart,
   );
-  const previousRaw = prevReading
-    ? { a4Bw: prevReading.a4Bw, a3Bw: prevReading.a3Bw, a4Color: prevReading.a4Color, a3Color: prevReading.a3Color, xls: prevReading.xls }
-    : { a4Bw: 0, a3Bw: 0, a4Color: 0, a3Color: 0, xls: 0 };
 
-  // 8. Calculate this period's excess from raw counter difference
-  let net;
+  // 8. Calculate cumulative excess to store — absolute counter values, never the period delta.
+  // Billing time subtracts consecutive stored values to derive period usage.
+  let storedExcessBw, storedExcessColor;
   if (contractType === 'osg') {
-    net = calculateOSGNet({ a4Bw, a3Bw, a4Color: a4ColorFinal, a3Color: a3ColorFinal }, previousRaw);
+    storedExcessBw    = a4Bw + a3Bw;
+    storedExcessColor = a4ColorFinal + a3ColorFinal;
   } else if (contractType === 'psg_simple') {
-    // PSG Simple: direct A4 counter subtraction; A3 and XLS are forced to 0
-    net = calculatePSGSimpleNet({ a4Bw, a4Color: a4ColorFinal }, previousRaw);
+    storedExcessBw    = a4Bw;
+    storedExcessColor = a4ColorFinal;
   } else {
-    net = calculatePSGNet({ a4Bw, a3Bw, a4Color: a4ColorFinal, a3Color: a3ColorFinal, xls }, previousRaw);
+    // PSG: Step 1 net derivation applied to current counters only (absolute, not delta)
+    const a4BwNet    = a4Bw    - a3Bw;
+    const a3BwNet    = a3Bw;
+    const a4ColorNet = (a4ColorFinal - xls) - a3ColorFinal;
+    const a3ColorNet = a3ColorFinal;
+    storedExcessBw    = a4BwNet + a3BwNet;
+    storedExcessColor = a4ColorNet + a3ColorNet;
   }
 
-  const currentExcess  = { excessBw: net.excessBw, excessColor: net.excessColor };
+  const currentExcess  = { excessBw: storedExcessBw, excessColor: storedExcessColor };
   const previousExcess = prevReading
     ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
     : null;
 
-  // 9. Billable = growth in excess since last reading (0 if this is the baseline).
-  // PSG and PSG Simple both store a delta — net.excessBw is already the period delta (non-baseline)
-  // or would be the cumulative counter (baseline, no prevReading) which must be zeroed.
-  const billable = (contractType === 'psg' || contractType === 'psg_simple')
-    ? { billableBw: prevReading ? net.excessBw : 0, billableColor: prevReading ? net.excessColor : 0, isBaseline: !prevReading }
-    : calculateBillableUsage(currentExcess, previousExcess);
+  // 9. Billable = growth in cumulative excess since last reading (0 if this is the baseline)
+  const billable = calculateBillableUsage(currentExcess, previousExcess);
 
   // 10. Validate against last 3 stored excesses
   const recentReadings     = await readingRepo.getRecentReadings(printerId, cycle.periodStart, 3);
@@ -236,12 +231,8 @@ export async function createReading(body, userId) {
     a4Color: a4ColorFinal,
     a3Color: a3ColorFinal,
     xls,
-    // PSG/PSG Simple: store the period delta so billing can use it directly.
-    // For a baseline PSG reading calculatePSGNet returns the full cumulative counter
-    // (previousRaw = 0), so override to 0.
-    // OSG keeps net.excessBw unchanged — its billing uses the cumulative-minus-previous pattern.
-    excessBw:    (contractType === 'psg' || contractType === 'psg_simple') ? billable.billableBw : net.excessBw,
-    excessColor: (contractType === 'psg' || contractType === 'psg_simple') ? billable.billableColor : net.excessColor,
+    excessBw:    storedExcessBw,
+    excessColor: storedExcessColor,
     readAt,
     photos,
     lockAcquiredAt,
@@ -315,26 +306,22 @@ export async function updateReading(id, body) {
   const a3ColorFinal = isBwOnly ? 0 : (a3Color ?? 0);
   const xls = isBwOnly ? 0 : (body.xls ?? 0);
 
-  const prevReading = await readingRepo.getPreviousCycleReading(
-    reading.printerId,
-    cycle.id,
-    cycle.periodStart,
-  );
-  const previousRaw = prevReading
-    ? { a4Bw: prevReading.a4Bw, a3Bw: prevReading.a3Bw, a4Color: prevReading.a4Color, a3Color: prevReading.a3Color, xls: prevReading.xls }
-    : { a4Bw: 0, a3Bw: 0, a4Color: 0, a3Color: 0, xls: 0 };
-
-  let net;
+  // Cumulative excess — absolute counter values, same logic as createReading
+  let storedExcessBw, storedExcessColor;
   if (contractType === 'osg') {
-    net = calculateOSGNet({ a4Bw, a3Bw, a4Color: a4ColorFinal, a3Color: a3ColorFinal }, previousRaw);
+    storedExcessBw    = a4Bw + a3Bw;
+    storedExcessColor = a4ColorFinal + a3ColorFinal;
   } else if (contractType === 'psg_simple') {
-    net = calculatePSGSimpleNet({ a4Bw, a4Color: a4ColorFinal }, previousRaw);
+    storedExcessBw    = a4Bw;
+    storedExcessColor = a4ColorFinal;
   } else {
-    net = calculatePSGNet({ a4Bw, a3Bw, a4Color: a4ColorFinal, a3Color: a3ColorFinal, xls }, previousRaw);
+    const a4BwNet    = a4Bw    - a3Bw;
+    const a3BwNet    = a3Bw;
+    const a4ColorNet = (a4ColorFinal - xls) - a3ColorFinal;
+    const a3ColorNet = a3ColorFinal;
+    storedExcessBw    = a4BwNet + a3BwNet;
+    storedExcessColor = a4ColorNet + a3ColorNet;
   }
-
-  const storedExcessBw    = (contractType === 'psg' || contractType === 'psg_simple') ? (prevReading ? net.excessBw    : 0) : net.excessBw;
-  const storedExcessColor = (contractType === 'psg' || contractType === 'psg_simple') ? (prevReading ? net.excessColor : 0) : net.excessColor;
 
   const updated = await readingRepo.updateById(id, {
     a4Bw, a3Bw, a4Color: a4ColorFinal, a3Color: a3ColorFinal, xls,

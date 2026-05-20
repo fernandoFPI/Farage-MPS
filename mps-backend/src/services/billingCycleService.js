@@ -198,11 +198,8 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
       : null;
 
-    // PSG / PSG Simple: excess_bw/excess_color store the period delta — use directly.
-    // calculateBillableUsage assumes cumulative values and would double-subtract — skip it.
-    const billable = isPsgAny
-      ? { billableBw: reading.excessBw, billableColor: reading.excessColor, isBaseline: reading.excessBw === 0 && reading.excessColor === 0 }
-      : calculateBillableUsage(currentExcess, previousExcess);
+    // All types store cumulative excess — subtract consecutive values to get period usage.
+    const billable = calculateBillableUsage(currentExcess, previousExcess);
 
     // Validate against last 3 stored excesses for this printer
     const recentReadings     = await readingRepo.getRecentReadings(reading.printerId, cycle.periodStart, 3);

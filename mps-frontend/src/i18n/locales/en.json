@@ -639,6 +639,16 @@
     "calculationDetailsDesc": "Show the step-by-step calculation breakdown in billing cycle detail pages.",
     "lastChanged": "Last changed",
     "settingUpdated": "Setting updated",
-    "settingUpdateError": "Failed to update setting"
+    "settingUpdateError": "Failed to update setting",
+    "dataMaintenance": "Data Maintenance",
+    "recalcExcessTitle": "Recalculate Excess Values",
+    "recalcExcessDesc": "Recalculates excess_bw and excess_color for all meter readings from their raw counter values. Run this if billing calculations appear incorrect after a system update.",
+    "recalcNow": "Recalculate Now",
+    "recalcConfirmTitle": "Recalculate all excess values?",
+    "recalcConfirmDesc": "This will update excess_bw and excess_color for all meter readings in the system based on their raw counter values. This operation may take a few minutes.",
+    "recalcSuccess": "Recalculation complete",
+    "recalcReadingsProcessed": "readings processed",
+    "recalcReadingsUpdated": "readings updated",
+    "recalcReadingsUnchanged": "readings unchanged"
   }
 }

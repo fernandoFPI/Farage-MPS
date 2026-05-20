@@ -639,6 +639,16 @@
     "calculationDetailsDesc": "عرض تفاصيل الحساب خطوة بخطوة في صفحات دورة الفوترة.",
     "lastChanged": "آخر تعديل",
     "settingUpdated": "تم تحديث الإعداد",
-    "settingUpdateError": "فشل تحديث الإعداد"
+    "settingUpdateError": "فشل تحديث الإعداد",
+    "dataMaintenance": "صيانة البيانات",
+    "recalcExcessTitle": "إعادة احتساب قيم الزيادة",
+    "recalcExcessDesc": "يعيد احتساب excess_bw و excess_color لجميع قراءات العدادات من قيم العدادات الخام. قم بتشغيل هذا إذا بدت حسابات الفوترة غير صحيحة بعد تحديث النظام.",
+    "recalcNow": "إعادة الاحتساب الآن",
+    "recalcConfirmTitle": "إعادة احتساب جميع قيم الزيادة؟",
+    "recalcConfirmDesc": "سيؤدي هذا إلى تحديث excess_bw و excess_color لجميع قراءات العدادات في النظام بناءً على قيم العدادات الخام. قد تستغرق هذه العملية بضع دقائق.",
+    "recalcSuccess": "اكتملت إعادة الاحتساب",
+    "recalcReadingsProcessed": "قراءات تمت معالجتها",
+    "recalcReadingsUpdated": "قراءات تم تحديثها",
+    "recalcReadingsUnchanged": "قراءات بدون تغيير"
   }
 }

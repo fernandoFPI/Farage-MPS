@@ -42,7 +42,7 @@ export default function ContractDetail() {
   if (!contract) return <p className="text-gray-500 p-6">{t('common.noData')}</p>
 
   const isMinVol = contract.billingType === 'minimum_volume'
-  const isPsg = contract.contractMode === 'psg'
+  const isPsg = contract.contractMode === 'psg' || contract.contractMode === 'psg_simple'
 
   return (
     <div className="space-y-6">
@@ -79,11 +79,15 @@ export default function ContractDetail() {
             )}
             <InfoRow label={t('contracts.contractMode')} value={
               <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                isPsg
+                contract.contractMode === 'psg'
                   ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                  : contract.contractMode === 'psg_simple'
+                  ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
                   : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
               }`}>
-                {isPsg ? t('contracts.modeBadgePsg') : t('contracts.modeBadgeOsg')}
+                {contract.contractMode === 'psg' ? t('contracts.modeBadgePsg')
+                  : contract.contractMode === 'psg_simple' ? t('contracts.modeBadgePsgSimple')
+                  : t('contracts.modeBadgeOsg')}
               </span>
             } />
             {contract.serviceType && (

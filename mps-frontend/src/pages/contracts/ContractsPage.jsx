@@ -55,9 +55,13 @@ export default function ContractsPage() {
         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
           r.contractMode === 'psg'
             ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+            : r.contractMode === 'psg_simple'
+            ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
             : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
         }`}>
-          {r.contractMode === 'psg' ? t('contracts.modeBadgePsg') : t('contracts.modeBadgeOsg')}
+          {r.contractMode === 'psg' ? t('contracts.modeBadgePsg')
+            : r.contractMode === 'psg_simple' ? t('contracts.modeBadgePsgSimple')
+            : t('contracts.modeBadgeOsg')}
         </span>
       ),
     },
@@ -67,9 +71,9 @@ export default function ContractsPage() {
         : <span className="text-xs text-gray-400">—</span>,
     },
     { key: 'billingType', label: t('contracts.billingType'), className: 'hidden lg:table-cell',
-      render: r => r.contractMode === 'psg' ? <span className="text-xs text-gray-400">—</span> : <StatusBadge status={r.billingType} /> },
+      render: r => r.contractMode !== 'osg' ? <span className="text-xs text-gray-400">—</span> : <StatusBadge status={r.billingType} /> },
     { key: 'fixedCharge', label: t('contracts.fixedCharge'), className: 'hidden lg:table-cell',
-      render: r => r.contractMode === 'psg' ? <span className="text-xs text-gray-400">—</span> : fmtMoney(r.fixedCharge) },
+      render: r => r.contractMode !== 'osg' ? <span className="text-xs text-gray-400">—</span> : fmtMoney(r.fixedCharge) },
     { key: 'startDate', label: t('contracts.startDate'), className: 'hidden lg:table-cell',
       render: r => fmtDate(r.startDate) },
     { key: 'endDate', label: t('contracts.endDate'), className: 'hidden lg:table-cell',
@@ -109,6 +113,7 @@ export default function ContractsPage() {
               <option value="">{t('contracts.contractMode')}: All</option>
               <option value="osg">{t('contracts.modeBadgeOsg')}</option>
               <option value="psg">{t('contracts.modeBadgePsg')}</option>
+              <option value="psg_simple">{t('contracts.modeBadgePsgSimple')}</option>
             </select>
             <select value={serviceType} onChange={e => setServiceType(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">

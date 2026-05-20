@@ -33,3 +33,9 @@ export function useUpdateSetting() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['settings'] }),
   })
 }
+
+export function useRecalculateExcess() {
+  return useMutation({
+    mutationFn: () => client.post('/api/admin/recalculate-excess').then(r => r.data),
+  })
+}
