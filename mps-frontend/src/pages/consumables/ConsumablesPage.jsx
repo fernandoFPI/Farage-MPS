@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown, ChevronRight } from 'lucide-react'
+import SearchableSelect from '../../components/SearchableSelect'
 import { useConsumableReadings } from '../../api/hooks/useConsumableReadings'
 import { useCustomerStorage, useCustomerStorageHistory } from '../../api/hooks/useCustomerStorage'
 import { useCustomers } from '../../api/hooks/useCustomers'
@@ -180,15 +181,14 @@ function CustomerStorageCard({ customer, t }) {
 
 // ── Tab 1: Printer Consumable Levels ─────────────────────────────────────────
 function PrinterLevelsTab({ customers, cycles, t }) {
-  const [filterCustomer, setFilterCustomer] = useState('')
-  const [filterCycle, setFilterCycle]       = useState('')
+  const [filterCustomer, setFilterCustomer] = useState(null)
+  const [filterCycle, setFilterCycle]       = useState(null)
   const [expanded, setExpanded] = useState({})
 
-  const { data: allReadings = [], isLoading } = useConsumableReadings(
-    filterCustomer || filterCycle
-      ? { customerId: filterCustomer || undefined, billingCycleId: filterCycle || undefined }
-      : {},
-  )
+  const { data: allReadings = [], isLoading } = useConsumableReadings({
+    ...(filterCustomer != null && { customerId: filterCustomer }),
+    ...(filterCycle != null && { billingCycleId: filterCycle }),
+  })
 
   // Group by customer → cycle
   const grouped = useMemo(() => {
@@ -214,22 +214,24 @@ function PrinterLevelsTab({ customers, cycles, t }) {
     <div className="space-y-4">
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
-        <select
+        <SearchableSelect
+          className="w-44"
           value={filterCustomer}
-          onChange={e => setFilterCustomer(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-        >
-          <option value="">{t('customers.title')} — {t('common.search')}</option>
-          {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select
+          onChange={setFilterCustomer}
+          options={[
+            { value: null, label: t('common.allCustomers') },
+            ...customers.map(c => ({ value: c.id, label: c.name })),
+          ]}
+        />
+        <SearchableSelect
+          className="w-56"
           value={filterCycle}
-          onChange={e => setFilterCycle(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-        >
-          <option value="">{t('billingCycles.title')} — {t('common.search')}</option>
-          {cycles.map(c => <option key={c.id} value={c.id}>{c.cycleName}</option>)}
-        </select>
+          onChange={setFilterCycle}
+          options={[
+            { value: null, label: t('common.allCycles') },
+            ...cycles.map(c => ({ value: c.id, label: c.cycleName ?? c.contractNumber })),
+          ]}
+        />
       </div>
 
       {isLoading && <LoadingSpinner />}
@@ -315,21 +317,22 @@ function PrinterLevelsTab({ customers, cycles, t }) {
 
 // ── Tab 2: Customer Storage ───────────────────────────────────────────────────
 function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t }) {
-  const filteredCustomers = filterCustomer
+  const filteredCustomers = filterCustomer != null
     ? customers.filter(c => c.id === filterCustomer)
     : customers
 
   return (
     <div className="space-y-4">
       <div>
-        <select
+        <SearchableSelect
+          className="w-44"
           value={filterCustomer}
-          onChange={e => setFilterCustomer(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-        >
-          <option value="">{t('customers.title')} — {t('common.search')}</option>
-          {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
+          onChange={setFilterCustomer}
+          options={[
+            { value: null, label: t('common.allCustomers') },
+            ...customers.map(c => ({ value: c.id, label: c.name })),
+          ]}
+        />
       </div>
 
       {filteredCustomers.length === 0 && (
@@ -347,7 +350,7 @@ function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t })
 export default function ConsumablesPage() {
   const { t } = useTranslation()
   const [activeTab, setActiveTab]           = useState('levels')
-  const [storageCustomer, setStorageCustomer] = useState('')
+  const [storageCustomer, setStorageCustomer] = useState(null)
 
   const { data: customers = [] } = useCustomers()
   const { data: cycles = [] }    = useBillingCycles()

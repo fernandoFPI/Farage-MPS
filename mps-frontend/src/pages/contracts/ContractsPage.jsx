@@ -10,15 +10,16 @@ import StatusBadge from '../../components/StatusBadge'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import ErrorAlert from '../../components/ErrorAlert'
 import ContractFormModal from './ContractFormModal'
+import SearchableSelect from '../../components/SearchableSelect'
 import { fmtDate, fmtMoney } from '../../utils/format'
 
 export default function ContractsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [customerId, setCustomerId] = useState('')
-  const [isActive, setIsActive] = useState('')
-  const [contractMode, setContractMode] = useState('')
-  const [serviceType, setServiceType] = useState('')
+  const [customerId, setCustomerId] = useState(null)
+  const [isActive, setIsActive] = useState(null)
+  const [contractMode, setContractMode] = useState(null)
+  const [serviceType, setServiceType] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -26,7 +27,7 @@ export default function ContractsPage() {
 
   const params = {}
   if (customerId) params.customerId = customerId
-  if (isActive !== '') params.isActive = isActive
+  if (isActive !== null) params.isActive = isActive
   if (contractMode) params.contractMode = contractMode
   if (serviceType) params.serviceType = serviceType
 
@@ -97,29 +98,45 @@ export default function ContractsPage() {
         title={t('contracts.title')}
         actions={
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <select value={customerId} onChange={e => setCustomerId(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">
-              <option value="">{t('customers.title')}: All</option>
-              {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <select value={isActive} onChange={e => setIsActive(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">
-              <option value="">{t('contracts.isActive')}: All</option>
-              <option value="true">Active</option>
-              <option value="false">Inactive</option>
-            </select>
-            <select value={contractMode} onChange={e => setContractMode(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">
-              <option value="">{t('contracts.contractMode')}: All</option>
-              <option value="osg">{t('contracts.modeBadgeOsg')}</option>
-              <option value="psg">{t('contracts.modeBadgePsg')}</option>
-              <option value="psg_simple">{t('contracts.modeBadgePsgSimple')}</option>
-            </select>
-            <select value={serviceType} onChange={e => setServiceType(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none">
-              <option value="">{t('contracts.serviceType')}: All</option>
-              {['MPS', 'FSMA', 'LS', 'LO', 'SMA'].map(st => <option key={st} value={st}>{st}</option>)}
-            </select>
+            <SearchableSelect
+              className="w-44"
+              value={customerId}
+              onChange={setCustomerId}
+              options={[
+                { value: null, label: `${t('customers.title')}: All` },
+                ...customers.map(c => ({ value: c.id, label: c.name })),
+              ]}
+            />
+            <SearchableSelect
+              className="w-36"
+              value={isActive}
+              onChange={setIsActive}
+              options={[
+                { value: null, label: `${t('contracts.isActive')}: All` },
+                { value: 'true', label: 'Active' },
+                { value: 'false', label: 'Inactive' },
+              ]}
+            />
+            <SearchableSelect
+              className="w-36"
+              value={contractMode}
+              onChange={setContractMode}
+              options={[
+                { value: null, label: `${t('contracts.contractMode')}: All` },
+                { value: 'osg', label: t('contracts.modeBadgeOsg') },
+                { value: 'psg', label: t('contracts.modeBadgePsg') },
+                { value: 'psg_simple', label: t('contracts.modeBadgePsgSimple') },
+              ]}
+            />
+            <SearchableSelect
+              className="w-36"
+              value={serviceType}
+              onChange={setServiceType}
+              options={[
+                { value: null, label: `${t('contracts.serviceType')}: All` },
+                ...['MPS', 'FSMA', 'LS', 'LO', 'SMA'].map(st => ({ value: st, label: st })),
+              ]}
+            />
             <button onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
               <Plus className="h-4 w-4" />{t('contracts.addContract')}
             </button>

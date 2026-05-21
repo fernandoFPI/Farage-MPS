@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import SearchableSelect from '../../components/SearchableSelect'
 import {
   LineChart, Line,
   BarChart, Bar,
@@ -21,12 +22,6 @@ const COLORS = {
   danger:  '#EF4444',
   gray:    '#6B7280',
 }
-
-const SELECT_CLS = [
-  'rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900',
-  'focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20',
-  'dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100',
-].join(' ')
 
 function ChartCard({ title, subtitle, children, className = '' }) {
   return (
@@ -151,7 +146,7 @@ export default function ChartsPage() {
 
   const currentYear = new Date().getFullYear()
   const [year,       setYear]       = useState(currentYear)
-  const [customerId, setCustomerId] = useState('')
+  const [customerId, setCustomerId] = useState(null)
 
   const { data: customers = [] } = useCustomers()
   const { data, isLoading }      = useAnalytics({ year, ...(customerId && { customerId }) })
@@ -174,26 +169,25 @@ export default function ChartsPage() {
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400">{t('charts.year')}:</label>
-          <select
+          <SearchableSelect
+            className="w-24"
             value={year}
-            onChange={e => setYear(Number(e.target.value))}
-            className={SELECT_CLS}
-          >
-            {yearOptions.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
+            onChange={setYear}
+            clearable={false}
+            options={yearOptions.map(y => ({ value: y, label: String(y) }))}
+          />
         </div>
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600 dark:text-gray-400">{t('charts.customer')}:</label>
-          <select
+          <SearchableSelect
+            className="w-44"
             value={customerId}
-            onChange={e => setCustomerId(e.target.value)}
-            className={SELECT_CLS}
-          >
-            <option value="">{t('charts.allCustomers')}</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+            onChange={setCustomerId}
+            options={[
+              { value: null, label: t('charts.allCustomers') },
+              ...customers.map(c => ({ value: c.id, label: c.name })),
+            ]}
+          />
         </div>
       </div>
 

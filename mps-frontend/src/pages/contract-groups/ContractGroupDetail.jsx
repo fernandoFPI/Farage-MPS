@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Plus, Trash2, Layers, BarChart2 } from 'lucide-react'
+import SearchableSelect from '../../components/SearchableSelect'
 import {
   useContractGroup,
   useContractGroupSummary,
@@ -25,7 +26,7 @@ function AddMemberModal({ open, onClose, groupId, existingContractIds }) {
   const { data: allContracts = [] } = useContracts({ isActive: true })
   const addMember = useAddGroupMember()
   const { showToast } = useToast()
-  const [contractId, setContractId] = useState('')
+  const [contractId, setContractId] = useState(null)
   const [err, setErr] = useState('')
 
   const available = allContracts.filter(c => !existingContractIds.includes(c.id))
@@ -37,7 +38,7 @@ function AddMemberModal({ open, onClose, groupId, existingContractIds }) {
     try {
       await addMember.mutateAsync({ groupId, contractId })
       showToast({ title: t('common.saved'), variant: 'success' })
-      setContractId('')
+      setContractId(null)
       onClose()
     } catch (ex) {
       setErr(ex.response?.data?.error || ex.message)
@@ -64,12 +65,17 @@ function AddMemberModal({ open, onClose, groupId, existingContractIds }) {
     >
       <form id="add-member-form" onSubmit={handleSubmit} className="space-y-4">
         <FormField label={t('nav.contracts')} required>
-          <select className={inputCls} value={contractId} onChange={e => setContractId(e.target.value)}>
-            <option value="">—</option>
-            {available.map(c => (
-              <option key={c.id} value={c.id}>{c.contractNumber} — {c.customerName}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            value={contractId}
+            onChange={setContractId}
+            clearable={false}
+            placeholder="—"
+            options={available.map(c => ({
+              value: c.id,
+              label: `${c.contractNumber} — ${c.customerName}`,
+              group: c.customerName ?? '',
+            }))}
+          />
         </FormField>
         {err && <p className="text-sm text-red-600 dark:text-red-400">{err}</p>}
       </form>

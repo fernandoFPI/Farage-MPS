@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Eye, Trash2, UserPlus, RefreshCw, List, LayoutGrid, FileUp } from 'lucide-react'
+import SearchableSelect from '../../components/SearchableSelect'
 import { usePrinters, useDeletePrinter } from '../../api/hooks/usePrinters'
 import { useAssignments } from '../../api/hooks/useAssignments'
 import { useCustomers } from '../../api/hooks/useCustomers'
@@ -45,8 +46,8 @@ export default function PrintersPage() {
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
   const [city, setCity] = useState('')
-  const [xsmEnabled, setXsmEnabled] = useState('')
-  const [customerFilter, setCustomerFilter] = useState('')
+  const [xsmEnabled, setXsmEnabled] = useState(null)
+  const [customerFilter, setCustomerFilter] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -57,7 +58,7 @@ export default function PrintersPage() {
 
   const params = {}
   if (city) params.city = city
-  if (xsmEnabled !== '') params.xsmEnabled = xsmEnabled
+  if (xsmEnabled !== null) params.xsmEnabled = xsmEnabled
 
   const { data: printers = [], isLoading } = usePrinters(params)
   const { data: assignments = [] } = useAssignments()
@@ -80,11 +81,12 @@ export default function PrintersPage() {
   // For list view: filter by selected customer
   const filteredPrinters = useMemo(() => {
     if (!customerFilter) return printers
+    const selectedCustomer = customers.find(c => c.id === customerFilter)
     return printers.filter(p => {
       const a = activeAssignmentMap[p.id]
-      return a?.contract?.customerName === customerFilter
+      return a?.contract?.customerName === selectedCustomer?.name
     })
-  }, [printers, activeAssignmentMap, customerFilter])
+  }, [printers, activeAssignmentMap, customerFilter, customers])
 
   // For customer view: group active assignments by customer → contract
   const customerGroups = useMemo(() => {
@@ -128,8 +130,6 @@ export default function PrintersPage() {
       setDeleteError(err.response?.data?.error || err.message)
     }
   }
-
-  const selectCls = 'rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none'
 
   const columns = [
     { key: 'serialNumber', label: t('printers.serialNumber') },
@@ -200,11 +200,16 @@ export default function PrintersPage() {
               <>
                 <input value={city} onChange={e => setCity(e.target.value)} placeholder={t('printers.city')}
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 w-32" />
-                <select value={xsmEnabled} onChange={e => setXsmEnabled(e.target.value)} className={selectCls}>
-                  <option value="">{t('printers.xsmEnabled')}: {t('common.status')}</option>
-                  <option value="true">{t('printers.xsmEnabled')}</option>
-                  <option value="false">Not XSM</option>
-                </select>
+                <SearchableSelect
+                  className="w-36"
+                  value={xsmEnabled}
+                  onChange={setXsmEnabled}
+                  options={[
+                    { value: null, label: `${t('printers.xsmEnabled')}: All` },
+                    { value: 'true', label: t('printers.xsmEnabled') },
+                    { value: 'false', label: 'Not XSM' },
+                  ]}
+                />
               </>
             )}
             <ViewToggle view={view} onChange={changeView} />
@@ -226,12 +231,15 @@ export default function PrintersPage() {
         <>
           {/* Customer filter */}
           <div className="mb-4">
-            <select value={customerFilter} onChange={e => setCustomerFilter(e.target.value)} className={selectCls}>
-              <option value="">All Customers</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.name}>{c.name}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              className="w-44"
+              value={customerFilter}
+              onChange={setCustomerFilter}
+              options={[
+                { value: null, label: t('common.allCustomers') },
+                ...customers.map(c => ({ value: c.id, label: c.name })),
+              ]}
+            />
           </div>
           <DataTable columns={columns} data={filteredPrinters} loading={isLoading} emptyMessage={t('common.noData')} />
         </>

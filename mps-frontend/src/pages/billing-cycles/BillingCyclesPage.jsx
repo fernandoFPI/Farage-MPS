@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw } from 'lucide-react'
+import SearchableSelect from '../../components/SearchableSelect'
+import { contractOptions } from '../../utils/filterOptions'
 import AccordionGroup from '../../components/AccordionGroup'
 import {
   useBillingCycles,
@@ -82,7 +84,7 @@ function ViewToggle({ view, onChange, t }) {
 function CreateCycleModal({ onClose }) {
   const { t } = useTranslation()
   const { showToast } = useToast()
-  const [form, setForm] = useState({ contractId: '', periodStart: '', periodEnd: '' })
+  const [form, setForm] = useState({ contractId: null, periodStart: '', periodEnd: '' })
   const [error, setError] = useState('')
   const { data: contracts = [] } = useContracts({ isActive: true })
   const create = useCreateBillingCycle()
@@ -126,14 +128,17 @@ function CreateCycleModal({ onClose }) {
     >
       <form id="create-cycle-form" onSubmit={handleSubmit} className="space-y-4">
         <FormField label={t('contracts.title')} required>
-          <select className={inputCls} value={form.contractId} onChange={e => set('contractId', e.target.value)}>
-            <option value="">—</option>
-            {contracts.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.contractNumber} — {c.customerName ?? c.customer?.name ?? ''}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            value={form.contractId}
+            onChange={v => set('contractId', v)}
+            clearable={false}
+            placeholder="—"
+            options={contracts.map(c => ({
+              value: c.id,
+              label: `${c.contractNumber} — ${c.customerName ?? c.customer?.name ?? ''}`,
+              group: c.customerName ?? c.customer?.name ?? '',
+            }))}
+          />
         </FormField>
         <div className="grid grid-cols-2 gap-3">
           <FormField label={t('xsmImport.periodStart')} required>
@@ -161,8 +166,8 @@ export default function BillingCyclesPage() {
   const [tab, setTab] = useState('active')
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
-  const [contractId, setContractId] = useState('')
-  const [status, setStatus] = useState(() => searchParams.get('status') ?? '')
+  const [contractId, setContractId] = useState(null)
+  const [status, setStatus] = useState(() => searchParams.get('status') ?? null)
 
   function changeView(v) {
     setView(v)
@@ -172,7 +177,7 @@ export default function BillingCyclesPage() {
   useEffect(() => {
     const s = searchParams.get('status')
     if (s) setStatus(s)
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [createOpen, setCreateOpen] = useState(false)
   const [confirmingCycle, setConfirmingCycle] = useState(null)
   const [confirmError, setConfirmError] = useState('')
@@ -240,8 +245,6 @@ export default function BillingCyclesPage() {
       setConfirmError(err.response?.data?.error || err.message)
     }
   }
-
-  const selectCls = 'rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none'
 
   const columns = [
     {
@@ -375,18 +378,21 @@ export default function BillingCyclesPage() {
         title={t('billingCycles.title')}
         actions={
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <select value={contractId} onChange={e => setContractId(e.target.value)} className={selectCls}>
-              <option value="">{t('billingCycles.contract')}: All</option>
-              {allContracts.map(c => (
-                <option key={c.id} value={c.id}>{c.contractNumber}</option>
-              ))}
-            </select>
-            <select value={status} onChange={e => setStatus(e.target.value)} className={selectCls}>
-              <option value="">{t('common.status')}: All</option>
-              {STATUSES.map(s => (
-                <option key={s} value={s}>{t(`billingCycles.status.${s}`)}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              className="w-52"
+              value={contractId}
+              onChange={setContractId}
+              options={contractOptions(allContracts)}
+            />
+            <SearchableSelect
+              className="w-44"
+              value={status}
+              onChange={setStatus}
+              options={[
+                { value: null, label: `${t('common.status')}: All` },
+                ...STATUSES.map(s => ({ value: s, label: t(`billingCycles.status.${s}`) })),
+              ]}
+            />
             <ViewToggle view={view} onChange={changeView} t={t} />
             {canManage && (
               <button

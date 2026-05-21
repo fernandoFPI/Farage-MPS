@@ -62,7 +62,11 @@
     "saved": "Saved successfully",
     "deleted": "Deleted successfully",
     "created": "Created successfully",
-    "error": "An error occurred"
+    "error": "An error occurred",
+    "allCustomers": "All Customers",
+    "allContracts": "All Contracts",
+    "allCycles": "All Cycles",
+    "allPrinters": "All Printers"
   },
   "dashboard": {
     "greeting_morning": "Good morning",
@@ -274,7 +278,11 @@
     "bulkDeleteDescription": "You are about to permanently delete {{count}} reading(s). This action cannot be undone.",
     "bulkDeleteSuccess": "{{count}} reading(s) deleted",
     "bulkDeleteConfirmedWarning": "{{count}} of the selected reading(s) belong to confirmed billing cycles. Tick the checkbox below to confirm you want to proceed.",
-    "bulkDeleteConfirmCheckbox": "I understand — delete readings from confirmed cycles"
+    "bulkDeleteConfirmCheckbox": "I understand — delete readings from confirmed cycles",
+    "rotateLeft": "Rotate Left",
+    "rotateRight": "Rotate Right",
+    "download": "Download",
+    "popOut": "Pop Out"
   },
   "tickets": {
     "title": "My Tickets",

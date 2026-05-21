@@ -1,6 +1,8 @@
 import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import SearchableSelect from '../../components/SearchableSelect'
+import { customerOptions, billingCycleOptions, printerOptions } from '../../utils/filterOptions'
 import { Plus, Trash2, AlertTriangle, Pencil, X, Info, List, LayoutGrid, Image, FileUp } from 'lucide-react'
 import ReadingImportModal from './ReadingImportModal'
 import * as Tooltip from '@radix-ui/react-tooltip'
@@ -60,10 +62,10 @@ export default function MeterReadingsPage() {
   const canManage = usePermission('can_manage_billing')
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
-  const [billingCycleId, setBillingCycleId] = useState('')
-  const [source, setSource] = useState('')
-  const [printerId, setPrinterId] = useState('')
-  const [customerId, setCustomerId] = useState('')
+  const [billingCycleId, setBillingCycleId] = useState(null)
+  const [source, setSource] = useState(null)
+  const [printerId, setPrinterId] = useState(null)
+  const [customerId, setCustomerId] = useState(null)
 
   function changeView(v) {
     setView(v)
@@ -214,8 +216,6 @@ export default function MeterReadingsPage() {
 
   const setEdit = (k, v) => setEditForm(f => ({ ...f, [k]: v }))
 
-  const selectCls = 'rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none'
-
   const editingCycle = editing ? cycleMap[editing.billingCycleId] : null
 
   return (
@@ -249,32 +249,35 @@ export default function MeterReadingsPage() {
 
         {/* Filters */}
         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <select value={customerId} onChange={e => setCustomerId(e.target.value)} className={selectCls}>
-            <option value="">All Customers</option>
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-          <select value={billingCycleId} onChange={e => setBillingCycleId(e.target.value)} className={selectCls}>
-            <option value="">{t('nav.billingCycles')}: All</option>
-            {cycles.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.cycleName ?? `${c.contractNumber} — ${c.periodStart?.slice(0, 7)}`}
-              </option>
-            ))}
-          </select>
-          <select value={source} onChange={e => setSource(e.target.value)} className={selectCls}>
-            <option value="">{t('meterReadings.source')}: All</option>
-            <option value="manual">{t('meterReadings.manual')}</option>
-            <option value="xsm">{t('meterReadings.xsm')}</option>
-            <option value="odoo">{t('meterReadings.odoo')}</option>
-          </select>
-          <select value={printerId} onChange={e => setPrinterId(e.target.value)} className={selectCls}>
-            <option value="">{t('printers.title')}: All</option>
-            {printers.map(p => (
-              <option key={p.id} value={p.id}>{p.serialNumber} — {p.model}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            className="w-44"
+            value={customerId}
+            onChange={setCustomerId}
+            options={customerOptions(customers)}
+          />
+          <SearchableSelect
+            className="w-56"
+            value={billingCycleId}
+            onChange={setBillingCycleId}
+            options={billingCycleOptions(cycles)}
+          />
+          <SearchableSelect
+            className="w-36"
+            value={source}
+            onChange={setSource}
+            options={[
+              { value: null, label: `${t('meterReadings.source')}: All` },
+              { value: 'manual', label: t('meterReadings.manual') },
+              { value: 'xsm', label: t('meterReadings.xsm') },
+              { value: 'odoo', label: t('meterReadings.odoo') },
+            ]}
+          />
+          <SearchableSelect
+            className="w-52"
+            value={printerId}
+            onChange={setPrinterId}
+            options={printerOptions(printers)}
+          />
         </div>
 
         {deleteError && <div className="mb-4"><ErrorAlert message={deleteError} /></div>}

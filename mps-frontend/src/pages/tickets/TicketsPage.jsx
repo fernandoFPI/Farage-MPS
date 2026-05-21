@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Search, ChevronDown, CheckCircle, Clock, Circle, AlertTriangle, X, Camera, Image, ChevronRight, MapPin, Navigation } from 'lucide-react'
+import { Search, CheckCircle, Clock, Circle, AlertTriangle, X, Camera, Image, ChevronRight, MapPin, Navigation } from 'lucide-react'
+import SearchableSelect from '../../components/SearchableSelect'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import { useBillingCycles, useBillingCycle, useLockPrinter, useUnlockPrinter, useSubmitStorage } from '../../api/hooks/useBillingCycles'
 import { useMeterReadings, useSubmitReading } from '../../api/hooks/useMeterReadings'
@@ -35,95 +36,6 @@ function formatCountdown(secs) {
   const m = Math.floor(secs / 60)
   const s = secs % 60
   return `${m}:${String(s).padStart(2, '0')}`
-}
-
-// ── Searchable Cycle Dropdown ────────────────────────────────────────────────
-
-function CycleDropdown({ cycles, value, onChange, t }) {
-  const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState('')
-  const ref = useRef(null)
-
-  useEffect(() => {
-    function handleClick(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [])
-
-  const selected = cycles.find(c => c.id === value)
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase()
-    return q ? cycles.filter(c => (c.cycleName ?? '').toLowerCase().includes(q)) : cycles
-  }, [cycles, search])
-
-  const grouped = useMemo(() => {
-    const g = {}
-    for (const c of filtered) {
-      const customer = c.customerName ?? c.cycleName?.split(' — ')[0] ?? '—'
-      if (!g[customer]) g[customer] = []
-      g[customer].push(c)
-    }
-    return g
-  }, [filtered])
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between gap-2 rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-start dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-      >
-        <span className={selected ? 'text-gray-900 dark:text-gray-100' : 'text-gray-400 dark:text-gray-500'}>
-          {selected ? selected.cycleName : t('tickets.selectCycle')}
-        </span>
-        <ChevronDown className={`h-4 w-4 text-gray-400 flex-shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-
-      {open && (
-        <div className="absolute z-30 mt-1 w-full rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900 max-h-72 overflow-hidden flex flex-col">
-          <div className="p-2 border-b border-gray-100 dark:border-gray-800">
-            <input
-              autoFocus
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder={t('common.search')}
-              className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-            />
-          </div>
-          <div className="overflow-y-auto">
-            {Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).map(([customer, customerCycles]) => (
-              <div key={customer}>
-                <div className="px-3 py-1.5 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wide bg-gray-50 dark:bg-gray-800/50">
-                  {customer}
-                </div>
-                {customerCycles.map(c => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => { onChange(c.id); setOpen(false); setSearch('') }}
-                    className={`w-full text-start px-4 py-2 text-sm transition-colors ${
-                      c.id === value
-                        ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/20 dark:text-brand-400'
-                        : 'text-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
-                    }`}
-                  >
-                    {c.cycleName}
-                  </button>
-                ))}
-              </div>
-            ))}
-            {Object.keys(grouped).length === 0 && (
-              <p className="px-4 py-6 text-center text-sm text-gray-400">{t('common.noData')}</p>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  )
 }
 
 // ── Status Badge ─────────────────────────────────────────────────────────────
@@ -932,7 +844,17 @@ export default function TicketsPage() {
         <div className="space-y-4">
           <div className="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 p-4 shadow-sm">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">{t('nav.billingCycles')}</p>
-            <CycleDropdown cycles={openCycles} value={selectedCycleId} onChange={handleCycleChange} t={t} />
+            <SearchableSelect
+              value={selectedCycleId || null}
+              onChange={v => handleCycleChange(v ?? '')}
+              clearable={false}
+              placeholder={t('tickets.selectCycle')}
+              options={openCycles.map(c => ({
+                value: c.id,
+                label: c.cycleName ?? c.contractNumber,
+                group: c.customerName ?? c.cycleName?.split(' — ')[0] ?? '',
+              }))}
+            />
             <p className="mt-2 text-xs text-gray-400 dark:text-gray-500 italic">
               ℹ {t('tickets.openCyclesOnly')}{' '}
               <span className="not-italic">{t('tickets.viewPastReadings')}</span>

@@ -62,7 +62,11 @@
     "created": "تم الإنشاء بنجاح",
     "error": "حدث خطأ",
     "on": "في",
-    "by": "بواسطة"
+    "by": "بواسطة",
+    "allCustomers": "كل العملاء",
+    "allContracts": "كل العقود",
+    "allCycles": "كل الدورات",
+    "allPrinters": "كل الطابعات"
   },
   "dashboard": {
     "greeting_morning": "صباح الخير",
@@ -274,7 +278,11 @@
     "bulkDeleteDescription": "أنت على وشك حذف {{count}} قراءة نهائياً. لا يمكن التراجع عن هذا الإجراء.",
     "bulkDeleteSuccess": "تم حذف {{count}} قراءة",
     "bulkDeleteConfirmedWarning": "{{count}} من القراءات المحددة تنتمي إلى دورات فوترة مؤكدة. ضع علامة في المربع أدناه لتأكيد المتابعة.",
-    "bulkDeleteConfirmCheckbox": "أفهم ذلك — احذف القراءات من الدورات المؤكدة"
+    "bulkDeleteConfirmCheckbox": "أفهم ذلك — احذف القراءات من الدورات المؤكدة",
+    "rotateLeft": "تدوير لليسار",
+    "rotateRight": "تدوير لليمين",
+    "download": "تنزيل",
+    "popOut": "فتح في نافذة جديدة"
   },
   "tickets": {
     "title": "تذاكري",
