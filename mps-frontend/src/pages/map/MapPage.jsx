@@ -28,16 +28,16 @@ export default function MapPage() {
   const mapped = printers.filter(p => p.latitude != null && p.longitude != null)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       <PageHeader
         title={t('map.title')}
         subtitle={`${mapped.length} ${t('map.mappedPrinters')}`}
       />
-      <div style={{ minHeight: '70vh' }}>
+      <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
         <PrinterMap
           printers={printers}
           activeAssignmentMap={activeAssignmentMap}
-          height="70vh"
+          height="100%"
         />
       </div>
     </div>

@@ -242,7 +242,7 @@ export default function PrinterMap({
     : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
   return (
-    <div style={{ height, width: '100%' }}>
+    <div style={{ height, width: '100%', position: 'relative', zIndex: 0 }}>
       <MapContainer
         center={IRAQ_CENTER}
         zoom={IRAQ_DEFAULT_ZOOM}
@@ -250,7 +250,7 @@ export default function PrinterMap({
         maxZoom={IRAQ_MAX_ZOOM}
         maxBounds={IRAQ_BOUNDS}
         maxBoundsViscosity={0.8}
-        style={{ height: '100%', width: '100%', borderRadius: '12px' }}
+        style={{ height: '100%', width: '100%', borderRadius: '12px', position: 'relative', zIndex: 0 }}
       >
         <TileLayer attribution={tileAttribution} url={tileUrl} />
 

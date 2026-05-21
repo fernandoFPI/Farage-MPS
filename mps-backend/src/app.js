@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import compression from 'compression';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
@@ -23,6 +24,7 @@ import adminRoutes from './routes/adminRoutes.js';
 
 const app = express();
 
+app.use(compression());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   credentials: true,

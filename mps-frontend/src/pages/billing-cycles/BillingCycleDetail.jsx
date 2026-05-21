@@ -186,8 +186,6 @@ function PrinterCalcCard({ reading, summaryPrinter, cycleStart }) {
     const exColor = currColorTotal - prevColorTotal
     const billBw    = summaryPrinter?.billableBw    ?? 0
     const billColor = summaryPrinter?.billableColor ?? 0
-    const rawBillBw    = exBw    - p.excessBw
-    const rawBillColor = exColor - p.excessColor
 
     return (
       <div className="px-4 py-4">
@@ -222,63 +220,18 @@ function PrinterCalcCard({ reading, summaryPrinter, cycleStart }) {
         </div>
 
         <CalcSec>Calculation</CalcSec>
-        <p className="mt-2 mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Step 1 — Monthly excess from raw counters:</p>
+        <p className="mt-2 mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Step 1 — Billable pages from raw counter subtraction:</p>
         <div className="space-y-3 pl-3 mb-2">
           <div>
-            <Mono>Excess BW    = ({n(c.a4Bw)} + {n(c.a3Bw)}) - ({n(p.a4Bw)} + {n(p.a3Bw)})</Mono>
-            <Mono>             = {n(currBwTotal)} - {n(prevBwTotal)}</Mono>
-            <Mono hi>             = {n(exBw)} pages</Mono>
+            <Mono>Billable BW    = ({n(c.a4Bw)} + {n(c.a3Bw)}) - ({n(p.a4Bw)} + {n(p.a3Bw)})</Mono>
+            <Mono>               = {n(currBwTotal)} - {n(prevBwTotal)}</Mono>
+            <Mono hi>               = {n(exBw)} pages</Mono>
           </div>
           {!isBwOnly && (
             <div>
-              <Mono>Excess Color = ({n(c.a4Color)} + {n(c.a3Color)}) - ({n(p.a4Color)} + {n(p.a3Color)})</Mono>
-              <Mono>             = {n(currColorTotal)} - {n(prevColorTotal)}</Mono>
-              <Mono hi>             = {n(exColor)} pages</Mono>
-            </div>
-          )}
-        </div>
-
-        <p className="mt-3 mb-1 text-xs font-semibold text-gray-600 dark:text-gray-300">Step 2 — Billable pages (this month excess - last month excess):</p>
-        <div className="space-y-1 pl-3 mb-2">
-          <div>
-            <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
-              <span>Billable BW    = {n(exBw)} - {n(p.excessBw)} =</span>
-              {rawBillBw < 0 ? (
-                <>
-                  <span>{sgn(rawBillBw)}</span>
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
-                </>
-              ) : (
-                <>
-                  <span className="font-bold text-brand-600 dark:text-brand-400">{sgn(rawBillBw)}</span>
-                  <span>page{Math.abs(rawBillBw) !== 1 ? 's' : ''}</span>
-                </>
-              )}
-              <span className="text-gray-400 dark:text-gray-600 text-xs ml-1">← prev cycle excess</span>
-            </div>
-            {rawBillBw < 0 && (
-              <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">ℹ Negative result clamped to 0.</p>
-            )}
-          </div>
-          {!isBwOnly && (
-            <div>
-              <div className="flex items-baseline gap-1.5 font-mono text-xs text-gray-500 dark:text-gray-400">
-                <span>Billable Color = {n(exColor)} - {n(p.excessColor)} =</span>
-                {rawBillColor < 0 ? (
-                  <>
-                    <span>{sgn(rawBillColor)}</span>
-                    <span className="font-semibold text-amber-600 dark:text-amber-400">→ 0 (clamped)</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-bold text-brand-600 dark:text-brand-400">{sgn(rawBillColor)}</span>
-                    <span>pages</span>
-                  </>
-                )}
-              </div>
-              {rawBillColor < 0 && (
-                <p className="mt-0.5 pl-1 text-xs italic text-gray-400 dark:text-gray-500">ℹ Negative result clamped to 0.</p>
-              )}
+              <Mono>Billable Color = ({n(c.a4Color)} + {n(c.a3Color)}) - ({n(p.a4Color)} + {n(p.a3Color)})</Mono>
+              <Mono>               = {n(currColorTotal)} - {n(prevColorTotal)}</Mono>
+              <Mono hi>               = {n(exColor)} pages</Mono>
             </div>
           )}
         </div>

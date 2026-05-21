@@ -173,14 +173,16 @@ export default function DashboardPage() {
               {t('map.widgetViewAll')} →
             </Link>
           </div>
-          <PrinterMap
-            printers={printers}
-            activeAssignmentMap={activeAssignmentMap}
-            height="350px"
-            showSearch={false}
-            showFullscreen={true}
-            showResetView={false}
-          />
+          <div style={{ height: '350px', overflow: 'hidden', position: 'relative' }}>
+            <PrinterMap
+              printers={printers}
+              activeAssignmentMap={activeAssignmentMap}
+              height="350px"
+              showSearch={false}
+              showFullscreen={true}
+              showResetView={false}
+            />
+          </div>
         </div>
       )}
 

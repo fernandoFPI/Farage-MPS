@@ -38,3 +38,23 @@
     display: none;
   }
 }
+
+/* ── Leaflet z-index containment ─────────────────────────────────────────── */
+.leaflet-container {
+  z-index: 0 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 400 !important;
+}
+
+/* Sidebar and mobile drawer must sit above Leaflet controls */
+.app-sidebar {
+  position: relative;
+  z-index: 500;
+}
+
+.app-drawer {
+  z-index: 500 !important;
+}

@@ -209,13 +209,13 @@ export default function AppLayout() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex lg:w-64 lg:flex-col flex-shrink-0 border-e border-gray-200 dark:border-gray-800">
+      <aside className="app-sidebar hidden lg:flex lg:w-64 lg:flex-col flex-shrink-0 border-e border-gray-200 dark:border-gray-800">
         <SidebarContent />
       </aside>
 
       {/* Mobile drawer */}
       <div
-        className={`fixed inset-0 z-40 lg:hidden transition-opacity duration-200 ${
+        className={`app-drawer fixed inset-0 lg:hidden transition-opacity duration-200 ${
           drawerOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
@@ -233,7 +233,7 @@ export default function AppLayout() {
       {/* Main */}
       <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <header className="flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 px-4 gap-3">
+        <header className="relative z-10 flex h-16 flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 px-4 gap-3">
           <button
             className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 lg:hidden transition-colors"
             onClick={() => setDrawerOpen(true)}
