@@ -14,40 +14,53 @@ const VALID_SOURCES = ['odoo', 'xsm', 'manual'];
 
 // Attach excess + billable to a single reading object (for GET endpoints)
 async function attachUsage(reading) {
-  const cycle = await cycleRepo.findById(reading.billingCycleId);
-  const contract = await contractRepo.findById(cycle.contractId);
-  const contractType = contract?.contractMode ?? 'osg';
+  try {
+    if (!reading) return reading;
 
-  const prevReading = await readingRepo.getPreviousCycleReading(
-    reading.printerId,
-    cycle.id,
-    cycle.periodStart,
-  );
-  const previousExcess = prevReading
-    ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
-    : null;
+    const cycle = await cycleRepo.findById(reading.billingCycleId);
+    if (!cycle) {
+      // Orphaned reading — cycle was deleted; return with zeroed usage
+      return { ...reading, contractType: 'osg', billableBw: 0, billableColor: 0, isBaseline: true };
+    }
 
-  const currentExcess = { excessBw: reading.excessBw, excessColor: reading.excessColor };
-  const billable = calculateBillableUsage(currentExcess, previousExcess);
+    const contract = await contractRepo.findById(cycle.contractId);
+    const contractType = contract?.contractMode ?? 'osg';
 
-  // For PSG: also expose derived net values
-  let psgNet = {};
-  if (contractType === 'psg') {
-    const previousRaw = prevReading
-      ? { a4Bw: prevReading.a4Bw, a3Bw: prevReading.a3Bw, a4Color: prevReading.a4Color, a3Color: prevReading.a3Color, xls: prevReading.xls }
-      : { a4Bw: 0, a3Bw: 0, a4Color: 0, a3Color: 0, xls: 0 };
-    const net = calculatePSGNet(
-      { a4Bw: reading.a4Bw, a3Bw: reading.a3Bw, a4Color: reading.a4Color, a3Color: reading.a3Color, xls: reading.xls },
-      previousRaw,
+    const prevReading = await readingRepo.getPreviousCycleReading(
+      reading.printerId,
+      cycle.id,
+      cycle.periodStart,
     );
-    psgNet = { a4BwNet: net.a4BwNet, a3BwNet: net.a3BwNet, a4ColorNet: net.a4ColorNet, a3ColorNet: net.a3ColorNet };
-  }
-  // PSG Simple exposes direct A4 counter values
-  if (contractType === 'psg_simple') {
-    psgNet = { a4BwNet: reading.a4Bw, a4ColorNet: reading.a4Color };
-  }
+    const previousExcess = prevReading
+      ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
+      : null;
 
-  return { ...reading, contractType, ...psgNet, ...billable };
+    const currentExcess = { excessBw: reading.excessBw, excessColor: reading.excessColor };
+    const billable = calculateBillableUsage(currentExcess, previousExcess);
+
+    // For PSG: also expose derived net values
+    let psgNet = {};
+    if (contractType === 'psg') {
+      const previousRaw = prevReading
+        ? { a4Bw: prevReading.a4Bw, a3Bw: prevReading.a3Bw, a4Color: prevReading.a4Color, a3Color: prevReading.a3Color, xls: prevReading.xls }
+        : { a4Bw: 0, a3Bw: 0, a4Color: 0, a3Color: 0, xls: 0 };
+      const net = calculatePSGNet(
+        { a4Bw: reading.a4Bw, a3Bw: reading.a3Bw, a4Color: reading.a4Color, a3Color: reading.a3Color, xls: reading.xls },
+        previousRaw,
+      );
+      psgNet = { a4BwNet: net.a4BwNet, a3BwNet: net.a3BwNet, a4ColorNet: net.a4ColorNet, a3ColorNet: net.a3ColorNet };
+    }
+    // PSG Simple exposes direct A4 counter values
+    if (contractType === 'psg_simple') {
+      psgNet = { a4BwNet: reading.a4Bw, a4ColorNet: reading.a4Color };
+    }
+
+    return { ...reading, contractType, ...psgNet, ...billable };
+  } catch (err) {
+    // Never crash the entire list — return reading with zero usage on error
+    console.error(`attachUsage error for reading ${reading?.id}:`, err.message);
+    return { ...reading, billableBw: 0, billableColor: 0, isBaseline: true, usageError: true };
+  }
 }
 
 export async function listReadings(query) {
