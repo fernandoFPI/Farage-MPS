@@ -1020,6 +1020,11 @@ const { data: appSettings } = useSettings()
   const qTotalFixed  = summary?.quarterlyFixedCharge ?? 0
   const qGrandTotal  = qb.reduce((s, m) => s + (m.total     ?? 0), 0)
 
+  const quarterlyBreakdownStyle = summary?.rulesMeta?.quarterlyBreakdownStyle ?? summary?.quarterlyBreakdownStyle ?? 'monthly'
+  const isQuarterlyTotal  = quarterlyBreakdownStyle === 'quarterly_total'
+  const isQuarterEnd      = !!(summary?.rulesMeta?.isFixedChargeDue && summary?.rulesMeta?.fixedChargeMultiplier > 1)
+  const showInvoiceGroups = !isQuarterlyTotal && (!isQuarterEnd || qb.length === 0)
+
   return (
     <>
     <Tooltip.Provider delayDuration={200}>
@@ -1276,7 +1281,7 @@ const { data: appSettings } = useSettings()
                   {/* Invoice rules notices */}
                   {summary.rulesMeta && (
                     <div className="mb-3 space-y-2">
-                      {!summary.rulesMeta.isFixedChargeDue && (
+                      {!summary.rulesMeta.isFixedChargeDue && !isQuarterlyTotal && (
                         <div className="flex items-start gap-2 rounded-lg bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-700 dark:text-sky-400">
                           <span className="mt-0.5 shrink-0">ℹ</span>
                           <span>
@@ -1386,7 +1391,7 @@ const { data: appSettings } = useSettings()
                           )}
                         </div>
                       )}
-                      {!summary.rulesMeta.isExcessDue && (
+                      {!summary.rulesMeta.isExcessDue && !isQuarterlyTotal && (
                         <div className="flex items-start gap-2 rounded-lg bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-700 dark:text-sky-400">
                           <span className="mt-0.5 shrink-0">ℹ</span>
                           <span>{t('billingCycles.excessDeferred')}{summary.rulesMeta.nextExcessDate ? ` — ${t('billingCycles.nextChargeDate')}: ${summary.rulesMeta.nextExcessDate}` : ''}</span>
@@ -1401,6 +1406,39 @@ const { data: appSettings } = useSettings()
                     </div>
                   )}
 
+                  {/* No-invoice card — quarterly_total non-quarter-end months */}
+                  {isQuarterlyTotal && !isQuarterEnd && (
+                    <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800/40">
+                      <div className="flex items-center gap-2">
+                        <Clock size={16} className="text-amber-500 shrink-0" />
+                        <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+                          {t('billingCycles.noInvoiceThisMonth')}
+                        </p>
+                      </div>
+                      <p className="text-xs text-amber-600 dark:text-amber-500 mt-1 ms-6">
+                        {t('billingCycles.chargesAccumulate')}
+                        {summary.rulesMeta?.nextFixedChargeDate && (
+                          <> — {new Date(summary.rulesMeta.nextFixedChargeDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</>
+                        )}
+                      </p>
+                      <div className="mt-3 grid grid-cols-3 gap-2 text-xs">
+                        <div className="bg-white dark:bg-gray-800 rounded p-2 text-center border border-amber-100 dark:border-amber-900/30">
+                          <div className="text-gray-500 dark:text-gray-400">{t('billingCycles.bwCost')}</div>
+                          <div className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{formatAmount(summary.invoices?.[0]?.billing?.bwCost ?? 0, currency)}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 rounded p-2 text-center border border-amber-100 dark:border-amber-900/30">
+                          <div className="text-gray-500 dark:text-gray-400">{t('billingCycles.colorCost')}</div>
+                          <div className="font-medium text-gray-800 dark:text-gray-200 mt-0.5">{formatAmount(summary.invoices?.[0]?.billing?.colorCost ?? 0, currency)}</div>
+                        </div>
+                        <div className="bg-white dark:bg-gray-800 rounded p-2 text-center border border-amber-100 dark:border-amber-900/30">
+                          <div className="text-gray-500 dark:text-gray-400">{t('billingCycles.fixedCharge')} ({t('billingCycles.deferred')})</div>
+                          <div className="font-medium text-amber-600 dark:text-amber-400 mt-0.5">{formatAmount(summary.invoices?.[0]?.billing?.fixedCharge ?? 0, currency)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {showInvoiceGroups && (
                   <div className="space-y-3">
                     {summary.invoices.map((inv, i) => {
                       const invQb          = inv.quarterlyBreakdown ?? []
@@ -1524,6 +1562,32 @@ const { data: appSettings } = useSettings()
                       </div>
                     )}
                   </div>
+                  )}
+
+                  {/* Combined quarterly invoice summary card — quarterly_total quarter-end */}
+                  {isQuarterlyTotal && isQuarterEnd && qb.length > 0 && (
+                    <div className="mt-4 p-4 bg-brand-50 dark:bg-brand-900/10 rounded-lg border border-brand-200 dark:border-brand-700">
+                      <p className="text-sm font-semibold text-brand-800 dark:text-brand-400">
+                        {t('billingCycles.combinedQuarterlyInvoice')}
+                        {summary.rulesMeta?.quarterNumber && ` — Q${summary.rulesMeta.quarterNumber}`}
+                      </p>
+                      {summary.rulesMeta?.quarterStartDate && (
+                        <p className="text-xs text-brand-600 dark:text-brand-500 mt-0.5">
+                          {new Date(summary.rulesMeta.quarterStartDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          {' – '}
+                          {new Date(summary.rulesMeta.quarterEndDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                      )}
+                      <p className="text-xs text-brand-500 dark:text-brand-600 mt-1 italic">
+                        {t('billingCycles.quarterlyTotalNote')}
+                      </p>
+                      <div className="mt-3 text-end">
+                        <span className="text-2xl font-bold text-brand-700 dark:text-brand-300">
+                          {formatAmount(summary.grandTotal ?? qGrandTotal, currency)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

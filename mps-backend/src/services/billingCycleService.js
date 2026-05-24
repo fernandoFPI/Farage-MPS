@@ -461,6 +461,60 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     }
   }
 
+  // ── Post-process: quarterlyBreakdownStyle adjustments ─────────────────────
+  const isQuarterEnd = rulesMeta.isFixedChargeDue && rulesMeta.fixedChargeMultiplier > 1;
+
+  let finalGrandTotal = grandTotal;
+  let finalInvoices   = invoices;
+
+  if (isQuarterEnd && quarterlyBreakdownStyle === 'quarterly_total' && quarterlyBreakdown?.length) {
+    // Quarter-end + quarterly_total: each invoice reflects its full-quarter amounts
+    finalInvoices = invoices.map(inv => {
+      const invQb     = inv.quarterlyBreakdown ?? quarterlyBreakdown;
+      const invQFixed = inv.quarterlyFixedCharge ?? quarterlyFixedCharge ?? 0;
+      const invBwTotal    = invQb.reduce((s, m) => s + m.bwCost,    0);
+      const invColorTotal = invQb.reduce((s, m) => s + m.colorCost, 0);
+      return {
+        ...inv,
+        billing: {
+          ...inv.billing,
+          bwCost:      invBwTotal,
+          colorCost:   invColorTotal,
+          fixedCharge: invQFixed,
+          total:       invBwTotal + invColorTotal + invQFixed,
+        },
+      };
+    });
+    finalGrandTotal = finalInvoices.reduce((s, inv) => s + inv.billing.total, 0);
+  } else if (!isQuarterEnd && quarterlyBreakdownStyle === 'quarterly_total') {
+    // Non-quarter-end + quarterly_total: nothing invoiced yet this quarter
+    finalGrandTotal = 0;
+  }
+
+  // ── invoicingNote: machine-readable instruction for Odoo ─────────────────
+  const fmtIsoDate = d => {
+    if (!d) return '';
+    const [y, m, dy] = String(d).slice(0, 10).split('-');
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return `${parseInt(dy, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+  };
+  const { quarterNumber, quarterStartDate, quarterEndDate, nextFixedChargeDate } = rulesMeta;
+
+  let invoicingNote;
+  if (isQuarterEnd && quarterlyBreakdownStyle === 'quarterly_total') {
+    invoicingNote = `Invoice covers full Q${quarterNumber} — ${fmtIsoDate(quarterStartDate)} to ${fmtIsoDate(quarterEndDate)}`;
+  } else if (isQuarterEnd) {
+    invoicingNote = 'Invoice covers current month only — quarterly breakdown shown for reference';
+  } else if (quarterlyBreakdownStyle === 'quarterly_total') {
+    invoicingNote = nextFixedChargeDate
+      ? `No invoice this month — charges accumulate until ${fmtIsoDate(nextFixedChargeDate)}`
+      : 'No invoice this month — charges accumulate until quarter end';
+  } else {
+    invoicingNote = nextFixedChargeDate
+      ? `Monthly invoice — fixed charge deferred to ${fmtIsoDate(nextFixedChargeDate)}`
+      : 'Monthly invoice';
+  }
+
   return {
     cycleId:                    cycle.id,
     cycleName:                  cycle.cycleName,
@@ -473,13 +527,13 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     status:                     cycle.status,
     printers:                   printerResults,
     totals,
-    invoices,
-    rulesMeta,
+    invoices:                   finalInvoices,
+    rulesMeta:                  { ...rulesMeta, quarterlyBreakdownStyle, invoicingNote },
     quarterlyBreakdown,
     quarterlyFixedCharge,
     quarterlyBreakdownStyle,
-    billing:                    { billingType: cycle.contract.billingType, total: grandTotal },
-    grandTotal,
+    billing:                    { billingType: cycle.contract.billingType, total: finalGrandTotal },
+    grandTotal:                 finalGrandTotal,
   };
 }
 

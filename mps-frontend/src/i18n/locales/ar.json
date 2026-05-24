@@ -501,7 +501,12 @@
     "quarterlyTotalRow": "إجمالي الربع (مجمّع)",
     "currentMonth": "الشهر الحالي",
     "groupedByCity": "يتم تجميع الطابعات وفوترتها حسب المدينة",
-    "city": "المدينة"
+    "city": "المدينة",
+    "noInvoiceThisMonth": "لا فاتورة هذا الشهر",
+    "chargesAccumulate": "يُفوتر هذا العقد كفاتورة ربع سنوية مجمعة. تتراكم الرسوم حتى نهاية الربع.",
+    "combinedQuarterlyInvoice": "فاتورة ربع سنوية مجمعة",
+    "quarterlyTotalNote": "رسوم الربع كاملة مجمعة في فاتورة واحدة",
+    "deferred": "مؤجل"
   },
   "consumables": {
     "title": "المستلزمات",

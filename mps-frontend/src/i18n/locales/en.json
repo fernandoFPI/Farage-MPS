@@ -501,7 +501,12 @@
     "quarterlyTotalRow": "Quarter Total (Combined)",
     "currentMonth": "Current Month",
     "groupedByCity": "Printers are grouped and invoiced by city",
-    "city": "City"
+    "city": "City",
+    "noInvoiceThisMonth": "No invoice this month",
+    "chargesAccumulate": "This contract is billed as a combined quarterly invoice. Charges accumulate until quarter end.",
+    "combinedQuarterlyInvoice": "Combined quarterly invoice",
+    "quarterlyTotalNote": "Full quarter charges combined into one invoice",
+    "deferred": "deferred"
   },
   "consumables": {
     "title": "Consumables",
