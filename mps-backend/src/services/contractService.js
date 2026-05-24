@@ -10,12 +10,17 @@ const SERVICE_TYPES = {
 };
 
 const VALID_FREQ = ['monthly', 'quarterly', 'semi_annual', 'annual'];
-const VALID_OVERRIDE_INVOICING = ['separate', 'merge'];
+const VALID_OVERRIDE_INVOICING = ['separate', 'combined'];
 const VALID_GROUPING = ['contract', 'city', 'location', 'printer'];
+const VALID_BREAKDOWN_STYLE = ['monthly', 'quarterly_total'];
 
 function validateInvoiceRules(rules) {
   if (!rules || typeof rules !== 'object') return;
-  const { fixedChargeFrequency, excessFrequency, overrideInvoicing, groupingStrategy, contractStartDate } = rules;
+  // Normalize legacy value stored in existing records
+  if (rules.overrideInvoicing === 'merge') {
+    rules.overrideInvoicing = 'combined';
+  }
+  const { fixedChargeFrequency, excessFrequency, overrideInvoicing, groupingStrategy, contractStartDate, quarterlyBreakdownStyle } = rules;
   if (fixedChargeFrequency && !VALID_FREQ.includes(fixedChargeFrequency)) {
     const err = new Error('invoiceRules.fixedChargeFrequency must be monthly, quarterly, semi_annual, or annual');
     err.status = 400; throw err;
@@ -25,11 +30,15 @@ function validateInvoiceRules(rules) {
     err.status = 400; throw err;
   }
   if (overrideInvoicing && !VALID_OVERRIDE_INVOICING.includes(overrideInvoicing)) {
-    const err = new Error('invoiceRules.overrideInvoicing must be separate or merge');
+    const err = new Error('invoiceRules.overrideInvoicing must be separate or combined');
     err.status = 400; throw err;
   }
   if (groupingStrategy && !VALID_GROUPING.includes(groupingStrategy)) {
     const err = new Error('invoiceRules.groupingStrategy must be contract, city, location, or printer');
+    err.status = 400; throw err;
+  }
+  if (quarterlyBreakdownStyle && !VALID_BREAKDOWN_STYLE.includes(quarterlyBreakdownStyle)) {
+    const err = new Error('invoiceRules.quarterlyBreakdownStyle must be monthly or quarterly_total');
     err.status = 400; throw err;
   }
   const needsStartDate =

@@ -163,7 +163,10 @@
     "groupContract": "Per Contract — one invoice",
     "groupCity": "By city",
     "groupLocation": "By location",
-    "groupPrinter": "Per printer"
+    "groupPrinter": "Per printer",
+    "quarterlyBreakdownStyle": "Quarterly Breakdown Style",
+    "breakdownStyleMonthly": "Monthly detail — show each month as a separate row",
+    "breakdownStyleQuarterlyTotal": "Quarterly total — show combined total for the whole period"
   },
   "printers": {
     "title": "Printers",
@@ -491,6 +494,12 @@
     "excessDeferred": "Excess charges deferred this period",
     "nextChargeDate": "Next billing date",
     "fixedChargeMultiplied": "Fixed charge includes {{multiplier}} months",
+    "monthOf": "Month {{n}} of {{total}}",
+    "quarterEnd": "Q{{number}} End — {{period}}",
+    "quarterlyBreakdown": "Quarterly Fixed Charge Breakdown",
+    "quarterTotal": "Quarter Total",
+    "quarterlyTotalRow": "Quarter Total (Combined)",
+    "currentMonth": "Current Month",
     "groupedByCity": "Printers are grouped and invoiced by city",
     "city": "City"
   },

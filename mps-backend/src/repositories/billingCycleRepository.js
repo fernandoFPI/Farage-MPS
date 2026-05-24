@@ -157,6 +157,27 @@ export async function findByContractAndPeriod(contractId, periodStart) {
   return mapRow(rows[0]);
 }
 
+export async function findByContractAndPeriodRange(contractId, fromDate, toDate) {
+  const { rows } = await pool.query(
+    `SELECT bc.*, TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+            cu.name AS customer_name
+     FROM billing_cycles bc
+     JOIN contracts co ON bc.contract_id = co.id
+     JOIN customers cu ON co.customer_id = cu.id
+     WHERE bc.contract_id = $1
+       AND bc.period_start >= $2
+       AND bc.period_start < $3
+       AND bc.is_cancelled = false
+       AND bc.deleted_at IS NULL
+     ORDER BY bc.period_start ASC`,
+    [contractId, fromDate, toDate],
+  );
+  return rows.map(row => ({
+    ...mapRow(row),
+    cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
+  }));
+}
+
 export async function cycleExists(contractId, periodStart) {
   const { rows } = await pool.query(
     `SELECT id

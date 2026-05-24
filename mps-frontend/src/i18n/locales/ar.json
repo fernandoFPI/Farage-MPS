@@ -163,7 +163,10 @@
     "groupContract": "لكل عقد — فاتورة واحدة",
     "groupCity": "حسب المدينة",
     "groupLocation": "حسب الموقع",
-    "groupPrinter": "لكل طابعة"
+    "groupPrinter": "لكل طابعة",
+    "quarterlyBreakdownStyle": "أسلوب تفصيل ربع السنة",
+    "breakdownStyleMonthly": "تفصيل شهري — عرض كل شهر كصف منفصل",
+    "breakdownStyleQuarterlyTotal": "إجمالي ربع السنة — عرض الإجمالي المجمع للفترة كاملة"
   },
   "printers": {
     "title": "الطابعات",
@@ -491,6 +494,12 @@
     "excessDeferred": "تم تأجيل رسوم الزيادة لهذه الفترة",
     "nextChargeDate": "تاريخ الفوترة التالي",
     "fixedChargeMultiplied": "الرسوم الثابتة تشمل {{multiplier}} أشهر",
+    "monthOf": "الشهر {{n}} من {{total}}",
+    "quarterEnd": "نهاية الربع {{number}} — {{period}}",
+    "quarterlyBreakdown": "تفصيل الرسوم الثابتة الربع سنوية",
+    "quarterTotal": "إجمالي الربع",
+    "quarterlyTotalRow": "إجمالي الربع (مجمّع)",
+    "currentMonth": "الشهر الحالي",
     "groupedByCity": "يتم تجميع الطابعات وفوترتها حسب المدينة",
     "city": "المدينة"
   },

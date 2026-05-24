@@ -6,11 +6,12 @@ import {
 
 export function getDefaultRules() {
   return {
-    fixedChargeFrequency: 'monthly',
-    excessFrequency: 'monthly',
-    overrideInvoicing: 'separate',
-    groupingStrategy: 'contract',
-    contractStartDate: null,
+    fixedChargeFrequency:    'monthly',
+    excessFrequency:         'monthly',
+    overrideInvoicing:       'separate',
+    groupingStrategy:        'contract',
+    contractStartDate:       null,
+    quarterlyBreakdownStyle: 'monthly',
   };
 }
 
@@ -85,15 +86,44 @@ function buildRulesMeta(rules, cycle) {
         excessPeriod,
       );
 
+  const fixedChargePeriodLength = periodLength;
+  let monthInQuarter = null;
+  let quarterStartDate = null;
+  let quarterEndDate = null;
+  let quarterNumber = null;
+
+  if (periodLength > 1 && rules.contractStartDate) {
+    const start = new Date(rules.contractStartDate);
+    const posInPeriod = monthsElapsed % periodLength;
+    monthInQuarter = posInPeriod + 1;
+    quarterNumber = Math.floor(monthsElapsed / periodLength) + 1;
+
+    // quarterStartDate = start of the quarter whose LAST month is the current cycle
+    // e.g. contract starts Sep 18, month 18 (Mar 2026) → quarter started Dec 18, 2025 (15 months in)
+    const quarterOffset = Math.max(0, Math.floor(monthsElapsed / periodLength) - 1) * periodLength;
+    const qStart = new Date(start);
+    qStart.setMonth(start.getMonth() + quarterOffset);
+    quarterStartDate = qStart.toISOString().slice(0, 10);
+
+    const qEnd = new Date(qStart);
+    qEnd.setMonth(qStart.getMonth() + periodLength - 1);
+    quarterEndDate = qEnd.toISOString().slice(0, 10);
+  }
+
   return {
     monthsElapsed,
     isFixedChargeDue,
     isExcessDue,
     fixedChargeMultiplier,
+    fixedChargePeriodLength,
     accumulatedCycles,
     nextFixedChargeDate,
     nextExcessDate,
     groupingStrategy: rules.groupingStrategy,
+    monthInQuarter,
+    quarterStartDate,
+    quarterEndDate,
+    quarterNumber,
   };
 }
 
@@ -119,7 +149,7 @@ function calculateNextFixedChargeDate(rules, cycle, monthsElapsed, periodLength)
 // ── Grouping ──────────────────────────────────────────────────────────────────
 
 function groupPrinters(printers, groupingStrategy, overrideInvoicing) {
-  const overrideSeparate = overrideInvoicing !== 'merge';
+  const overrideSeparate = overrideInvoicing !== 'combined' && overrideInvoicing !== 'merge';
 
   // Split override vs non-override printers for OSG contracts
   const hasAnyOverride = printers.some(p => p.hasOverride && p.contractType === 'osg');

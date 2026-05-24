@@ -912,6 +912,8 @@ const { data: appSettings } = useSettings()
   const [groupCyclesOpen, setGroupCyclesOpen] = useState(false)
   const [actionError, setActionError] = useState('')
   const [consumablesOpen, setConsumablesOpen] = useState(false)
+  const [quarterExpanded, setQuarterExpanded] = useState(false)
+  const [overrideExpanded, setOverrideExpanded] = useState({})
 
   const cancelMutation = useCancelCycle()
   const deleteGroupMutation = useDeleteCycleGroup()
@@ -1010,6 +1012,13 @@ const { data: appSettings } = useSettings()
   const isMultiCity = cityStatuses.length > 1
   const allCitiesReady = cycle.allCitiesReady ?? true
   const notReadyCities = cityStatuses.filter(c => c.status !== 'complete' && c.status !== 'confirmed')
+
+  // Quarterly breakdown totals — computed once, used in both collapsed summary and expanded table
+  const qb           = summary?.quarterlyBreakdown ?? []
+  const qTotalBw     = qb.reduce((s, m) => s + (m.bwCost    ?? 0), 0)
+  const qTotalColor  = qb.reduce((s, m) => s + (m.colorCost ?? 0), 0)
+  const qTotalFixed  = summary?.quarterlyFixedCharge ?? 0
+  const qGrandTotal  = qb.reduce((s, m) => s + (m.total     ?? 0), 0)
 
   return (
     <>
@@ -1270,13 +1279,111 @@ const { data: appSettings } = useSettings()
                       {!summary.rulesMeta.isFixedChargeDue && (
                         <div className="flex items-start gap-2 rounded-lg bg-sky-50 dark:bg-sky-950/30 px-3 py-2 text-xs text-sky-700 dark:text-sky-400">
                           <span className="mt-0.5 shrink-0">ℹ</span>
-                          <span>{t('billingCycles.fixedChargeDeferred')}{summary.rulesMeta.nextFixedChargeDate ? ` — ${t('billingCycles.nextChargeDate')}: ${summary.rulesMeta.nextFixedChargeDate}` : ''}</span>
+                          <span>
+                            {t('billingCycles.fixedChargeDeferred')}
+                            {summary.rulesMeta.monthInQuarter && summary.rulesMeta.fixedChargePeriodLength > 1 && (
+                              <> — {t('billingCycles.monthOf', { n: summary.rulesMeta.monthInQuarter, total: summary.rulesMeta.fixedChargePeriodLength })}</>
+                            )}
+                            {summary.rulesMeta.nextFixedChargeDate ? ` — ${t('billingCycles.nextChargeDate')}: ${summary.rulesMeta.nextFixedChargeDate}` : ''}
+                          </span>
                         </div>
                       )}
                       {summary.rulesMeta.isFixedChargeDue && summary.rulesMeta.fixedChargeMultiplier > 1 && (
-                        <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-                          <span className="mt-0.5 shrink-0">ℹ</span>
-                          <span>{t('billingCycles.fixedChargeMultiplied', { multiplier: summary.rulesMeta.fixedChargeMultiplier })}</span>
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-950/20 overflow-hidden">
+                          {/* Header — always visible, click to toggle */}
+                          <div
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setQuarterExpanded(v => !v)}
+                            onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setQuarterExpanded(v => !v)}
+                            className="flex items-start justify-between gap-3 px-3 py-2.5 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors select-none"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="shrink-0 text-amber-600 dark:text-amber-400">ℹ</span>
+                                <span className="text-xs text-amber-700 dark:text-amber-400">
+                                  {t('billingCycles.fixedChargeMultiplied', { multiplier: summary.rulesMeta.fixedChargeMultiplier })}
+                                </span>
+                                {summary.rulesMeta.quarterNumber && (
+                                  <span className="rounded-full bg-amber-200 dark:bg-amber-900/50 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
+                                    {t('billingCycles.quarterEnd', {
+                                      number: summary.rulesMeta.quarterNumber,
+                                      period: new Date(summary.periodStart).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              {!quarterExpanded && qb.length > 0 && (
+                                <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-amber-600 dark:text-amber-400 ps-5">
+                                  <span>BW: {formatAmount(qTotalBw, currency)}</span>
+                                  <span className="text-amber-400 dark:text-amber-600">|</span>
+                                  <span>Color: {formatAmount(qTotalColor, currency)}</span>
+                                  <span className="text-amber-400 dark:text-amber-600">|</span>
+                                  <span>Fixed: {formatAmount(qTotalFixed, currency)}</span>
+                                  <span className="text-amber-400 dark:text-amber-600">|</span>
+                                  <span className="font-semibold">Total: {formatAmount(qGrandTotal, currency)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <ChevronDown className={`h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5 transition-transform ${quarterExpanded ? 'rotate-180' : ''}`} />
+                          </div>
+
+                          {/* Expanded breakdown table */}
+                          {quarterExpanded && qb.length > 0 && (
+                            <div className="border-t border-amber-200 dark:border-amber-800/40">
+                              <p className="px-3 pt-2.5 pb-1 text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+                                {t('billingCycles.quarterlyBreakdown')}
+                              </p>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="bg-amber-100/60 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                                      <th className="px-3 py-1.5 text-start font-semibold">{t('billingCycles.period')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.bwCost')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.colorCost')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.fixedCharge')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.total')}</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {qb.map(month => (
+                                      <tr key={month.cycleId}
+                                        className={`border-t border-amber-100 dark:border-amber-900/30 ${
+                                          month.isCurrentCycle
+                                            ? 'bg-brand-50 dark:bg-brand-900/10 font-medium text-gray-900 dark:text-gray-100'
+                                            : 'text-gray-700 dark:text-gray-300'
+                                        }`}
+                                      >
+                                        <td className="px-3 py-2">
+                                          {month.cycleName}
+                                          {month.isCurrentCycle && !month.isQuarterlyTotal && (
+                                            <span className="ms-1.5 text-brand-500 dark:text-brand-400 font-normal">← {t('billingCycles.currentMonth')}</span>
+                                          )}
+                                        </td>
+                                        <td className="px-3 py-2 text-end">{formatAmount(month.bwCost, currency)}</td>
+                                        <td className="px-3 py-2 text-end">{formatAmount(month.colorCost, currency)}</td>
+                                        <td className="px-3 py-2 text-end">{formatAmount(month.fixedCharge, currency)}</td>
+                                        <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{formatAmount(month.total, currency)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                  <tfoot>
+                                    <tr className="border-t-2 border-amber-300 dark:border-amber-700 font-bold bg-amber-100/60 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+                                      <td className="px-3 py-2">
+                                        {summary.rulesMeta.quarterNumber
+                                          ? `Q${summary.rulesMeta.quarterNumber} ${t('billingCycles.quarterTotal')}`
+                                          : t('billingCycles.quarterTotal')}
+                                      </td>
+                                      <td className="px-3 py-2 text-end">{formatAmount(qTotalBw, currency)}</td>
+                                      <td className="px-3 py-2 text-end">{formatAmount(qTotalColor, currency)}</td>
+                                      <td className="px-3 py-2 text-end text-amber-600 dark:text-amber-400">{formatAmount(qTotalFixed, currency)}</td>
+                                      <td className="px-3 py-2 text-end text-brand-700 dark:text-brand-300 text-sm">{formatAmount(qGrandTotal, currency)}</td>
+                                    </tr>
+                                  </tfoot>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
                       {!summary.rulesMeta.isExcessDue && (
@@ -1295,7 +1402,14 @@ const { data: appSettings } = useSettings()
                   )}
 
                   <div className="space-y-3">
-                    {summary.invoices.map((inv, i) => (
+                    {summary.invoices.map((inv, i) => {
+                      const invQb          = inv.quarterlyBreakdown ?? []
+                      const invQTotalBw    = invQb.reduce((s, m) => s + (m.bwCost    ?? 0), 0)
+                      const invQTotalColor = invQb.reduce((s, m) => s + (m.colorCost ?? 0), 0)
+                      const invQTotalFixed = inv.quarterlyFixedCharge ?? 0
+                      const invQGrandTotal = invQb.reduce((s, m) => s + (m.total     ?? 0), 0)
+                      const invExpanded    = !!overrideExpanded[i]
+                      return (
                       <div key={i} className="rounded-lg border border-gray-100 p-4 dark:border-gray-800">
                         {/* Card header — title + printer list */}
                         <div className="mb-3 pb-2 border-b border-gray-100 dark:border-gray-800">
@@ -1315,8 +1429,94 @@ const { data: appSettings } = useSettings()
                           )}
                         </div>
                         <BillingBreakdown billing={inv.billing} t={t} currency={currency} overrides={inv.overrides ?? null} allBwOnly={inv.allBwOnly ?? false} />
+
+                        {/* Per-override-printer quarterly breakdown */}
+                        {inv.type === 'osg_override' && invQb.length > 0 && (
+                          <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-950/20 overflow-hidden">
+                            <div
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => setOverrideExpanded(s => ({ ...s, [i]: !s[i] }))}
+                              onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setOverrideExpanded(s => ({ ...s, [i]: !s[i] }))}
+                              className="flex items-start justify-between gap-3 px-3 py-2 cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-900/30 transition-colors select-none"
+                            >
+                              <div className="flex-1 min-w-0">
+                                <span className="text-xs text-amber-700 dark:text-amber-400">
+                                  {t('billingCycles.fixedChargeMultiplied', { multiplier: summary.rulesMeta.fixedChargeMultiplier })}
+                                </span>
+                                {!invExpanded && (
+                                  <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-amber-600 dark:text-amber-400">
+                                    <span>BW: {formatAmount(invQTotalBw, currency)}</span>
+                                    <span className="text-amber-400 dark:text-amber-600">|</span>
+                                    <span>Color: {formatAmount(invQTotalColor, currency)}</span>
+                                    <span className="text-amber-400 dark:text-amber-600">|</span>
+                                    <span>Fixed: {formatAmount(invQTotalFixed, currency)}</span>
+                                    <span className="text-amber-400 dark:text-amber-600">|</span>
+                                    <span className="font-semibold">Total: {formatAmount(invQGrandTotal, currency)}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <ChevronDown className={`h-3.5 w-3.5 text-amber-500 shrink-0 mt-0.5 transition-transform ${invExpanded ? 'rotate-180' : ''}`} />
+                            </div>
+
+                            {invExpanded && (
+                              <div className="border-t border-amber-200 dark:border-amber-800/40">
+                                <p className="px-3 pt-2.5 pb-1 text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
+                                  {t('billingCycles.quarterlyBreakdown')}
+                                </p>
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-xs">
+                                    <thead>
+                                      <tr className="bg-amber-100/60 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
+                                        <th className="px-3 py-1.5 text-start font-semibold">{t('billingCycles.period')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.bwCost')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.colorCost')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.fixedCharge')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.total')}</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {invQb.map((month, mi) => (
+                                        <tr key={month.cycleId ?? mi}
+                                          className={`border-t border-amber-100 dark:border-amber-900/30 ${
+                                            month.isCurrentCycle && !month.isQuarterlyTotal
+                                              ? 'bg-brand-50 dark:bg-brand-900/10 font-medium text-gray-900 dark:text-gray-100'
+                                              : 'text-gray-700 dark:text-gray-300'
+                                          }`}
+                                        >
+                                          <td className="px-3 py-2">
+                                            {month.cycleName}
+                                            {month.isCurrentCycle && !month.isQuarterlyTotal && (
+                                              <span className="ms-1.5 text-brand-500 dark:text-brand-400 font-normal">← {t('billingCycles.currentMonth')}</span>
+                                            )}
+                                          </td>
+                                          <td className="px-3 py-2 text-end">{formatAmount(month.bwCost, currency)}</td>
+                                          <td className="px-3 py-2 text-end">{formatAmount(month.colorCost, currency)}</td>
+                                          <td className="px-3 py-2 text-end">{formatAmount(month.fixedCharge, currency)}</td>
+                                          <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{formatAmount(month.total, currency)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                    <tfoot>
+                                      <tr className="border-t-2 border-amber-300 dark:border-amber-700 font-bold bg-amber-100/60 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
+                                        <td className="px-3 py-2">
+                                          {summary.rulesMeta.quarterNumber ? `Q${summary.rulesMeta.quarterNumber} ${t('billingCycles.quarterTotal')}` : t('billingCycles.quarterTotal')}
+                                        </td>
+                                        <td className="px-3 py-2 text-end">{formatAmount(invQTotalBw, currency)}</td>
+                                        <td className="px-3 py-2 text-end">{formatAmount(invQTotalColor, currency)}</td>
+                                        <td className="px-3 py-2 text-end text-amber-600 dark:text-amber-400">{formatAmount(invQTotalFixed, currency)}</td>
+                                        <td className="px-3 py-2 text-end text-brand-700 dark:text-brand-300 text-sm">{formatAmount(invQGrandTotal, currency)}</td>
+                                      </tr>
+                                    </tfoot>
+                                  </table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
-                    ))}
+                      )
+                    })}
                     {/* Grand total — only shown when multiple invoices */}
                     {summary.invoices.length > 1 && (
                       <div className="rounded-lg border-2 border-brand-200 bg-brand-50 p-4 dark:border-brand-700 dark:bg-brand-900/20">

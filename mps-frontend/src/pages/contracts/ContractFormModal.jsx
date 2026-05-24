@@ -15,11 +15,12 @@ const SERVICE_TYPES = {
 }
 
 const DEFAULT_INVOICE_RULES = {
-  fixedChargeFrequency: 'monthly',
-  excessFrequency: 'monthly',
-  overrideInvoicing: 'separate',
-  groupingStrategy: 'contract',
-  contractStartDate: '',
+  fixedChargeFrequency:    'monthly',
+  excessFrequency:         'monthly',
+  overrideInvoicing:       'separate',
+  groupingStrategy:        'contract',
+  contractStartDate:       '',
+  quarterlyBreakdownStyle: 'monthly',
 }
 
 const empty = {
@@ -72,7 +73,13 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         startDate: initial.startDate?.slice(0, 10) ?? '', endDate: initial.endDate?.slice(0, 10) ?? '',
         officialContractNumber: initial.officialContractNumber ?? '',
         serviceType: initial.serviceType ?? '',
-        invoiceRules: { ...DEFAULT_INVOICE_RULES, ...(initial.invoiceRules ?? {}), contractStartDate: initial.invoiceRules?.contractStartDate ?? '' },
+        invoiceRules: {
+          ...DEFAULT_INVOICE_RULES,
+          ...(initial.invoiceRules ?? {}),
+          contractStartDate:       initial.invoiceRules?.contractStartDate ?? '',
+          overrideInvoicing:       initial.invoiceRules?.overrideInvoicing === 'merge' ? 'combined' : (initial.invoiceRules?.overrideInvoicing ?? DEFAULT_INVOICE_RULES.overrideInvoicing),
+          quarterlyBreakdownStyle: initial.invoiceRules?.quarterlyBreakdownStyle ?? DEFAULT_INVOICE_RULES.quarterlyBreakdownStyle,
+        },
       })
     } else {
       setForm({ ...empty, customerId: defaultCustomerId || '' })
@@ -130,11 +137,12 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         a3Price: isPsg    ? (Number(form.a3Price) || 0) : 0,
         serviceType: form.serviceType || null,
         invoiceRules: {
-          fixedChargeFrequency: rules.fixedChargeFrequency,
-          excessFrequency:      rules.excessFrequency,
-          overrideInvoicing:    rules.overrideInvoicing,
-          groupingStrategy:     rules.groupingStrategy,
-          contractStartDate:    rules.contractStartDate || null,
+          fixedChargeFrequency:    rules.fixedChargeFrequency,
+          excessFrequency:         rules.excessFrequency,
+          overrideInvoicing:       rules.overrideInvoicing,
+          groupingStrategy:        rules.groupingStrategy,
+          contractStartDate:       rules.contractStartDate || null,
+          quarterlyBreakdownStyle: rules.quarterlyBreakdownStyle || 'monthly',
         },
       }
       if (isEdit) await update.mutateAsync({ id: initial.id, ...payload })
@@ -397,7 +405,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
                     <div className="grid grid-cols-2 gap-2">
                       {[
                         ['separate', t('contracts.overrideSeparate')],
-                        ['merge', t('contracts.overrideMerge')],
+                        ['combined', t('contracts.overrideMerge')],
                       ].map(([val, label]) => (
                         <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
                           rules.overrideInvoicing === val
@@ -440,6 +448,32 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
                       ))}
                     </div>
                   </div>
+
+                  {/* Quarterly Breakdown Style — only shown when any frequency is non-monthly */}
+                  {needsStartDate && (
+                    <div>
+                      <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.quarterlyBreakdownStyle')}</p>
+                      <div className="grid grid-cols-1 gap-2">
+                        {[
+                          ['monthly',         t('contracts.breakdownStyleMonthly')],
+                          ['quarterly_total', t('contracts.breakdownStyleQuarterlyTotal')],
+                        ].map(([val, label]) => (
+                          <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                            rules.quarterlyBreakdownStyle === val
+                              ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                              : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                          }`}>
+                            <input type="radio" className="sr-only" name="quarterlyBreakdownStyle" value={val}
+                              checked={rules.quarterlyBreakdownStyle === val} onChange={() => setRule('quarterlyBreakdownStyle', val)} />
+                            <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                              rules.quarterlyBreakdownStyle === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                            }`} />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Contract Start Date — only shown when any frequency is non-monthly */}
                   {needsStartDate && (

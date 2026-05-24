@@ -25,6 +25,23 @@ function toBaghdadMonthKey(value) {
   return `${year}-${month}`;
 }
 
+function applyBreakdownStyle(breakdown, style, quarterNumber, quarterlyFixedCharge) {
+  if (style !== 'quarterly_total' || !breakdown?.length) return breakdown;
+  const label = quarterNumber ? `Q${quarterNumber} Total` : 'Quarter Total';
+  return [{
+    cycleId:          null,
+    cycleName:        label,
+    periodStart:      breakdown[0].periodStart,
+    periodEnd:        breakdown[breakdown.length - 1].periodEnd,
+    bwCost:           breakdown.reduce((s, m) => s + m.bwCost, 0),
+    colorCost:        breakdown.reduce((s, m) => s + m.colorCost, 0),
+    fixedCharge:      quarterlyFixedCharge,
+    total:            breakdown.reduce((s, m) => s + m.bwCost + m.colorCost, 0) + quarterlyFixedCharge,
+    isCurrentCycle:   true,
+    isQuarterlyTotal: true,
+  }];
+}
+
 export async function listCycles(query, user) {
   const params = {
     contractId: query.contractId,
@@ -329,21 +346,139 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     cycle,
   });
 
+  const quarterlyBreakdownStyle = cycle.contract.invoiceRules?.quarterlyBreakdownStyle ?? 'monthly';
+
+  // Quarterly breakdown — fetch and price all cycles in the quarter when fixed charge covers multiple periods
+  let quarterlyBreakdown = null;
+  let quarterlyFixedCharge = null;
+  if (rulesMeta.isFixedChargeDue && rulesMeta.fixedChargeMultiplier > 1 && rulesMeta.quarterStartDate) {
+    const toPeriodStr = v => {
+      const d = v instanceof Date ? v : new Date(v);
+      const baghdad = new Date(d.getTime() + BAGHDAD_OFFSET_MS);
+      return `${baghdad.getUTCFullYear()}-${String(baghdad.getUTCMonth() + 1).padStart(2, '0')}-${String(baghdad.getUTCDate()).padStart(2, '0')}`;
+    };
+    const currentPeriodStr = toPeriodStr(cycle.periodStart);
+    const baseFixedCharge  = Number(cycle.contract.fixedCharge) || 0;
+    const bwPrice          = Number(cycle.contract.bwPrice)     || 0;
+    const colorPrice       = Number(cycle.contract.colorPrice)  || 0;
+
+    // All non-deleted cycles for this contract within the quarter, ordered chronologically
+    const { rows: quarterCycleRows } = await pool.query(
+      `SELECT bc.id, bc.period_start, bc.period_end,
+              TO_CHAR(bc.period_start, 'Mon YYYY') AS cycle_month
+       FROM billing_cycles bc
+       WHERE bc.contract_id = $1
+         AND bc.period_start >= $2
+         AND bc.period_start <= $3
+         AND bc.deleted_at IS NULL
+       ORDER BY bc.period_start ASC`,
+      [cycle.contractId, rulesMeta.quarterStartDate, currentPeriodStr],
+    );
+
+    // Pre-fetch readings for all quarter cycles once — reused by both main and override breakdowns
+    const cycleReadingsCache = new Map();
+    await Promise.all(quarterCycleRows.map(async qCycle => {
+      const readings = await readingRepo.findAllWithPrinterInfo(qCycle.id, cycle.contractId);
+      cycleReadingsCache.set(qCycle.id, { readings, qPeriodStr: toPeriodStr(qCycle.period_start) });
+    }));
+
+    // Main breakdown — aggregate all printers
+    const rawBreakdown = await Promise.all(quarterCycleRows.map(async qCycle => {
+      const { readings, qPeriodStr } = cycleReadingsCache.get(qCycle.id);
+
+      let totalBwCost    = 0;
+      let totalColorCost = 0;
+      for (const reading of readings) {
+        const prevReading = await readingRepo.getPreviousCycleReading(
+          reading.printerId,
+          qCycle.id,
+          qPeriodStr,
+        );
+        const billable = calculateBillableUsage(
+          { excessBw: reading.excessBw, excessColor: reading.excessColor },
+          prevReading ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor } : null,
+        );
+        totalBwCost    += billable.billableBw    * bwPrice;
+        totalColorCost += billable.billableColor * colorPrice;
+      }
+
+      return {
+        cycleId:        qCycle.id,
+        cycleName:      qCycle.cycle_month?.trim() ?? qPeriodStr,
+        periodStart:    qPeriodStr,
+        periodEnd:      toPeriodStr(qCycle.period_end),
+        bwCost:         totalBwCost,
+        colorCost:      totalColorCost,
+        fixedCharge:    baseFixedCharge,
+        total:          totalBwCost + totalColorCost + baseFixedCharge,
+        isCurrentCycle: qCycle.id === cycle.id,
+      };
+    }));
+
+    quarterlyFixedCharge = baseFixedCharge * rulesMeta.fixedChargeMultiplier;
+    quarterlyBreakdown   = applyBreakdownStyle(rawBreakdown, quarterlyBreakdownStyle, rulesMeta.quarterNumber, quarterlyFixedCharge);
+
+    // Per-printer override breakdowns — augment each osg_override invoice
+    for (const inv of invoices) {
+      if (inv.type !== 'osg_override') continue;
+      const pe = printerEntries.find(p => p.printerId === inv.printerId);
+      if (!pe) continue;
+
+      const oBwPrice    = Number(pe.priceOverride?.bwPrice    ?? cycle.contract.bwPrice    ?? 0);
+      const oColorPrice = Number(pe.priceOverride?.colorPrice ?? cycle.contract.colorPrice ?? 0);
+      const oFixed      = Number(pe.priceOverride?.fixedCharge ?? cycle.contract.fixedCharge ?? 0);
+
+      const rawOverride = await Promise.all(quarterCycleRows.map(async qCycle => {
+        const { readings, qPeriodStr } = cycleReadingsCache.get(qCycle.id);
+        const pr = readings.find(r => r.printerId === inv.printerId);
+
+        let bwCost = 0, colorCost = 0;
+        if (pr) {
+          const prevReading = await readingRepo.getPreviousCycleReading(pr.printerId, qCycle.id, qPeriodStr);
+          const billable = calculateBillableUsage(
+            { excessBw: pr.excessBw, excessColor: pr.excessColor },
+            prevReading ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor } : null,
+          );
+          bwCost    = billable.billableBw    * oBwPrice;
+          colorCost = billable.billableColor * oColorPrice;
+        }
+        return {
+          cycleId:        qCycle.id,
+          cycleName:      qCycle.cycle_month?.trim() ?? qPeriodStr,
+          periodStart:    qPeriodStr,
+          periodEnd:      toPeriodStr(qCycle.period_end),
+          bwCost,
+          colorCost,
+          fixedCharge:    oFixed,
+          total:          bwCost + colorCost + oFixed,
+          isCurrentCycle: qCycle.id === cycle.id,
+        };
+      }));
+
+      const oQFixedCharge = oFixed * rulesMeta.fixedChargeMultiplier;
+      inv.quarterlyBreakdown   = applyBreakdownStyle(rawOverride, quarterlyBreakdownStyle, rulesMeta.quarterNumber, oQFixedCharge);
+      inv.quarterlyFixedCharge = oQFixedCharge;
+    }
+  }
+
   return {
-    cycleId:                cycle.id,
-    cycleName:              cycle.cycleName,
-    contractNumber:         cycle.contract.contractNumber,
-    officialContractNumber: cycle.contract.officialContractNumber ?? null,
-    serviceType:            cycle.contract.serviceType ?? null,
-    customerName:           cycle.contract.customer.name,
-    periodStart:            cycle.periodStart,
-    periodEnd:              cycle.periodEnd,
-    status:                 cycle.status,
-    printers:               printerResults,
+    cycleId:                    cycle.id,
+    cycleName:                  cycle.cycleName,
+    contractNumber:             cycle.contract.contractNumber,
+    officialContractNumber:     cycle.contract.officialContractNumber ?? null,
+    serviceType:                cycle.contract.serviceType ?? null,
+    customerName:               cycle.contract.customer.name,
+    periodStart:                cycle.periodStart,
+    periodEnd:                  cycle.periodEnd,
+    status:                     cycle.status,
+    printers:                   printerResults,
     totals,
     invoices,
     rulesMeta,
-    billing:        { billingType: cycle.contract.billingType, total: grandTotal },
+    quarterlyBreakdown,
+    quarterlyFixedCharge,
+    quarterlyBreakdownStyle,
+    billing:                    { billingType: cycle.contract.billingType, total: grandTotal },
     grandTotal,
   };
 }
