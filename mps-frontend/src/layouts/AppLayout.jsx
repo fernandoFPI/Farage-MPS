@@ -72,14 +72,14 @@ function SidebarContent({ onClose }) {
         {(canManageContracts || isServiceManager) && (
           <>
             <NavSep />
-            <NavItem to="/customers"       icon={Users}    label={t('nav.customers')}       onClick={onClose} />
-            <NavItem to="/contracts"       icon={FileText} label={t('nav.contracts')}       onClick={onClose} />
+            {!isServiceManager && <NavItem to="/customers"       icon={Users}    label={t('nav.customers')}       onClick={onClose} />}
+            {!isServiceManager && <NavItem to="/contracts"       icon={FileText} label={t('nav.contracts')}       onClick={onClose} />}
             <NavItem to="/printers"        icon={Printer}  label={t('nav.printers')}        onClick={onClose} />
             <NavItem to="/map"             icon={Map}      label={t('nav.map')}             onClick={onClose} />
-            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead' || user?.role?.name === 'mps_specialist' || user?.role?.name === 'service_manager') && (
+            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead' || user?.role?.name === 'mps_specialist') && (
               <NavItem to="/charts" icon={BarChart2} label={t('nav.charts')} onClick={onClose} />
             )}
-            <NavItem to="/contract-groups" icon={Layers}   label={t('nav.contractGroups')}  onClick={onClose} />
+            {!isServiceManager && <NavItem to="/contract-groups" icon={Layers}   label={t('nav.contractGroups')}  onClick={onClose} />}
           </>
         )}
 
