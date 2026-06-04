@@ -9,6 +9,7 @@ import {
   useConfirmCycle,
   useDisputeCycle,
   useReopenCycle,
+  useUnconfirmCycle,
   useCancelCycle,
   useSetBaseline,
   useCityStatuses,
@@ -896,6 +897,7 @@ export default function BillingCycleDetail() {
 
   const canConfirm = usePermission('can_confirm_billing')
   const canManage = usePermission('can_manage_billing')
+  const canViewFinancial = usePermission('can_view_financial_data')
 const { data: appSettings } = useSettings()
   const showCalculationDetails = appSettings?.show_calculation_details === 'true'
   const { user } = useAuth()
@@ -906,6 +908,7 @@ const { data: appSettings } = useSettings()
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [disputeOpen, setDisputeOpen] = useState(false)
   const [reopenOpen, setReopenOpen] = useState(false)
+  const [unconfirmOpen, setUnconfirmOpen] = useState(false)
   const [baselineOpen, setBaselineOpen] = useState(false)
   const [removeBaselineOpen, setRemoveBaselineOpen] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
@@ -937,6 +940,7 @@ const { data: appSettings } = useSettings()
   const confirmMutation = useConfirmCycle()
   const disputeMutation = useDisputeCycle()
   const reopenMutation = useReopenCycle()
+  const unconfirmMutation = useUnconfirmCycle()
 
   // ── Action handlers ──────────────────────────────────────────────────────
   async function handleConfirm() {
@@ -966,6 +970,17 @@ const { data: appSettings } = useSettings()
       await reopenMutation.mutateAsync(id)
       showToast({ title: t('billingCycles.reopenCycle'), variant: 'info' })
       setReopenOpen(false)
+    } catch (err) {
+      setActionError(err.response?.data?.error || err.message)
+    }
+  }
+
+  async function handleUnconfirm() {
+    setActionError('')
+    try {
+      await unconfirmMutation.mutateAsync(id)
+      showToast({ title: t('billingCycles.unconfirmSuccess'), variant: 'success' })
+      setUnconfirmOpen(false)
     } catch (err) {
       setActionError(err.response?.data?.error || err.message)
     }
@@ -1264,7 +1279,7 @@ const { data: appSettings } = useSettings()
               </div>
 
               {/* Billing breakdown — one card per invoice */}
-              {summary.isBaseline ? (
+              {canViewFinancial && (summary.isBaseline ? (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('billingCycles.billing')}</p>
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
@@ -1589,7 +1604,7 @@ const { data: appSettings } = useSettings()
                     </div>
                   )}
                 </div>
-              )}
+              ))}
             </div>
           )}
         </div>
@@ -1957,6 +1972,17 @@ const { data: appSettings } = useSettings()
               </button>
             )}
 
+            {/* Unconfirm — admin only */}
+            {isAdmin && status === 'confirmed' && (
+              <button
+                onClick={() => { setActionError(''); setUnconfirmOpen(true) }}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-900/30 transition-colors"
+              >
+                <RotateCcw size={15} />
+                {t('billingCycles.unconfirm')}
+              </button>
+            )}
+
             {/* Odoo invoice status */}
             {status === 'confirmed' && (
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
@@ -2059,6 +2085,20 @@ const { data: appSettings } = useSettings()
           description={t('billingCycles.reopenPrompt')}
           loading={reopenMutation.isPending}
           confirmLabel={t('billingCycles.reopenCycle')}
+          confirmClassName="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
+        />
+
+        <ConfirmDialog
+          open={unconfirmOpen}
+          onClose={() => setUnconfirmOpen(false)}
+          onConfirm={handleUnconfirm}
+          title={t('billingCycles.unconfirmTitle')}
+          description={[
+            cycle.cycleName ?? cycle.contract?.contractNumber ?? '—',
+            `\n\n${t('billingCycles.unconfirmDesc')}`,
+          ].join('')}
+          loading={unconfirmMutation.isPending}
+          confirmLabel={t('billingCycles.unconfirm')}
           confirmClassName="rounded-lg bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50"
         />
 

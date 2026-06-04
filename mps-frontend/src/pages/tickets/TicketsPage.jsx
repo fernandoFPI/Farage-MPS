@@ -773,7 +773,8 @@ export default function TicketsPage() {
       return
     }
 
-    // Consumable reading (non-blocking)
+    // Consumable reading — saved separately, non-blocking but errors are surfaced
+    let consumablesSaved = false
     if (consumablePayload && meterReading?.id) {
       try {
         await consumablesMutation.mutateAsync({
@@ -782,12 +783,17 @@ export default function TicketsPage() {
           billingCycleId: meterPayload.billingCycleId,
           ...consumablePayload,
         })
-      } catch {
-        showToast({ title: t('consumables.consumableSaveError'), variant: 'warning' })
+        consumablesSaved = true
+      } catch (err) {
+        const msg = err.response?.data?.error || t('consumables.consumableSaveError')
+        showToast({ title: msg, variant: 'warning' })
       }
     }
 
-    showToast({ title: `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}`, variant: 'success' })
+    const successMsg = consumablePayload
+      ? `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}${consumablesSaved ? ` · ${t('consumables.levelsSaved')}` : ''}`
+      : `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}`
+    showToast({ title: successMsg, variant: 'success' })
 
     // Save printer coordinates if captured
     if (locationPayload) {

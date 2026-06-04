@@ -712,6 +712,26 @@ export async function reopenCycle(id) {
   return cycleRepo.update(id, { status: 'open', disputeNote: null });
 }
 
+export async function unconfirmCycle(id) {
+  const cycle = await cycleRepo.findById(id);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  if (cycle.status === 'invoiced') {
+    const err = new Error('Cannot unconfirm an invoiced cycle');
+    err.status = 400;
+    throw err;
+  }
+  if (cycle.status !== 'confirmed') {
+    const err = new Error(`Cycle is not confirmed — current status is "${cycle.status}"`);
+    err.status = 400;
+    throw err;
+  }
+  return cycleRepo.update(id, { status: 'open', confirmedAt: null, confirmedByUserId: null });
+}
+
 export async function getGroupSummary(id) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {

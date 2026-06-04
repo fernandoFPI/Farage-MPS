@@ -13,6 +13,7 @@ import EmptyState from '../../components/EmptyState'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import ContractFormModal from './ContractFormModal'
 import AssignPrinterModal from './AssignPrinterModal'
+import { usePermission } from '../../hooks/usePermission'
 import { fmtDate, fmtMoney } from '../../utils/format'
 import { formatAmount } from '../../utils/currency'
 
@@ -41,6 +42,8 @@ export default function ContractDetail() {
   if (isLoading) return <LoadingSpinner className="py-20" />
   if (!contract) return <p className="text-gray-500 p-6">{t('common.noData')}</p>
 
+  const canViewFinancial = usePermission('can_view_financial_data')
+  const canManageContracts = usePermission('can_manage_contracts')
   const isMinVol = contract.billingType === 'minimum_volume'
   const isPsg = contract.contractMode === 'psg' || contract.contractMode === 'psg_simple'
 
@@ -55,9 +58,11 @@ export default function ContractDetail() {
             <button onClick={() => navigate(-1)} className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:text-gray-300">
               <ArrowLeft className="h-4 w-4" />{t('common.back')}
             </button>
-            <button onClick={() => setEditing(true)} className="flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-              <Pencil className="h-4 w-4" />{t('common.edit')}
-            </button>
+            {canManageContracts && (
+              <button onClick={() => setEditing(true)} className="flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600">
+                <Pencil className="h-4 w-4" />{t('common.edit')}
+              </button>
+            )}
           </div>
         }
       />
@@ -103,6 +108,7 @@ export default function ContractDetail() {
             <InfoRow label={t('contracts.endDate')} value={fmtDate(contract.endDate)} />
             <InfoRow label={t('contracts.confirmationSlaDays')} value={contract.confirmationSlaDays} />
           </div>
+          {canViewFinancial && (
           <div>
             {isPsg ? (
               <>
@@ -123,11 +129,12 @@ export default function ContractDetail() {
               </>
             )}
           </div>
+          )}
         </div>
       </div>
 
       {/* Invoice Rules */}
-      {contract.invoiceRules && (() => {
+      {canViewFinancial && contract.invoiceRules && (() => {
         const r = contract.invoiceRules
         const DEFAULT = { fixedChargeFrequency: 'monthly', excessFrequency: 'monthly', overrideInvoicing: 'separate', groupingStrategy: 'contract' }
         const badge = (val, def) => val !== def
@@ -155,10 +162,12 @@ export default function ContractDetail() {
       <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('printers.title')}</h2>
-          <button onClick={() => { setEditAssign(null); setAssignOpen(true) }}
-            className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">
-            <Plus className="h-3.5 w-3.5" />{t('contracts.assignPrinter')}
-          </button>
+          {canManageContracts && (
+            <button onClick={() => { setEditAssign(null); setAssignOpen(true) }}
+              className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">
+              <Plus className="h-3.5 w-3.5" />{t('contracts.assignPrinter')}
+            </button>
+          )}
         </div>
         {contract.printers?.length ? (
           <div className="overflow-x-auto">
@@ -167,9 +176,9 @@ export default function ContractDetail() {
                 {[
                   t('printers.serialNumber'), t('printers.model'), t('printers.city'),
                   t('assignments.assignedFrom'), t('assignments.assignedUntil'),
-                  ...(!isPsg ? [t('assignments.fixedChargeOverride'), t('assignments.bwPriceOverride'), t('assignments.colorPriceOverride')] : []),
-                  ...(!isPsg && isMinVol ? [t('assignments.overrideMinBwPages'), t('assignments.overrideMinColorPages')] : []),
-                  t('common.actions'),
+                  ...(!isPsg && canViewFinancial ? [t('assignments.fixedChargeOverride'), t('assignments.bwPriceOverride'), t('assignments.colorPriceOverride')] : []),
+                  ...(!isPsg && isMinVol && canViewFinancial ? [t('assignments.overrideMinBwPages'), t('assignments.overrideMinColorPages')] : []),
+                  ...(canManageContracts ? [t('common.actions')] : []),
                 ].map(h => (
                   <th key={h} className="px-3 py-2 text-start text-xs font-semibold uppercase text-gray-400 dark:text-gray-500">{h}</th>
                 ))}
@@ -182,7 +191,7 @@ export default function ContractDetail() {
                     <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{cp.printer?.city}</td>
                     <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{fmtDate(cp.assignedFrom)}</td>
                     <td className="px-3 py-2 text-sm text-gray-700 dark:text-gray-300">{fmtDate(cp.assignedUntil)}</td>
-                    {!isPsg && (
+                    {!isPsg && canViewFinancial && (
                       <td className="px-3 py-2 text-sm">
                         {cp.fixedCharge != null
                           ? <span className="font-medium text-brand-600 dark:text-brand-400">{formatAmount(cp.fixedCharge, contract.currency)}</span>
@@ -190,7 +199,7 @@ export default function ContractDetail() {
                         }
                       </td>
                     )}
-                    {!isPsg && (
+                    {!isPsg && canViewFinancial && (
                       <td className="px-3 py-2 text-sm">
                         {cp.bwPrice != null
                           ? <span className="font-medium text-brand-600 dark:text-brand-400">{formatAmount(cp.bwPrice, contract.currency)}</span>
@@ -198,7 +207,7 @@ export default function ContractDetail() {
                         }
                       </td>
                     )}
-                    {!isPsg && (
+                    {!isPsg && canViewFinancial && (
                       <td className="px-3 py-2 text-sm">
                         {cp.colorPrice != null
                           ? <span className="font-medium text-brand-600 dark:text-brand-400">{formatAmount(cp.colorPrice, contract.currency)}</span>
@@ -206,7 +215,7 @@ export default function ContractDetail() {
                         }
                       </td>
                     )}
-                    {!isPsg && isMinVol && (
+                    {!isPsg && isMinVol && canViewFinancial && (
                       <td className="px-3 py-2 text-sm">
                         {cp.overrideMinBwPages != null
                           ? <span className="font-medium text-amber-600 dark:text-amber-400">{cp.overrideMinBwPages.toLocaleString()}</span>
@@ -214,7 +223,7 @@ export default function ContractDetail() {
                         }
                       </td>
                     )}
-                    {!isPsg && isMinVol && (
+                    {!isPsg && isMinVol && canViewFinancial && (
                       <td className="px-3 py-2 text-sm">
                         {cp.overrideMinColorPages != null
                           ? <span className="font-medium text-amber-600 dark:text-amber-400">{cp.overrideMinColorPages.toLocaleString()}</span>
@@ -222,12 +231,14 @@ export default function ContractDetail() {
                         }
                       </td>
                     )}
-                    <td className="px-3 py-2">
-                      <div className="flex gap-2">
-                        <button onClick={() => { setEditAssign(cp); setAssignOpen(true) }} className="p-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"><Pencil className="h-3.5 w-3.5" /></button>
-                        <button onClick={() => setRemovingAssign(cp)} className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400">✕</button>
-                      </div>
-                    </td>
+                    {canManageContracts && (
+                      <td className="px-3 py-2">
+                        <div className="flex gap-2">
+                          <button onClick={() => { setEditAssign(cp); setAssignOpen(true) }} className="p-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"><Pencil className="h-3.5 w-3.5" /></button>
+                          <button onClick={() => setRemovingAssign(cp)} className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400">✕</button>
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>

@@ -487,6 +487,11 @@
     "moveToRecycleBin": "Move to Recycle Bin",
     "movedToRecycleBin": "Billing cycle moved to recycle bin",
     "invoicedCannotDelete": "Cannot delete an invoiced cycle",
+    "unconfirm": "Unconfirm",
+    "unconfirmTitle": "Unconfirm this cycle?",
+    "unconfirmDesc": "This will move the cycle back to Open status. The billing summary will remain unchanged. Readings are not affected.",
+    "unconfirmSuccess": "Cycle moved back to Open",
+    "cannotUnconfirmInvoiced": "Cannot unconfirm an invoiced cycle",
     "restore": "Restore",
     "restoreTitle": "Restore this cycle?",
     "restored": "Billing cycle restored",
@@ -532,7 +537,8 @@
     "viewHistory": "View History",
     "lastUpdated": "Last updated",
     "consumableSaveError": "Meter reading saved but consumable levels could not be saved. Please try again.",
-    "storageSaveError": "Storage update failed. Please try again."
+    "storageSaveError": "Storage update failed. Please try again.",
+    "levelsSaved": "Consumables saved"
   },
   "performance": {
     "title": "Performance",

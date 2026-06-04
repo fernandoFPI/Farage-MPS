@@ -82,12 +82,12 @@ export async function findById(id) {
   return mapRow(rows[0]);
 }
 
-export async function existsForPrinterAndCycle(printerId, billingCycleId) {
+export async function findByPrinterAndCycle(printerId, billingCycleId) {
   const { rows } = await pool.query(
     `SELECT id FROM consumable_readings WHERE printer_id = $1 AND billing_cycle_id = $2 LIMIT 1`,
     [printerId, billingCycleId],
   );
-  return rows.length > 0;
+  return rows[0] ?? null;
 }
 
 export async function create({ meterReadingId, printerId, billingCycleId, submittedByUserId,

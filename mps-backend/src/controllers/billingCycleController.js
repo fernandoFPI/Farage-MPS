@@ -23,7 +23,14 @@ export async function getById(req, res, next) {
 
 export async function summary(req, res, next) {
   try {
-    res.json(await service.getBillingCycleSummary(req.params.id));
+    const result = await service.getBillingCycleSummary(req.params.id);
+    if (req.user?.role?.can_view_financial_data === false) {
+      const { billing, grandTotal, invoices, rulesMeta,
+              quarterlyBreakdown, quarterlyFixedCharge, quarterlyBreakdownStyle,
+              ...safe } = result;
+      return res.json(safe);
+    }
+    res.json(result);
   } catch (err) { next(err); }
 }
 
@@ -42,6 +49,15 @@ export async function dispute(req, res, next) {
 export async function reopen(req, res, next) {
   try {
     res.json(await service.reopenCycle(req.params.id));
+  } catch (err) { next(err); }
+}
+
+export async function unconfirm(req, res, next) {
+  try {
+    if (req.user?.role?.name !== 'admin') {
+      return res.status(403).json({ error: 'Admin only' });
+    }
+    res.json(await service.unconfirmCycle(req.params.id));
   } catch (err) { next(err); }
 }
 

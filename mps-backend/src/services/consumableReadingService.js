@@ -29,20 +29,9 @@ export async function createConsumableReading({ meterReadingId, printerId, billi
     throw err;
   }
 
-  const duplicate = await repo.existsForPrinterAndCycle(printerId, billingCycleId);
-  if (duplicate) {
-    const err = new Error('A consumable reading already exists for this printer in this billing cycle');
-    err.status = 409;
-    throw err;
-  }
-
   const isBwOnly = printer.isBwOnly ?? false;
 
-  const data = {
-    meterReadingId,
-    printerId,
-    billingCycleId,
-    submittedByUserId: userId,
+  const pctData = {
     kPct:         clampPct(kPct),
     r1Pct:        clampPct(r1Pct),
     wasteTonePct: clampPct(wasteTonePct),
@@ -55,7 +44,13 @@ export async function createConsumableReading({ meterReadingId, printerId, billi
     r4Pct: isBwOnly ? null : clampPct(r4Pct),
   };
 
-  return repo.create(data);
+  // Upsert: update the existing record if one already exists for this printer+cycle
+  const existing = await repo.findByPrinterAndCycle(printerId, billingCycleId);
+  if (existing) {
+    return repo.updateById(existing.id, pctData);
+  }
+
+  return repo.create({ meterReadingId, printerId, billingCycleId, submittedByUserId: userId, ...pctData });
 }
 
 export async function listConsumableReadings(params = {}) {

@@ -49,6 +49,14 @@ export function useReopenCycle() {
   })
 }
 
+export function useUnconfirmCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => client.patch(`/api/billing-cycles/${id}/unconfirm`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
+  })
+}
+
 export function useBillingCycleSummary(id) {
   return useQuery({
     queryKey: ['billing-cycles', id, 'summary'],

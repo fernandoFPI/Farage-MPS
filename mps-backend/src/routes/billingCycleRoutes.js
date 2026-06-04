@@ -25,9 +25,10 @@ router.post('/:id/restore',  ...requireAdmin,   ctrl.restoreCycle);
 // Standard routes blocked for Odoo
 router.post('/',             ...manageBilling,  ctrl.create);
 router.get('/:id',           verifyToken, odooRateLimit, ctrl.getById);
-router.patch('/:id/confirm', ...confirmBilling, ctrl.confirm);
-router.patch('/:id/dispute', ...confirmBilling, ctrl.dispute);
-router.patch('/:id/reopen',  ...manageBilling,  ctrl.reopen);
+router.patch('/:id/confirm',   ...confirmBilling, ctrl.confirm);
+router.patch('/:id/dispute',   ...confirmBilling, ctrl.dispute);
+router.patch('/:id/reopen',    ...manageBilling,  ctrl.reopen);
+router.patch('/:id/unconfirm', ...requireAdmin,   ctrl.unconfirm);
 router.delete('/:id',        verifyToken, blockOdoo, ctrl.cancel);
 router.get('/:id/group-summary', verifyToken, blockOdoo, ctrl.groupSummary);
 router.patch('/:id/set-baseline',             verifyToken, blockOdoo,       ctrl.setBaseline);

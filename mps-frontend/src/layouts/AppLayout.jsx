@@ -49,6 +49,7 @@ function SidebarContent({ onClose }) {
   const canManageBilling   = usePermission('can_manage_billing')
   const canManageUsers     = usePermission('can_manage_users')
   const isEngineer         = user?.role?.name === 'engineer'
+  const isServiceManager   = user?.role?.name === 'service_manager'
   const lang = i18n.language === 'ar' ? 'ar' : 'en'
   const roleLabel = getRoleLabel(user?.role?.name, lang)
 
@@ -68,21 +69,21 @@ function SidebarContent({ onClose }) {
       <nav className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4 space-y-0.5">
         <NavItem to="/" end icon={LayoutDashboard} label={t('nav.dashboard')} onClick={onClose} />
 
-        {canManageContracts && (
+        {(canManageContracts || isServiceManager) && (
           <>
             <NavSep />
             <NavItem to="/customers"       icon={Users}    label={t('nav.customers')}       onClick={onClose} />
             <NavItem to="/contracts"       icon={FileText} label={t('nav.contracts')}       onClick={onClose} />
             <NavItem to="/printers"        icon={Printer}  label={t('nav.printers')}        onClick={onClose} />
             <NavItem to="/map"             icon={Map}      label={t('nav.map')}             onClick={onClose} />
-            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead' || user?.role?.name === 'mps_specialist') && (
+            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead' || user?.role?.name === 'mps_specialist' || user?.role?.name === 'service_manager') && (
               <NavItem to="/charts" icon={BarChart2} label={t('nav.charts')} onClick={onClose} />
             )}
             <NavItem to="/contract-groups" icon={Layers}   label={t('nav.contractGroups')}  onClick={onClose} />
           </>
         )}
 
-        {(canSubmitReadings || canManageBilling) && (
+        {(canSubmitReadings || canManageBilling || isServiceManager) && (
           <>
             <NavSep />
             {isEngineer && (
@@ -95,12 +96,12 @@ function SidebarContent({ onClose }) {
           </>
         )}
 
-        {canManageBilling && (
+        {(canManageBilling || isServiceManager) && (
           <>
             <NavSep />
             <NavItem to="/billing-cycles" icon={Receipt}       label={t('nav.billingCycles')} onClick={onClose} />
             <NavItem to="/consumables"    icon={Package}       label={t('nav.consumables')}   onClick={onClose} />
-            {user?.role?.name !== 'mps_specialist' && (
+            {user?.role?.name !== 'mps_specialist' && user?.role?.name !== 'service_manager' && (
               <NavItem to="/import-logs" icon={ClipboardList} label={t('nav.importLogs')} onClick={onClose} />
             )}
           </>

@@ -7,6 +7,7 @@ import FormField, { inputCls } from '../../components/FormField'
 import ErrorAlert from '../../components/ErrorAlert'
 import { useCreateContract, useUpdateContract } from '../../api/hooks/useContracts'
 import { useCustomers } from '../../api/hooks/useCustomers'
+import { usePermission } from '../../hooks/usePermission'
 
 const SERVICE_TYPES = {
   osg:        ['MPS', 'FSMA', 'LS', 'LO'],
@@ -59,6 +60,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
   const isPsg = form.contractMode === 'psg'
   const isPsgSimple = form.contractMode === 'psg_simple'
   const isPsgAny = isPsg || isPsgSimple
+  const canViewFinancial = usePermission('can_view_financial_data')
   useEffect(() => {
     if (initial) {
       setForm({ ...empty, ...initial,
@@ -104,8 +106,8 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.customerId || !form.contractNumber || !form.startDate) return setError('Customer, contract number and start date are required')
-    if (isPsgAny && (!form.a4Price || Number(form.a4Price) <= 0)) return setError('A4 Price is required and must be > 0 for PSG contracts')
-    if (isPsg && (!form.a3Price || Number(form.a3Price) <= 0)) return setError('A3 Price is required and must be > 0 for PSG contracts')
+    if (canViewFinancial && isPsgAny && (!form.a4Price || Number(form.a4Price) <= 0)) return setError('A4 Price is required and must be > 0 for PSG contracts')
+    if (canViewFinancial && isPsg && (!form.a3Price || Number(form.a3Price) <= 0)) return setError('A3 Price is required and must be > 0 for PSG contracts')
     const rules = form.invoiceRules ?? DEFAULT_INVOICE_RULES
     const rulesNeedStartDate = rules.fixedChargeFrequency !== 'monthly' || rules.excessFrequency !== 'monthly'
     if (rulesNeedStartDate && !rules.contractStartDate) {
@@ -279,19 +281,23 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
                 <option value="minimum_volume">{t('contracts.minimumVolume')}</option>
               </select>
             </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              {numInput('fixedCharge', t('contracts.fixedCharge'))}
-              {numInput('bwPrice', t('contracts.bwPrice'))}
-              {numInput('colorPrice', t('contracts.colorPrice'))}
-              {numInput('confirmationSlaDays', t('contracts.confirmationSlaDays'))}
-            </div>
-            {isMinVol && (
-              <div className="grid grid-cols-2 gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-900/10">
-                {numInput('minBwPages', t('contracts.minBwPages'))}
-                {numInput('minColorPages', t('contracts.minColorPages'))}
-                {numInput('excessBwPrice', t('contracts.excessBwPrice'))}
-                {numInput('excessColorPrice', t('contracts.excessColorPrice'))}
-              </div>
+            {canViewFinancial && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  {numInput('fixedCharge', t('contracts.fixedCharge'))}
+                  {numInput('bwPrice', t('contracts.bwPrice'))}
+                  {numInput('colorPrice', t('contracts.colorPrice'))}
+                  {numInput('confirmationSlaDays', t('contracts.confirmationSlaDays'))}
+                </div>
+                {isMinVol && (
+                  <div className="grid grid-cols-2 gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/40 dark:bg-amber-900/10">
+                    {numInput('minBwPages', t('contracts.minBwPages'))}
+                    {numInput('minColorPages', t('contracts.minColorPages'))}
+                    {numInput('excessBwPrice', t('contracts.excessBwPrice'))}
+                    {numInput('excessColorPrice', t('contracts.excessColorPrice'))}
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
@@ -299,8 +305,8 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         {/* PSG-only fields */}
         {isPsg && (
           <div className="grid grid-cols-2 gap-3 rounded-lg border border-purple-200 bg-purple-50 p-3 dark:border-purple-900/40 dark:bg-purple-900/10">
-            {numInput('a4Price', t('contracts.a4Price'), true)}
-            {numInput('a3Price', t('contracts.a3Price'), true)}
+            {canViewFinancial && numInput('a4Price', t('contracts.a4Price'), true)}
+            {canViewFinancial && numInput('a3Price', t('contracts.a3Price'), true)}
             {numInput('confirmationSlaDays', t('contracts.confirmationSlaDays'))}
           </div>
         )}
@@ -309,7 +315,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         {isPsgSimple && (
           <div className="rounded-lg border border-violet-200 bg-violet-50 p-3 dark:border-violet-900/40 dark:bg-violet-900/10 space-y-3">
             <div className="grid grid-cols-2 gap-3">
-              {numInput('a4Price', t('contracts.a4Price'), true)}
+              {canViewFinancial && numInput('a4Price', t('contracts.a4Price'), true)}
               {numInput('confirmationSlaDays', t('contracts.confirmationSlaDays'))}
             </div>
             <p className="text-xs text-violet-600 dark:text-violet-400">{t('contracts.psgSimpleFieldNote')}</p>

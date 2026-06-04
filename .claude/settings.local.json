@@ -16,7 +16,9 @@
       "Bash(node -e \"const p = require\\('./package.json'\\); console.log\\('xlsx:', p.dependencies?.xlsx ?? 'NOT FOUND'\\)\")",
       "Bash(node --input-type=module --check)",
       "Bash(npx tsc *)",
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('recharts:', p.dependencies.recharts || p.devDependencies?.recharts || 'NOT FOUND'\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('recharts:', p.dependencies.recharts || p.devDependencies?.recharts || 'NOT FOUND'\\)\")",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\PC\\\\OneDrive - Farage Printing Industries\\\\Desktop\\\\MPS\" -Directory)",
+      "Bash(Select-Object Name)"
     ]
   }
 }

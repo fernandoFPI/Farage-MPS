@@ -5,7 +5,7 @@ import * as controller from '../controllers/analyticsController.js'
 
 function requireAnalyticsAccess(req, res, next) {
   const role = req.user?.role?.name
-  if (role !== 'admin' && role !== 'mps_team_lead' && role !== 'mps_specialist') {
+  if (role !== 'admin' && role !== 'mps_team_lead' && role !== 'mps_specialist' && role !== 'service_manager') {
     return res.status(403).json({ error: 'Forbidden' })
   }
   next()

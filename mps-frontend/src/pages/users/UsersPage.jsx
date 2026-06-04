@@ -21,6 +21,8 @@ import FormField, { inputCls } from '../../components/FormField'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import ErrorAlert from '../../components/ErrorAlert'
 import { fmtDate } from '../../utils/format'
+import { getRoleLabel } from '../../utils/roleLabels'
+import i18n from '../../i18n'
 
 const PERMISSION_FLAGS = [
   'can_submit_readings',
@@ -28,6 +30,7 @@ const PERMISSION_FLAGS = [
   'can_confirm_billing',
   'can_manage_users',
   'can_manage_contracts',
+  'can_view_financial_data',
 ]
 
 function UserFormModal({ initial, onClose }) {
@@ -114,7 +117,9 @@ function UserFormModal({ initial, onClose }) {
           <select className={inputCls} value={form.roleId} onChange={e => set('roleId', e.target.value)}>
             <option value="">—</option>
             {roles.map(r => (
-              <option key={r.id} value={r.id}>{r.name}</option>
+              <option key={r.id} value={r.id}>
+                {getRoleLabel(r.name, i18n.language === 'ar' ? 'ar' : 'en')}
+              </option>
             ))}
           </select>
         </FormField>
