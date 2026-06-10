@@ -223,6 +223,9 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     const historicalExcesses = recentReadings.map(r => ({ excessBw: r.excessBw, excessColor: r.excessColor }));
     const validation         = validateUsage(currentExcess, historicalExcesses);
 
+    // Populated inside the PSG branch when prevReading exists — used for perPrinterPsgBreakdown below
+    let psgNet = null;
+
     if (!isPsgAny) {
       const hasOverride = reading.printerFixedCharge != null || reading.printerBwPrice != null || reading.printerColorPrice != null
         || reading.printerOverrideMinBwPages != null || reading.printerOverrideMinColorPages != null;
@@ -254,14 +257,14 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       psgBillable.billableColor += billable.billableColor;
       if (prevReading) {
         const previousRaw = { a4Bw: prevReading.a4Bw, a3Bw: prevReading.a3Bw, a4Color: prevReading.a4Color, a3Color: prevReading.a3Color, xls: prevReading.xls };
-        const net = calculatePSGNet(
+        psgNet = calculatePSGNet(
           { a4Bw: reading.a4Bw, a3Bw: reading.a3Bw, a4Color: reading.a4Color, a3Color: reading.a3Color, xls: reading.xls },
           previousRaw,
         );
-        psgBreakdown.a4BwUsage    += Math.max(0, net.excessA4Bw);
-        psgBreakdown.a3BwUsage    += Math.max(0, net.excessA3Bw);
-        psgBreakdown.a4ColorUsage += Math.max(0, net.excessA4Color);
-        psgBreakdown.a3ColorUsage += Math.max(0, net.excessA3Color);
+        psgBreakdown.a4BwUsage    += Math.max(0, psgNet.excessA4Bw);
+        psgBreakdown.a3BwUsage    += Math.max(0, psgNet.excessA3Bw);
+        psgBreakdown.a4ColorUsage += Math.max(0, psgNet.excessA4Color);
+        psgBreakdown.a3ColorUsage += Math.max(0, psgNet.excessA3Color);
       }
       // baseline (no prevReading) → contributes 0 to all breakdown buckets
     }
@@ -299,13 +302,13 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       flagReason,
     });
 
-    // Build entry for invoice rules engine
-    const perPrinterPsgBreakdown = prevReading && isPsgContract
+    // Build entry for invoice rules engine — use calculatePSGNet values so A3 is not double-counted in a4ColorUsage
+    const perPrinterPsgBreakdown = isPsgContract && psgNet
       ? {
-          a4BwUsage:    Math.max(0, (reading.a4Bw    ?? 0) - (prevReading.a4Bw    ?? 0)),
-          a3BwUsage:    Math.max(0, (reading.a3Bw    ?? 0) - (prevReading.a3Bw    ?? 0)),
-          a4ColorUsage: Math.max(0, (reading.a4Color ?? 0) - (prevReading.a4Color ?? 0)),
-          a3ColorUsage: Math.max(0, (reading.a3Color ?? 0) - (prevReading.a3Color ?? 0)),
+          a4BwUsage:    Math.max(0, psgNet.excessA4Bw),
+          a3BwUsage:    Math.max(0, psgNet.excessA3Bw),
+          a4ColorUsage: Math.max(0, psgNet.excessA4Color),
+          a3ColorUsage: Math.max(0, psgNet.excessA3Color),
         }
       : { a4BwUsage: 0, a3BwUsage: 0, a4ColorUsage: 0, a3ColorUsage: 0 };
 

@@ -10,7 +10,7 @@ export function fmtDateTime(d) {
 
 export function fmtMoney(n) {
   if (n == null || n === '') return '—'
-  return Number(n).toFixed(2)
+  return Number(n).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 4 })
 }
 
 export function fmtDuration(seconds) {

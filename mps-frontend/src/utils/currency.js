@@ -8,7 +8,7 @@ export function formatAmount(amount, currency = 'IQD') {
   }
   return new Intl.NumberFormat('en-IQ', {
     minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    maximumFractionDigits: 4,
   }).format(amount) + ' IQD'
 }
 
