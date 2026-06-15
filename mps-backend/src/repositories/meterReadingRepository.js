@@ -138,6 +138,22 @@ export async function getPreviousReading(printerId, beforeDate) {
   return mapRow(rows[0]);
 }
 
+// Most recent reading for a printer from any cycle prior to currentCycleId — matches the billing engine's lookup
+export async function getPreviousReadingByCycle(printerId, currentCycleId, currentPeriodStart) {
+  const { rows } = await pool.query(
+    `SELECT mr.*
+     FROM meter_readings mr
+     JOIN billing_cycles bc ON mr.billing_cycle_id = bc.id
+     WHERE mr.printer_id = $1
+       AND mr.billing_cycle_id != $2
+       AND bc.period_start < $3
+     ORDER BY bc.period_start DESC, mr.read_at DESC
+     LIMIT 1`,
+    [printerId, currentCycleId, currentPeriodStart],
+  );
+  return mapRow(rows[0]);
+}
+
 // Finds the latest reading from the most recent previous cycle, including baseline cycles.
 // Baseline cycles must still provide the raw counter starting point for the next cycle.
 export async function getPreviousCycleReading(printerId, currentCycleId, currentPeriodStart) {

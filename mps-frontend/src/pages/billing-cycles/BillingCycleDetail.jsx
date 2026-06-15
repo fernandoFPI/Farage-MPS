@@ -128,8 +128,8 @@ function CalcResult({ label, value }) {
   )
 }
 
-function PrinterCalcCard({ reading, summaryPrinter, cycleStart }) {
-  const { data: prev } = usePreviousReading(reading.printerId, cycleStart)
+function PrinterCalcCard({ reading, summaryPrinter, cycleStart, cycleId }) {
+  const { data: prev } = usePreviousReading(reading.printerId, cycleStart, cycleId, cycleStart)
   const isBaseline   = summaryPrinter?.isBaseline
   const isBwOnly     = summaryPrinter?.isBwOnly ?? false
   const contractType = summaryPrinter?.contractType ?? 'osg'
@@ -524,7 +524,7 @@ function PrinterCalcCard({ reading, summaryPrinter, cycleStart }) {
 }
 
 // ── Calculation details collapsible panel ─────────────────────────────────────
-function CalcDetailsPanel({ readings, summary, cycleStart }) {
+function CalcDetailsPanel({ readings, summary, cycleStart, cycleId }) {
   const [open, setOpen] = useState(false)
   if (!readings?.length) return null
 
@@ -558,6 +558,7 @@ function CalcDetailsPanel({ readings, summary, cycleStart }) {
               reading={r}
               summaryPrinter={summaryPrinterMap[r.printerId]}
               cycleStart={cycleStart}
+              cycleId={cycleId}
             />
           ))}
         </div>
@@ -1688,7 +1689,7 @@ const { data: appSettings } = useSettings()
 
         {/* ── Calculation Details ── */}
         {showCalculationDetails && (
-          <CalcDetailsPanel readings={readings} summary={summary} cycleStart={cycle.periodStart} />
+          <CalcDetailsPanel readings={readings} summary={summary} cycleStart={cycle.periodStart} cycleId={cycle.id} />
         )}
 
         {/* ── Quarterly Invoice Summary (invoicing cycle only) ── */}

@@ -67,11 +67,11 @@ export async function bulkDelete(req, res, next) {
 
 export async function getPrevious(req, res, next) {
   try {
-    const { printerId, beforeDate } = req.query;
-    if (!printerId || !beforeDate) {
-      return res.status(400).json({ error: 'printerId and beforeDate are required' });
+    const { printerId, beforeDate, cycleId, cycleStart } = req.query;
+    if (!printerId || (!beforeDate && !cycleId)) {
+      return res.status(400).json({ error: 'printerId and (beforeDate or cycleId) are required' });
     }
-    const reading = await service.getPreviousReading(printerId, beforeDate);
+    const reading = await service.getPreviousReading(printerId, beforeDate, cycleId, cycleStart);
     res.json(reading ?? null);
   } catch (err) { next(err); }
 }

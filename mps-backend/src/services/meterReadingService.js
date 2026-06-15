@@ -357,7 +357,10 @@ export async function updateReading(id, body) {
   return result;
 }
 
-export async function getPreviousReading(printerId, beforeDate) {
+export async function getPreviousReading(printerId, beforeDate, cycleId, cycleStart) {
+  if (cycleId && cycleStart) {
+    return readingRepo.getPreviousReadingByCycle(printerId, cycleId, cycleStart);
+  }
   return readingRepo.getPreviousReading(printerId, beforeDate);
 }
 

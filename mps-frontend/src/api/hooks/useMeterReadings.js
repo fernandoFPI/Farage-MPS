@@ -60,10 +60,15 @@ export function useBulkDeleteReadings() {
   })
 }
 
-export function usePreviousReading(printerId, beforeDate) {
+export function usePreviousReading(printerId, beforeDate, cycleId, cycleStart) {
   return useQuery({
-    queryKey: ['meter-readings', 'previous', printerId, beforeDate],
-    queryFn: () => client.get('/api/meter-readings/previous', { params: { printerId, beforeDate } }).then(r => r.data),
-    enabled: !!printerId && !!beforeDate,
+    queryKey: ['meter-readings', 'previous', printerId, cycleId ?? beforeDate],
+    queryFn: () => {
+      const params = cycleId && cycleStart
+        ? { printerId, cycleId, cycleStart }
+        : { printerId, beforeDate }
+      return client.get('/api/meter-readings/previous', { params }).then(r => r.data)
+    },
+    enabled: !!printerId && (!!beforeDate || (!!cycleId && !!cycleStart)),
   })
 }
