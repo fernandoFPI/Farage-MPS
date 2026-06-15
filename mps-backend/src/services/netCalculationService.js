@@ -17,12 +17,12 @@ export function calculateOSGNet(current, previous) {
 export function calculatePSGNet(current, previousRaw) {
   const a4BwNet    = current.a4Bw - current.a3Bw;
   const a3BwNet    = current.a3Bw;
-  const a4ColorNet = (current.a4Color - current.xls) - current.a3Color;
+  const a4ColorNet = (current.a4Color + current.xls) - current.a3Color;
   const a3ColorNet = current.a3Color;
 
   const prevA4BwNet    = previousRaw.a4Bw - previousRaw.a3Bw;
   const prevA3BwNet    = previousRaw.a3Bw;
-  const prevA4ColorNet = (previousRaw.a4Color - previousRaw.xls) - previousRaw.a3Color;
+  const prevA4ColorNet = (previousRaw.a4Color + previousRaw.xls) - previousRaw.a3Color;
   const prevA3ColorNet = previousRaw.a3Color;
 
   const excessA4Bw    = a4BwNet    - prevA4BwNet;

@@ -249,11 +249,11 @@ function PrinterCalcCard({ reading, summaryPrinter, cycleStart, cycleId }) {
   function renderPsg() {
     const cA4BwNet    = c.a4Bw - c.a3Bw
     const cA3BwNet    = c.a3Bw
-    const cA4ColorNet = (c.a4Color - c.xls) - c.a3Color
+    const cA4ColorNet = (c.a4Color + c.xls) - c.a3Color
     const cA3ColorNet = c.a3Color
     const pA4BwNet    = p.a4Bw - p.a3Bw
     const pA3BwNet    = p.a3Bw
-    const pA4ColorNet = (p.a4Color - p.xls) - p.a3Color
+    const pA4ColorNet = (p.a4Color + p.xls) - p.a3Color
     const pA3ColorNet = p.a3Color
     const a4BwPg    = cA4BwNet    - pA4BwNet
     const a3BwPg    = cA3BwNet    - pA3BwNet
@@ -302,7 +302,7 @@ function PrinterCalcCard({ reading, summaryPrinter, cycleStart, cycleId }) {
           {!isBwOnly && (
             <>
               <div>
-                <Mono>True A4 Color = (A4 Color - XLS) - A3 Color = ({n(c.a4Color)} - {n(c.xls)}) - {n(c.a3Color)}</Mono>
+                <Mono>True A4 Color = (A4 Color + XLS) - A3 Color = ({n(c.a4Color)} + {n(c.xls)}) - {n(c.a3Color)}</Mono>
                 <Mono hi>              = {sgn(cA4ColorNet)}</Mono>
               </div>
               <Mono>True A3 Color = A3 Color = {n(c.a3Color)}</Mono>
@@ -316,7 +316,7 @@ function PrinterCalcCard({ reading, summaryPrinter, cycleStart, cycleId }) {
           <Mono>Prev True A3 BW    = {n(p.a3Bw)}</Mono>
           {!isBwOnly && (
             <>
-              <Mono>Prev True A4 Color = ({n(p.a4Color)} - {n(p.xls)}) - {n(p.a3Color)} = {sgn(pA4ColorNet)}</Mono>
+              <Mono>Prev True A4 Color = ({n(p.a4Color)} + {n(p.xls)}) - {n(p.a3Color)} = {sgn(pA4ColorNet)}</Mono>
               <Mono>Prev True A3 Color = {n(p.a3Color)}</Mono>
             </>
           )}
