@@ -84,6 +84,45 @@ export async function createCycle({ contractId, periodStart, periodEnd }, userId
   return cycleRepo.create({ contractId, periodStart, periodEnd, specialistUserId: userId });
 }
 
+export async function updateCyclePeriod(id, { periodStart, periodEnd }) {
+  if (!periodStart || !periodEnd) {
+    const err = new Error('periodStart and periodEnd are required');
+    err.status = 400;
+    throw err;
+  }
+  if (new Date(periodEnd) <= new Date(periodStart)) {
+    const err = new Error('periodEnd must be after periodStart');
+    err.status = 400;
+    throw err;
+  }
+
+  const cycle = await cycleRepo.findById(id);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  if (cycle.status === 'invoiced') {
+    const err = new Error('Cannot edit the period of an invoiced cycle');
+    err.status = 409;
+    throw err;
+  }
+  if (cycle.isCancelled) {
+    const err = new Error('Cannot edit the period of a cancelled cycle');
+    err.status = 409;
+    throw err;
+  }
+
+  const taken = await cycleRepo.periodStartTaken(cycle.contractId, periodStart, id);
+  if (taken) {
+    const err = new Error('Another billing cycle for this contract already starts on that date');
+    err.status = 409;
+    throw err;
+  }
+
+  return cycleRepo.updatePeriod(id, periodStart, periodEnd);
+}
+
 export async function getCycleById(id) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {

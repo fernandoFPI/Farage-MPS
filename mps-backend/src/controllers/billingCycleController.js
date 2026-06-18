@@ -34,6 +34,13 @@ export async function summary(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function updatePeriod(req, res, next) {
+  try {
+    const { periodStart, periodEnd } = req.body;
+    res.json(await service.updateCyclePeriod(req.params.id, { periodStart, periodEnd }));
+  } catch (err) { next(err); }
+}
+
 export async function confirm(req, res, next) {
   try {
     res.json(await service.confirmCycle(req.params.id));

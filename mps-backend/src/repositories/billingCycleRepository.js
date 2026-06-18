@@ -340,6 +340,28 @@ export async function update(id, fields) {
   return findById(id);
 }
 
+export async function updatePeriod(id, periodStart, periodEnd) {
+  const { rowCount } = await pool.query(
+    `UPDATE billing_cycles SET period_start = $1, period_end = $2 WHERE id = $3`,
+    [periodStart, periodEnd, id],
+  );
+  if (rowCount === 0) return null;
+  return findById(id);
+}
+
+export async function periodStartTaken(contractId, periodStart, excludeId) {
+  const { rows } = await pool.query(
+    `SELECT id FROM billing_cycles
+     WHERE contract_id = $1
+       AND period_start = $2
+       AND id != $3
+       AND is_cancelled = false
+       AND deleted_at IS NULL`,
+    [contractId, periodStart, excludeId],
+  );
+  return rows.length > 0;
+}
+
 export async function updateLockedPrinters(id, lockedPrinters) {
   await pool.query(
     `UPDATE billing_cycles SET locked_printers = $1 WHERE id = $2`,

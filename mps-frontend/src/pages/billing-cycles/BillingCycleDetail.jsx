@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock, Pencil, Check, X } from 'lucide-react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   useBillingCycle,
@@ -15,6 +15,7 @@ import {
   useCityStatuses,
   useConfirmCity,
   useResetCity,
+  useUpdateCyclePeriod,
 } from '../../api/hooks/useBillingCycles'
 import { useBillingCycleGroupSummary, useDeleteCycleGroup, useCycleGroup } from '../../api/hooks/useCycleGroups'
 import { useMeterReadings, usePreviousReading } from '../../api/hooks/useMeterReadings'
@@ -916,6 +917,9 @@ const { data: appSettings } = useSettings()
   const [groupCyclesOpen, setGroupCyclesOpen] = useState(false)
   const [actionError, setActionError] = useState('')
   const [consumablesOpen, setConsumablesOpen] = useState(false)
+  const [editPeriod, setEditPeriod] = useState(false)
+  const [periodDraft, setPeriodDraft] = useState({ start: '', end: '' })
+  const [periodSaveError, setPeriodSaveError] = useState('')
   const [quarterExpanded, setQuarterExpanded] = useState(false)
   const [overrideExpanded, setOverrideExpanded] = useState({})
 
@@ -942,6 +946,7 @@ const { data: appSettings } = useSettings()
   const disputeMutation = useDisputeCycle()
   const reopenMutation = useReopenCycle()
   const unconfirmMutation = useUnconfirmCycle()
+  const updatePeriodMutation = useUpdateCyclePeriod()
 
   // ── Action handlers ──────────────────────────────────────────────────────
   async function handleConfirm() {
@@ -984,6 +989,26 @@ const { data: appSettings } = useSettings()
       setUnconfirmOpen(false)
     } catch (err) {
       setActionError(err.response?.data?.error || err.message)
+    }
+  }
+
+  function openEditPeriod() {
+    setPeriodDraft({
+      start: cycle.periodStart?.slice(0, 10) ?? '',
+      end:   cycle.periodEnd?.slice(0, 10)   ?? '',
+    })
+    setPeriodSaveError('')
+    setEditPeriod(true)
+  }
+
+  async function handleSavePeriod() {
+    setPeriodSaveError('')
+    try {
+      await updatePeriodMutation.mutateAsync({ id, periodStart: periodDraft.start, periodEnd: periodDraft.end })
+      showToast({ title: 'Period updated', variant: 'success' })
+      setEditPeriod(false)
+    } catch (err) {
+      setPeriodSaveError(err.response?.data?.error || err.message)
     }
   }
 
@@ -1116,7 +1141,52 @@ const { data: appSettings } = useSettings()
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
             <div>
-              <InfoRow label={t('billingCycles.period')} value={formatPeriod(cycle.periodStart, cycle.periodEnd)} />
+              {/* Period row — editable by admin */}
+              <div className="flex justify-between gap-4 py-2 border-b border-gray-100 dark:border-gray-800">
+                <span className="text-sm text-gray-500 dark:text-gray-400 shrink-0">{t('billingCycles.period')}</span>
+                {editPeriod ? (
+                  <div className="flex flex-col items-end gap-1.5 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <input
+                        type="date"
+                        value={periodDraft.start}
+                        onChange={e => setPeriodDraft(d => ({ ...d, start: e.target.value }))}
+                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm px-2 py-1"
+                      />
+                      <span className="text-gray-400 text-sm">–</span>
+                      <input
+                        type="date"
+                        value={periodDraft.end}
+                        onChange={e => setPeriodDraft(d => ({ ...d, end: e.target.value }))}
+                        className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm px-2 py-1"
+                      />
+                      <button
+                        onClick={handleSavePeriod}
+                        disabled={updatePeriodMutation.isPending}
+                        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-green-700 bg-green-50 border border-green-300 rounded hover:bg-green-100 dark:text-green-400 dark:bg-green-900/20 dark:border-green-700"
+                      >
+                        <Check size={13} />{updatePeriodMutation.isPending ? '...' : 'Save'}
+                      </button>
+                      <button
+                        onClick={() => setEditPeriod(false)}
+                        className="flex items-center gap-1 px-2 py-1 text-xs font-medium text-gray-600 bg-gray-50 border border-gray-300 rounded hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-600"
+                      >
+                        <X size={13} />Cancel
+                      </button>
+                    </div>
+                    {periodSaveError && <p className="text-xs text-red-500">{periodSaveError}</p>}
+                  </div>
+                ) : (
+                  <span className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {formatPeriod(cycle.periodStart, cycle.periodEnd)}
+                    {isAdmin && cycle.status !== 'invoiced' && (
+                      <button onClick={openEditPeriod} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </span>
+                )}
+              </div>
               <InfoRow label={t('common.status')} value={<StatusBadge status={cycle.status} />} />
               <InfoRow label={t('billingCycles.specialist')} value={cycle.specialist?.fullName ?? cycle.specialistName ?? '—'} />
             </div>

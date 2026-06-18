@@ -57,6 +57,15 @@ export function useUnconfirmCycle() {
   })
 }
 
+export function useUpdateCyclePeriod() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, periodStart, periodEnd }) =>
+      client.patch(`/api/billing-cycles/${id}/period`, { periodStart, periodEnd }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
+  })
+}
+
 export function useBillingCycleSummary(id) {
   return useQuery({
     queryKey: ['billing-cycles', id, 'summary'],
