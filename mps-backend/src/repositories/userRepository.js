@@ -92,10 +92,11 @@ export async function create({ fullName, email, passwordHash, roleId }) {
 
 export async function update(id, fields) {
   const columnMap = {
-    fullName: 'full_name',
-    email: 'email',
-    roleId: 'role_id',
-    isActive: 'is_active',
+    fullName:     'full_name',
+    email:        'email',
+    roleId:       'role_id',
+    isActive:     'is_active',
+    passwordHash: 'password_hash',
   };
 
   const setClauses = [];

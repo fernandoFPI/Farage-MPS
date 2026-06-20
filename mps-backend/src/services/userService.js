@@ -44,7 +44,7 @@ export async function getUserById(id) {
   return user;
 }
 
-export async function updateUser(id, { fullName, email, roleId, isActive }) {
+export async function updateUser(id, { fullName, email, roleId, isActive, password }) {
   const existing = await userRepo.findById(id);
   if (!existing) {
     const err = new Error('User not found');
@@ -70,7 +70,8 @@ export async function updateUser(id, { fullName, email, roleId, isActive }) {
     }
   }
 
-  return userRepo.update(id, { fullName, email, roleId, isActive });
+  const passwordHash = password ? await bcrypt.hash(password, 12) : undefined;
+  return userRepo.update(id, { fullName, email, roleId, isActive, passwordHash });
 }
 
 export async function deactivateUser(id, requesterId) {
