@@ -56,9 +56,11 @@ async function attachUsage(reading) {
     let prevReading;
     if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
       const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodStart);
+      console.log(`[QUARTERLY] reading=${reading.id} cycle=${cycle.id} contractStart=${invoiceRules.contractStartDate} periodStart=${cycle.periodStart} targetDate=${targetDate}`);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
         reading.printerId, cycle.id, targetDate,
       );
+      console.log(`[QUARTERLY] prevReading cycleId=${prevReading?.cycleId ?? 'none'} excessBw=${prevReading?.excessBw ?? 'none'}`);
     } else {
       prevReading = await readingRepo.getPreviousCycleReading(
         reading.printerId, cycle.id, cycle.periodStart,

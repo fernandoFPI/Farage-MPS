@@ -98,11 +98,12 @@ function buildRulesMeta(rules, cycle) {
     monthInQuarter = posInPeriod + 1;
     quarterNumber = Math.floor(monthsElapsed / periodLength) + 1;
 
-    // quarterStartDate = start of the quarter whose LAST month is the current cycle
-    // e.g. contract starts Sep 18, month 18 (Mar 2026) → quarter started Dec 18, 2025 (15 months in)
-    const quarterOffset = Math.max(0, Math.floor(monthsElapsed / periodLength) - 1) * periodLength;
+    // quarterStartDate = start of the current quarter (current billing month is the LAST month)
+    // e.g. contractStart Jan 2026, Jun 2026 is Q2 end (monthsElapsed=5) → quarter started Apr 2026 (offset=3)
+    const quarterOffset = Math.max(0, Math.floor(monthsElapsed / periodLength) * periodLength - (periodLength - 1));
     const qStart = new Date(start);
     qStart.setMonth(start.getMonth() + quarterOffset);
+    qStart.setDate(1); // normalize to 1st so billing cycles (always period_start=1st) are compared correctly
     quarterStartDate = qStart.toISOString().slice(0, 10);
 
     const qEnd = new Date(qStart);

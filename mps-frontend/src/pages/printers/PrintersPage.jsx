@@ -244,7 +244,7 @@ export default function PrintersPage() {
             <SearchableSelect
               className="w-44"
               value={customerFilter}
-              onChange={setCustomerFilter}
+              onChange={v => setFilter('customerFilter', v)}
               options={[
                 { value: null, label: t('common.allCustomers') },
                 ...customers.map(c => ({ value: c.id, label: c.name })),
