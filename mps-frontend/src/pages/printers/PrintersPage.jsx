@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Eye, Trash2, UserPlus, RefreshCw, List, LayoutGrid, FileUp } from 'lucide-react'
 import SearchableSelect from '../../components/SearchableSelect'
@@ -45,9 +45,19 @@ export default function PrintersPage() {
   const navigate = useNavigate()
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
-  const [city, setCity] = useState('')
-  const [xsmEnabled, setXsmEnabled] = useState(null)
-  const [customerFilter, setCustomerFilter] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const city          = searchParams.get('city')       || ''
+  const xsmEnabled    = searchParams.get('xsmEnabled') || null
+  const customerFilter = searchParams.get('customerFilter') || null
+
+  function setFilter(key, val) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (val != null && val !== '') next.set(key, val)
+      else next.delete(key)
+      return next
+    }, { replace: true })
+  }
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -198,12 +208,12 @@ export default function PrintersPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             {view === 'list' && (
               <>
-                <input value={city} onChange={e => setCity(e.target.value)} placeholder={t('printers.city')}
+                <input value={city} onChange={e => setFilter('city', e.target.value)} placeholder={t('printers.city')}
                   className="rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/20 w-32" />
                 <SearchableSelect
                   className="w-36"
                   value={xsmEnabled}
-                  onChange={setXsmEnabled}
+                  onChange={v => setFilter('xsmEnabled', v)}
                   options={[
                     { value: null, label: `${t('printers.xsmEnabled')}: All` },
                     { value: 'true', label: t('printers.xsmEnabled') },

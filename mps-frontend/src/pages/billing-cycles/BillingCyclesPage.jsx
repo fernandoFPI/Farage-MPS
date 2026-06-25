@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw } from 'lucide-react'
@@ -157,7 +157,7 @@ function CreateCycleModal({ onClose }) {
 export default function BillingCyclesPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role?.name === 'admin'
@@ -166,18 +166,22 @@ export default function BillingCyclesPage() {
   const [tab, setTab] = useState('active')
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
-  const [contractId, setContractId] = useState(null)
-  const [status, setStatus] = useState(() => searchParams.get('status') ?? null)
+  const contractId = searchParams.get('contractId') || null
+  const status     = searchParams.get('status')     || null
+
+  function setFilter(key, val) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (val != null) next.set(key, val)
+      else next.delete(key)
+      return next
+    }, { replace: true })
+  }
 
   function changeView(v) {
     setView(v)
     localStorage.setItem(VIEW_KEY, v)
   }
-
-  useEffect(() => {
-    const s = searchParams.get('status')
-    if (s) setStatus(s)
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const [createOpen, setCreateOpen] = useState(false)
   const [confirmingCycle, setConfirmingCycle] = useState(null)
   const [confirmError, setConfirmError] = useState('')
@@ -381,13 +385,13 @@ export default function BillingCyclesPage() {
             <SearchableSelect
               className="w-52"
               value={contractId}
-              onChange={setContractId}
+              onChange={v => setFilter('contractId', v)}
               options={contractOptions(allContracts)}
             />
             <SearchableSelect
               className="w-44"
               value={status}
-              onChange={setStatus}
+              onChange={v => setFilter('status', v)}
               options={[
                 { value: null, label: `${t('common.status')}: All` },
                 ...STATUSES.map(s => ({ value: s, label: t(`billingCycles.status.${s}`) })),

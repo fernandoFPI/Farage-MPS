@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Pencil, Eye, Trash2 } from 'lucide-react'
 import { useContracts, useDeleteContract } from '../../api/hooks/useContracts'
@@ -16,10 +16,21 @@ import { fmtDate, fmtMoney } from '../../utils/format'
 export default function ContractsPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [customerId, setCustomerId] = useState(null)
-  const [isActive, setIsActive] = useState(null)
-  const [contractMode, setContractMode] = useState(null)
-  const [serviceType, setServiceType] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const customerId    = searchParams.get('customerId')    || null
+  const isActive      = searchParams.get('isActive')      || null
+  const contractMode  = searchParams.get('contractMode')  || null
+  const serviceType   = searchParams.get('serviceType')   || null
+
+  function setFilter(key, val) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (val != null) next.set(key, val)
+      else next.delete(key)
+      return next
+    }, { replace: true })
+  }
+
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)
@@ -101,7 +112,7 @@ export default function ContractsPage() {
             <SearchableSelect
               className="w-44"
               value={customerId}
-              onChange={setCustomerId}
+              onChange={v => setFilter('customerId', v)}
               options={[
                 { value: null, label: `${t('customers.title')}: All` },
                 ...customers.map(c => ({ value: c.id, label: c.name })),
@@ -110,7 +121,7 @@ export default function ContractsPage() {
             <SearchableSelect
               className="w-36"
               value={isActive}
-              onChange={setIsActive}
+              onChange={v => setFilter('isActive', v)}
               options={[
                 { value: null, label: `${t('contracts.isActive')}: All` },
                 { value: 'true', label: 'Active' },
@@ -120,7 +131,7 @@ export default function ContractsPage() {
             <SearchableSelect
               className="w-36"
               value={contractMode}
-              onChange={setContractMode}
+              onChange={v => setFilter('contractMode', v)}
               options={[
                 { value: null, label: `${t('contracts.contractMode')}: All` },
                 { value: 'osg', label: t('contracts.modeBadgeOsg') },
@@ -131,7 +142,7 @@ export default function ContractsPage() {
             <SearchableSelect
               className="w-36"
               value={serviceType}
-              onChange={setServiceType}
+              onChange={v => setFilter('serviceType', v)}
               options={[
                 { value: null, label: `${t('contracts.serviceType')}: All` },
                 ...['MPS', 'FSMA', 'LS', 'LO', 'SMA'].map(st => ({ value: st, label: st })),

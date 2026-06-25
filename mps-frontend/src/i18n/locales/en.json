@@ -251,6 +251,8 @@
     "submittedAt": "Submitted At",
     "photos": "Photos",
     "addPhoto": "Add Photo",
+    "takePhoto": "Take Photo",
+    "uploadPhoto": "Upload Photo",
     "readAtAutoSet": "Read time will be recorded automatically at the time of submission.",
     "bwCounters": "Black counters",
     "bwOnlyNote": "Color counters not applicable — BW only printer",

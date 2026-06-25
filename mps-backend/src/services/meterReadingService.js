@@ -12,6 +12,32 @@ import { syncCityStatus } from './cityCycleStatusService.js';
 
 const VALID_SOURCES = ['odoo', 'xsm', 'manual'];
 
+// For quarterly contracts: compute the period_start of the last billing cycle of the previous quarter.
+// Quarters are measured in 3-month intervals from contractStartDate.
+function getPrevQuarterEndDate(contractStartDate, currentPeriodStart) {
+  // Use Date constructor so this works with both ISO strings and Date objects
+  const start   = new Date(contractStartDate);
+  const current = new Date(currentPeriodStart);
+
+  const sY = start.getUTCFullYear();
+  const sM = start.getUTCMonth() + 1; // 1-indexed
+  const sD = start.getUTCDate();
+  const cY = current.getUTCFullYear();
+  const cM = current.getUTCMonth() + 1; // 1-indexed
+
+  const monthsElapsed = (cY - sY) * 12 + (cM - sM);
+  const remainder     = monthsElapsed % 3;
+  const offset        = remainder === 0 ? 3 : remainder;
+  const targetMonths  = monthsElapsed - offset; // may be negative (first quarter → no prev)
+
+  // Add targetMonths to contract start (1-indexed month arithmetic)
+  let tM = sM + targetMonths;
+  let tY = sY + Math.floor((tM - 1) / 12);
+  tM     = ((tM - 1) % 12 + 12) % 12 + 1;
+
+  return `${tY}-${String(tM).padStart(2, '0')}-${String(sD).padStart(2, '0')}`;
+}
+
 // Attach excess + billable to a single reading object (for GET endpoints)
 async function attachUsage(reading) {
   try {
@@ -25,12 +51,19 @@ async function attachUsage(reading) {
 
     const contract = await contractRepo.findById(cycle.contractId);
     const contractType = contract?.contractMode ?? 'osg';
+    const invoiceRules = contract?.invoiceRules ?? {};
 
-    const prevReading = await readingRepo.getPreviousCycleReading(
-      reading.printerId,
-      cycle.id,
-      cycle.periodStart,
-    );
+    let prevReading;
+    if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
+      const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodStart);
+      prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
+        reading.printerId, cycle.id, targetDate,
+      );
+    } else {
+      prevReading = await readingRepo.getPreviousCycleReading(
+        reading.printerId, cycle.id, cycle.periodStart,
+      );
+    }
     const previousExcess = prevReading
       ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }
       : null;
@@ -68,6 +101,7 @@ export async function listReadings(query) {
     printerId: query.printerId,
     billingCycleId: query.billingCycleId,
     source: query.source,
+    customerId: query.customerId,
   });
   return Promise.all(readings.map(attachUsage));
 }
@@ -187,13 +221,14 @@ export async function createReading(body, userId) {
   const a3ColorFinal = isBwOnly ? 0 : (a3Color ?? 0);
   const xls = isBwOnly ? 0 : (body.xls ?? 0);
 
-  // 7. Previous reading (before period_start) — needed as reference for calculateBillableUsage.
-  // Baseline cycles are included: their cumulative counters are the correct subtraction reference.
-  const prevReading = await readingRepo.getPreviousCycleReading(
-    printerId,
-    cycle.id,
-    cycle.periodStart,
-  );
+  // 7. Previous reading — for quarterly contracts, reference the last cycle of the previous quarter.
+  let prevReading;
+  if (contract?.invoiceRules?.fixedChargeFrequency === 'quarterly' && contract?.invoiceRules?.contractStartDate) {
+    const targetDate = getPrevQuarterEndDate(contract.invoiceRules.contractStartDate, cycle.periodStart);
+    prevReading = await readingRepo.getPreviousQuarterEndCycleReading(printerId, cycle.id, targetDate);
+  } else {
+    prevReading = await readingRepo.getPreviousCycleReading(printerId, cycle.id, cycle.periodStart);
+  }
 
   // 8. Calculate cumulative excess to store — absolute counter values, never the period delta.
   // Billing time subtracts consecutive stored values to derive period usage.

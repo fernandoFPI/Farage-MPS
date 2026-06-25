@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Clock, Camera, X } from 'lucide-react'
+import { ArrowLeft, Clock, Camera, ImagePlus, X } from 'lucide-react'
 import { useBillingCycles } from '../../api/hooks/useBillingCycles'
 import { useAssignments } from '../../api/hooks/useAssignments'
 import { useSubmitReading } from '../../api/hooks/useMeterReadings'
@@ -39,6 +39,7 @@ export default function SubmitReadingPage() {
   const [photos, setPhotos] = useState([])
   const [error, setError] = useState('')
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   const submit = useSubmitReading()
 
   const { data: cycles = [] } = useBillingCycles({ status: 'open' })
@@ -256,6 +257,7 @@ export default function SubmitReadingPage() {
           )}
           {photos.length < 5 && (
             <>
+              {/* Gallery upload — no capture attribute so browser shows file picker */}
               <input
                 ref={fileInputRef}
                 type="file"
@@ -264,15 +266,34 @@ export default function SubmitReadingPage() {
                 className="hidden"
                 onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 transition-colors"
-              >
-                <Camera className="h-4 w-4" />
-                {t('meterReadings.addPhoto')}
-                <span className="text-xs text-gray-400">({photos.length}/5)</span>
-              </button>
+              {/* Camera — capture="environment" opens rear camera directly on mobile */}
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 transition-colors"
+                >
+                  <Camera className="h-4 w-4" />
+                  {t('meterReadings.takePhoto')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 transition-colors"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  {t('meterReadings.uploadPhoto')}
+                  <span className="text-xs text-gray-400">({photos.length}/5)</span>
+                </button>
+              </div>
             </>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Search, Pencil, Eye, Trash2 } from 'lucide-react'
 import { useCustomers, useDeleteCustomer } from '../../api/hooks/useCustomers'
@@ -14,7 +14,18 @@ import CustomerFormModal from './CustomerFormModal'
 export default function CustomersPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [search, setSearch] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('search') || ''
+
+  function setSearch(val) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (val) next.set('search', val)
+      else next.delete('search')
+      return next
+    }, { replace: true })
+  }
+
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deleting, setDeleting] = useState(null)

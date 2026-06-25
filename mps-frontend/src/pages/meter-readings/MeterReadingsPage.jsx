@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import SearchableSelect from '../../components/SearchableSelect'
 import { customerOptions, billingCycleOptions, printerOptions } from '../../utils/filterOptions'
@@ -62,10 +62,20 @@ export default function MeterReadingsPage() {
   const canManage = usePermission('can_manage_billing')
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
-  const [billingCycleId, setBillingCycleId] = useState(null)
-  const [source, setSource] = useState(null)
-  const [printerId, setPrinterId] = useState(null)
-  const [customerId, setCustomerId] = useState(null)
+  const [searchParams, setSearchParams] = useSearchParams()
+  const billingCycleId = searchParams.get('billingCycleId') || null
+  const source         = searchParams.get('source')         || null
+  const printerId      = searchParams.get('printerId')      || null
+  const customerId     = searchParams.get('customerId')     || null
+
+  function setFilter(key, val) {
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      if (val != null) next.set(key, val)
+      else next.delete(key)
+      return next
+    }, { replace: true })
+  }
 
   function changeView(v) {
     setView(v)
@@ -252,19 +262,19 @@ export default function MeterReadingsPage() {
           <SearchableSelect
             className="w-44"
             value={customerId}
-            onChange={setCustomerId}
+            onChange={v => setFilter('customerId', v)}
             options={customerOptions(customers)}
           />
           <SearchableSelect
             className="w-56"
             value={billingCycleId}
-            onChange={setBillingCycleId}
+            onChange={v => setFilter('billingCycleId', v)}
             options={billingCycleOptions(cycles)}
           />
           <SearchableSelect
             className="w-36"
             value={source}
-            onChange={setSource}
+            onChange={v => setFilter('source', v)}
             options={[
               { value: null, label: `${t('meterReadings.source')}: All` },
               { value: 'manual', label: t('meterReadings.manual') },
@@ -275,7 +285,7 @@ export default function MeterReadingsPage() {
           <SearchableSelect
             className="w-52"
             value={printerId}
-            onChange={setPrinterId}
+            onChange={v => setFilter('printerId', v)}
             options={printerOptions(printers)}
           />
         </div>
