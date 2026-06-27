@@ -81,7 +81,8 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
   const [timeLeft, setTimeLeft] = useState(null)
   const [expired, setExpired] = useState(false)
   const [consumables, setConsumables] = useState({})
-  const fileInputRef = useRef(null)
+  const fileInputRef   = useRef(null)
+  const cameraInputRef = useRef(null)
   const isPsg = cycle?.contract?.contractMode === 'psg'
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -429,6 +430,16 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
             )}
             {photos.length < 5 && (
               <>
+                {/* Camera capture — opens native camera directly */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
+                />
+                {/* Gallery / file picker */}
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -437,15 +448,25 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
                   className="hidden"
                   onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
                 />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400 transition-colors"
-                >
-                  <Camera className="h-4 w-4" />
-                  {t('meterReadings.addPhoto')}
-                  <span className="text-xs text-gray-400 dark:text-gray-500">({photos.length}/5)</span>
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="flex items-center gap-2 rounded-lg border border-dashed border-brand-300 px-3 py-2.5 text-sm text-brand-600 hover:border-brand-400 hover:bg-brand-50 dark:border-brand-600 dark:text-brand-400 dark:hover:bg-brand-900/10 transition-colors"
+                  >
+                    <Camera className="h-4 w-4" />
+                    {t('meterReadings.takePhoto')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400 transition-colors"
+                  >
+                    <Image className="h-4 w-4" />
+                    {t('meterReadings.addPhoto')}
+                    <span className="text-xs text-gray-400 dark:text-gray-500">({photos.length}/5)</span>
+                  </button>
+                </div>
               </>
             )}
           </div>
@@ -483,27 +504,33 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
 
   const [fields, setFields] = useState({})
   const [initialized, setInitialized] = useState(false)
+  const [location, setLocation] = useState('')
   const [error, setError] = useState('')
 
+  // Deduplicate models — storageData may have multiple records per model (one per location)
+  const uniqueModels = useMemo(() => {
+    const seen = new Set()
+    return storageData.filter(s => { if (seen.has(s.printerModel)) return false; seen.add(s.printerModel); return true })
+  }, [storageData])
+
   useEffect(() => {
-    if (!open) { setInitialized(false); setError(''); return }
+    if (!open) { setInitialized(false); setLocation(''); setError(''); return }
   }, [open])
 
   useEffect(() => {
-    if (storageData.length > 0 && !initialized) {
+    if (uniqueModels.length > 0 && !initialized) {
       const init = {}
-      storageData.forEach(s => {
+      uniqueModels.forEach(s => {
         init[s.printerModel] = {
-          cQty: s.cQty ?? 0, mQty: s.mQty ?? 0, yQty: s.yQty ?? 0,
-          kQty: s.kQty ?? 0, r1Qty: s.r1Qty ?? 0, r2Qty: s.r2Qty ?? 0,
-          r3Qty: s.r3Qty ?? 0, r4Qty: s.r4Qty ?? 0, wasteTonQty: s.wasteTonQty ?? 0,
+          cQty: 0, mQty: 0, yQty: 0, kQty: 0,
+          r1Qty: 0, r2Qty: 0, r3Qty: 0, r4Qty: 0, wasteTonQty: 0,
           isBwOnly: s.isBwOnly ?? false,
         }
       })
       setFields(init)
       setInitialized(true)
     }
-  }, [storageData, initialized])
+  }, [uniqueModels, initialized])
 
   function setField(model, key, val) {
     setFields(prev => ({ ...prev, [model]: { ...prev[model], [key]: val === '' ? '' : Number(val) } }))
@@ -513,6 +540,7 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
     setError('')
     const storageUpdates = Object.entries(fields).map(([printerModel, f]) => ({
       printerModel,
+      location: location.trim(),
       cQty: Number(f.cQty) || 0, mQty: Number(f.mQty) || 0,
       yQty: Number(f.yQty) || 0, kQty: Number(f.kQty) || 0,
       r1Qty: Number(f.r1Qty) || 0, r2Qty: Number(f.r2Qty) || 0,
@@ -565,10 +593,21 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('tickets.storageSubmitNote')}</p>
 
-          {storageData.length === 0 ? (
+          {/* Branch / Location */}
+          <FormField label={t('tickets.storageBranch')}>
+            <input
+              type="text"
+              className={inputCls}
+              placeholder={t('tickets.storageBranchPlaceholder')}
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+            />
+          </FormField>
+
+          {uniqueModels.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">{t('common.noData')}</p>
           ) : (
-            storageData.map(s => {
+            uniqueModels.map(s => {
               const modelFields = fields[s.printerModel] ?? {}
               const modelConsumables = allConsumablesByModel.filter(c => !c.colorOnly || !s.isBwOnly)
               return (
@@ -610,7 +649,7 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitStorageMutation.isPending || storageData.length === 0}
+            disabled={submitStorageMutation.isPending || uniqueModels.length === 0}
             className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
           >
             {submitStorageMutation.isPending ? t('common.loading') : t('tickets.submitStorage')}

@@ -314,7 +314,9 @@
     "storageAlreadySubmitted": "تم تسليم المخزن لهذه الدورة مسبقاً",
     "storageSubmitSuccess": "تم تسليم المخزن بنجاح",
     "storageSubmitTitle": "تسليم مخزن العميل",
-    "storageSubmitNote": "قم بتحديث كميات المخزون في مخزن العميل."
+    "storageSubmitNote": "قم بتحديث كميات المخزون في مخزن العميل.",
+    "storageBranch": "الفرع / الموقع",
+    "storageBranchPlaceholder": "مثال: المقر الرئيسي، فرع المنصور"
   },
   "xsmImport": {
     "title": "استيراد XSM",
@@ -538,6 +540,7 @@
     "storageNote": "تحديث كميات المخزون في مخزن العميل",
     "viewHistory": "عرض السجل",
     "lastUpdated": "آخر تحديث",
+    "storageMainBranch": "المقر الرئيسي",
     "consumableSaveError": "تم حفظ قراءة العداد لكن تعذر حفظ مستويات المستلزمات. يرجى المحاولة مرة أخرى.",
     "storageSaveError": "فشل تحديث المخزن. يرجى المحاولة مرة أخرى.",
     "levelsSaved": "تم حفظ المستلزمات"

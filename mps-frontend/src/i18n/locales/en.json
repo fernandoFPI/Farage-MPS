@@ -314,7 +314,9 @@
     "storageAlreadySubmitted": "Storage already submitted for this cycle",
     "storageSubmitSuccess": "Storage submitted successfully",
     "storageSubmitTitle": "Submit Customer Storage",
-    "storageSubmitNote": "Update the stock quantities in the customer storage room."
+    "storageSubmitNote": "Update the stock quantities in the customer storage room.",
+    "storageBranch": "Branch / Location",
+    "storageBranchPlaceholder": "e.g. Main Branch, Al-Mansour Branch"
   },
   "xsmImport": {
     "title": "XSM Import",
@@ -538,6 +540,7 @@
     "storageNote": "Update the stock quantities in the customer storage",
     "viewHistory": "View History",
     "lastUpdated": "Last updated",
+    "storageMainBranch": "Main Branch",
     "consumableSaveError": "Meter reading saved but consumable levels could not be saved. Please try again.",
     "storageSaveError": "Storage update failed. Please try again.",
     "levelsSaved": "Consumables saved"

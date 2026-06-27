@@ -10,17 +10,18 @@ export async function getCustomerStorage(customerId) {
   const existing = await repo.findByCustomerId(customerId);
   const models   = await repo.getDistinctModelsForCustomer(customerId);
 
-  const existingMap = new Map(existing.map(r => [r.printerModel, r]));
+  // Start with ALL existing records (bug fix: previously dropped records not in contract_printers)
+  const result = [...existing];
 
-  const result = [];
+  // Add zero-placeholder rows for models that have no storage at all yet
+  const existingModels = new Set(existing.map(r => r.printerModel));
   for (const { model, isBwOnly } of models) {
-    if (existingMap.has(model)) {
-      result.push(existingMap.get(model));
-    } else {
+    if (!existingModels.has(model)) {
       result.push({
         id: null,
         customerId,
         printerModel: model,
+        location: '',
         isBwOnly,
         cQty: 0, mQty: 0, yQty: 0, kQty: 0,
         r1Qty: 0, r2Qty: 0, r3Qty: 0, r4Qty: 0,
@@ -30,10 +31,16 @@ export async function getCustomerStorage(customerId) {
       });
     }
   }
+
+  result.sort((a, b) => {
+    const m = a.printerModel.localeCompare(b.printerModel);
+    return m !== 0 ? m : (a.location || '').localeCompare(b.location || '');
+  });
   return result;
 }
 
 export async function updateCustomerStorage(customerId, printerModel, body, userId) {
+  const location = (body.location ?? '').trim();
   const quantities = {
     cQty:       clampQty(body.cQty),
     mQty:       clampQty(body.mQty),
@@ -46,7 +53,7 @@ export async function updateCustomerStorage(customerId, printerModel, body, user
     wasteTonQty: clampQty(body.wasteTonQty),
   };
 
-  // Determine isBwOnly from existing record or from models list
+  // Determine isBwOnly from any existing record for this model, or from contract_printers
   let isBwOnly = false;
   const existing = await repo.findByCustomerAndModel(customerId, printerModel);
   if (existing) {
@@ -57,7 +64,7 @@ export async function updateCustomerStorage(customerId, printerModel, body, user
     if (found) isBwOnly = found.isBwOnly;
   }
 
-  const record = await repo.upsert(customerId, printerModel, isBwOnly, quantities, userId);
+  const record = await repo.upsert(customerId, printerModel, location, isBwOnly, quantities, userId);
   await repo.addHistory(record.id, body.billingCycleId ?? null, quantities, userId);
 
   return record;

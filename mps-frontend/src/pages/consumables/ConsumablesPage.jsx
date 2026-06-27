@@ -85,6 +85,19 @@ function CustomerStorageCard({ customer, t }) {
   const [expanded, setExpanded] = useState(false)
   const [expandedModel, setExpandedModel] = useState(null)
 
+  // Group records by location; records with no location go under ''
+  const byLocation = useMemo(() => {
+    const groups = {}
+    storage.forEach(s => {
+      const loc = s.location || ''
+      if (!groups[loc]) groups[loc] = []
+      groups[loc].push(s)
+    })
+    return groups
+  }, [storage])
+
+  const sortedLocations = useMemo(() => Object.keys(byLocation).sort(), [byLocation])
+
   if (isLoading) return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
       <LoadingSpinner />
@@ -108,13 +121,24 @@ function CustomerStorageCard({ customer, t }) {
       </button>
 
       {expanded && (
-        <div className="divide-y divide-gray-100 dark:divide-gray-800">
-          {storage.map(s => {
+        <div>
+          {sortedLocations.map(loc => (
+            <div key={loc}>
+              {/* Location header — only shown when there are multiple locations or a named location */}
+              {(sortedLocations.length > 1 || loc !== '') && (
+                <div className="px-4 py-2 bg-brand-50 dark:bg-brand-900/10 border-b border-brand-100 dark:border-brand-900/20">
+                  <span className="text-xs font-semibold text-brand-700 dark:text-brand-400">
+                    {loc || t('consumables.storageMainBranch')}
+                  </span>
+                </div>
+              )}
+              <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                {byLocation[loc].map(s => {
             const cols = s.isBwOnly ? BW_CONSUMABLES : COLOR_CONSUMABLES
-            const isModelExpanded = expandedModel === s.printerModel
+            const isModelExpanded = expandedModel === `${loc}::${s.printerModel}`
 
             return (
-              <div key={s.printerModel}>
+              <div key={`${loc}::${s.printerModel}`}>
                 <div className="px-4 py-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{s.printerModel}</span>
@@ -152,7 +176,7 @@ function CustomerStorageCard({ customer, t }) {
 
                   <button
                     type="button"
-                    onClick={() => setExpandedModel(isModelExpanded ? null : s.printerModel)}
+                    onClick={() => setExpandedModel(isModelExpanded ? null : `${loc}::${s.printerModel}`)}
                     className="mt-2 flex items-center gap-1 text-xs text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300"
                   >
                     {isModelExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
@@ -173,6 +197,9 @@ function CustomerStorageCard({ customer, t }) {
               </div>
             )
           })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

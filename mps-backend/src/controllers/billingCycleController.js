@@ -153,11 +153,11 @@ export async function submitStorage(req, res, next) {
     // Process storage updates (one entry per model, non-blocking per model)
     const { storageUpdates = [] } = req.body;
     await Promise.all(
-      storageUpdates.map(({ printerModel, ...quantities }) =>
+      storageUpdates.map(({ printerModel, location = '', ...quantities }) =>
         storageService.updateCustomerStorage(
           customerId,
           printerModel,
-          { ...quantities, billingCycleId: cycle.id },
+          { ...quantities, location, billingCycleId: cycle.id },
           req.user.id,
         ),
       ),

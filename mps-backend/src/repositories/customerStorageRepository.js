@@ -6,6 +6,7 @@ function mapRow(row) {
     id: row.id,
     customerId: row.customer_id,
     printerModel: row.printer_model,
+    location: row.location ?? '',
     isBwOnly: row.is_bw_only ?? false,
     cQty: Number(row.c_qty),
     mQty: Number(row.m_qty),
@@ -66,13 +67,13 @@ export async function findByCustomerAndModel(customerId, printerModel) {
   return mapRow(rows[0]);
 }
 
-export async function upsert(customerId, printerModel, isBwOnly, quantities, userId) {
+export async function upsert(customerId, printerModel, location, isBwOnly, quantities, userId) {
   const { cQty = 0, mQty = 0, yQty = 0, kQty = 0, r1Qty = 0, r2Qty = 0, r3Qty = 0, r4Qty = 0, wasteTonQty = 0 } = quantities;
   const { rows } = await pool.query(
     `INSERT INTO customer_storage
-       (customer_id, printer_model, is_bw_only, c_qty, m_qty, y_qty, k_qty, r1_qty, r2_qty, r3_qty, r4_qty, waste_toner_qty, updated_at, updated_by_user_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW(),$13)
-     ON CONFLICT (customer_id, printer_model)
+       (customer_id, printer_model, location, is_bw_only, c_qty, m_qty, y_qty, k_qty, r1_qty, r2_qty, r3_qty, r4_qty, waste_toner_qty, updated_at, updated_by_user_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,NOW(),$14)
+     ON CONFLICT (customer_id, printer_model, location)
      DO UPDATE SET
        is_bw_only = EXCLUDED.is_bw_only,
        c_qty = EXCLUDED.c_qty, m_qty = EXCLUDED.m_qty, y_qty = EXCLUDED.y_qty,
@@ -80,7 +81,7 @@ export async function upsert(customerId, printerModel, isBwOnly, quantities, use
        r3_qty = EXCLUDED.r3_qty, r4_qty = EXCLUDED.r4_qty, waste_toner_qty = EXCLUDED.waste_toner_qty,
        updated_at = NOW(), updated_by_user_id = EXCLUDED.updated_by_user_id
      RETURNING *`,
-    [customerId, printerModel, isBwOnly, cQty, mQty, yQty, kQty, r1Qty, r2Qty, r3Qty, r4Qty, wasteTonQty, userId],
+    [customerId, printerModel, location, isBwOnly, cQty, mQty, yQty, kQty, r1Qty, r2Qty, r3Qty, r4Qty, wasteTonQty, userId],
   );
   return mapRow(rows[0]);
 }
