@@ -111,6 +111,12 @@ function SidebarContent({ onClose }) {
           <>
             <NavSep />
             <NavItem to="/users"        icon={UserCog}   label={t('nav.users')}       onClick={onClose} />
+          </>
+        )}
+
+        {(canManageUsers || isServiceManager) && (
+          <>
+            {isServiceManager && !canManageUsers && <NavSep />}
             <NavItem to="/performance"  icon={BarChart2} label={t('nav.performance')} onClick={onClose} />
           </>
         )}

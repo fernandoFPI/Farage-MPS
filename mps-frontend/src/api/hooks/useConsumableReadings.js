@@ -5,7 +5,6 @@ export function useConsumableReadings(params = {}) {
   return useQuery({
     queryKey: ['consumable-readings', params],
     queryFn: () => client.get('/api/consumable-readings', { params }).then(r => r.data),
-    enabled: Object.values(params).some(Boolean),
   })
 }
 
