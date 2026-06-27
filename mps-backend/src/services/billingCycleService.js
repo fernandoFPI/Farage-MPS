@@ -438,11 +438,14 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       let totalBwCost    = 0;
       let totalColorCost = 0;
       for (const reading of readings) {
-        const prevReading = await readingRepo.getPreviousCycleReading(
-          reading.printerId,
-          qCycle.id,
-          qPeriodStr,
-        );
+        const qInvoiceRules = cycle.contract?.invoiceRules ?? {};
+        let prevReading;
+        if (qInvoiceRules.fixedChargeFrequency === 'quarterly' && qInvoiceRules.contractStartDate) {
+          const targetDate = getPrevQuarterEndDate(qInvoiceRules.contractStartDate, qCycle.period_start);
+          prevReading = await readingRepo.getPreviousQuarterEndCycleReading(reading.printerId, qCycle.id, targetDate);
+        } else {
+          prevReading = await readingRepo.getPreviousCycleReading(reading.printerId, qCycle.id, qPeriodStr);
+        }
         const billable = calculateBillableUsage(
           { excessBw: reading.excessBw, excessColor: reading.excessColor },
           prevReading ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor } : null,
@@ -483,7 +486,14 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
 
         let bwCost = 0, colorCost = 0;
         if (pr) {
-          const prevReading = await readingRepo.getPreviousCycleReading(pr.printerId, qCycle.id, qPeriodStr);
+          const qInvoiceRules = cycle.contract?.invoiceRules ?? {};
+          let prevReading;
+          if (qInvoiceRules.fixedChargeFrequency === 'quarterly' && qInvoiceRules.contractStartDate) {
+            const targetDate = getPrevQuarterEndDate(qInvoiceRules.contractStartDate, qCycle.period_start);
+            prevReading = await readingRepo.getPreviousQuarterEndCycleReading(pr.printerId, qCycle.id, targetDate);
+          } else {
+            prevReading = await readingRepo.getPreviousCycleReading(pr.printerId, qCycle.id, qPeriodStr);
+          }
           const billable = calculateBillableUsage(
             { excessBw: pr.excessBw, excessColor: pr.excessColor },
             prevReading ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor } : null,
