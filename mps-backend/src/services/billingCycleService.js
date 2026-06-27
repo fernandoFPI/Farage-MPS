@@ -12,7 +12,7 @@ import {
   calculateGroupedMinVolumeBilling,
 } from './netCalculationService.js';
 import { canConfirmCycle } from './cityCycleStatusService.js';
-import { applyInvoiceRules } from '../utils/invoiceRulesEngine.js';
+import { applyInvoiceRules, getPrevQuarterEndDate } from '../utils/invoiceRulesEngine.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -243,12 +243,19 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
   for (const reading of printers) {
 
     // Previous cycle supplies the raw starting counters.
-    // Baseline cycles still provide the reference point — only their own billing is zeroed.
-    const prevReading = await readingRepo.getPreviousCycleReading(
-      reading.printerId,
-      cycle.id,
-      cycle.periodStart,
-    );
+    // Quarterly contracts reference the last reading of the previous quarter instead of the previous month.
+    const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
+    let prevReading;
+    if (invoiceRulesForPrev.fixedChargeFrequency === 'quarterly' && invoiceRulesForPrev.contractStartDate) {
+      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodStart);
+      prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
+        reading.printerId, cycle.id, targetDate,
+      );
+    } else {
+      prevReading = await readingRepo.getPreviousCycleReading(
+        reading.printerId, cycle.id, cycle.periodStart,
+      );
+    }
     const currentExcess  = { excessBw: reading.excessBw, excessColor: reading.excessColor };
     const previousExcess = prevReading
       ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor }

@@ -4,6 +4,35 @@ import {
   calculatePSGSimpleBilling,
 } from '../services/netCalculationService.js';
 
+const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
+
+// Returns the period_start date string of the last cycle of the previous quarter.
+// Quarters are measured in 3-month intervals from contractStartDate.
+// Handles Baghdad timezone: PostgreSQL DATE columns arrive as midnight Baghdad (UTC+3).
+export function getPrevQuarterEndDate(contractStartDate, currentPeriodStart) {
+  const start = new Date(contractStartDate);
+  // Add Baghdad offset so midnight-Baghdad Date objects read the correct local month
+  const rawCurrent = currentPeriodStart instanceof Date ? currentPeriodStart : new Date(currentPeriodStart);
+  const current = new Date(rawCurrent.getTime() + BAGHDAD_OFFSET_MS);
+
+  const sY = start.getUTCFullYear();
+  const sM = start.getUTCMonth() + 1;
+  const sD = start.getUTCDate();
+  const cY = current.getUTCFullYear();
+  const cM = current.getUTCMonth() + 1;
+
+  const monthsElapsed = (cY - sY) * 12 + (cM - sM);
+  const remainder     = monthsElapsed % 3;
+  const offset        = remainder === 0 ? 3 : remainder;
+  const targetMonths  = monthsElapsed - offset;
+
+  let tM = sM + targetMonths;
+  let tY = sY + Math.floor((tM - 1) / 12);
+  tM     = ((tM - 1) % 12 + 12) % 12 + 1;
+
+  return `${tY}-${String(tM).padStart(2, '0')}-${String(sD).padStart(2, '0')}`;
+}
+
 export function getDefaultRules() {
   return {
     fixedChargeFrequency:    'monthly',

@@ -9,34 +9,9 @@ import {
   validateUsage,
 } from './netCalculationService.js';
 import { syncCityStatus } from './cityCycleStatusService.js';
+import { getPrevQuarterEndDate } from '../utils/invoiceRulesEngine.js';
 
 const VALID_SOURCES = ['odoo', 'xsm', 'manual'];
-
-// For quarterly contracts: compute the period_start of the last billing cycle of the previous quarter.
-// Quarters are measured in 3-month intervals from contractStartDate.
-function getPrevQuarterEndDate(contractStartDate, currentPeriodStart) {
-  // Use Date constructor so this works with both ISO strings and Date objects
-  const start   = new Date(contractStartDate);
-  const current = new Date(currentPeriodStart);
-
-  const sY = start.getUTCFullYear();
-  const sM = start.getUTCMonth() + 1; // 1-indexed
-  const sD = start.getUTCDate();
-  const cY = current.getUTCFullYear();
-  const cM = current.getUTCMonth() + 1; // 1-indexed
-
-  const monthsElapsed = (cY - sY) * 12 + (cM - sM);
-  const remainder     = monthsElapsed % 3;
-  const offset        = remainder === 0 ? 3 : remainder;
-  const targetMonths  = monthsElapsed - offset; // may be negative (first quarter → no prev)
-
-  // Add targetMonths to contract start (1-indexed month arithmetic)
-  let tM = sM + targetMonths;
-  let tY = sY + Math.floor((tM - 1) / 12);
-  tM     = ((tM - 1) % 12 + 12) % 12 + 1;
-
-  return `${tY}-${String(tM).padStart(2, '0')}-${String(sD).padStart(2, '0')}`;
-}
 
 // Attach excess + billable to a single reading object (for GET endpoints)
 async function attachUsage(reading) {
@@ -49,9 +24,11 @@ async function attachUsage(reading) {
       return { ...reading, contractType: 'osg', billableBw: 0, billableColor: 0, isBaseline: true };
     }
 
-    const contract = await contractRepo.findById(cycle.contractId);
-    const contractType = contract?.contractMode ?? 'osg';
-    const invoiceRules = contract?.invoiceRules ?? {};
+    // Use the contract already embedded in the cycle (same source the billing breakdown uses)
+    const contractType = cycle.contract?.contractMode ?? 'osg';
+    const invoiceRules = cycle.contract?.invoiceRules ?? {};
+
+    console.log(`[QUARTERLY_DEBUG] reading=${reading.id} contractMode=${contractType} fixedChargeFreq=${invoiceRules.fixedChargeFrequency} contractStartDate=${invoiceRules.contractStartDate}`);
 
     let prevReading;
     if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
