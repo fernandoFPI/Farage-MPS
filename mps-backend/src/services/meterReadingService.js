@@ -373,6 +373,12 @@ export async function updateReading(id, body) {
 
 export async function getPreviousReading(printerId, beforeDate, cycleId, cycleStart) {
   if (cycleId && cycleStart) {
+    const cycle = await cycleRepo.findById(cycleId);
+    const invoiceRules = cycle?.contract?.invoiceRules ?? {};
+    if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
+      const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycleStart);
+      return readingRepo.getPreviousQuarterEndCycleReading(printerId, cycleId, targetDate);
+    }
     return readingRepo.getPreviousReadingByCycle(printerId, cycleId, cycleStart);
   }
   return readingRepo.getPreviousReading(printerId, beforeDate);
