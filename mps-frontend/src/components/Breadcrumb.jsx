@@ -8,7 +8,7 @@ export default function Breadcrumb({ items }) {
         <span key={i} className="flex items-center gap-1">
           {i > 0 && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 text-gray-300 dark:text-gray-600 rtl:rotate-180" />}
           {item.to ? (
-            <Link to={item.to} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
+            <Link to={item.to} onClick={item.onClick} className="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
               {item.label}
             </Link>
           ) : (

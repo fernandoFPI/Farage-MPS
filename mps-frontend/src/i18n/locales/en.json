@@ -316,7 +316,9 @@
     "storageSubmitTitle": "Submit Customer Storage",
     "storageSubmitNote": "Update the stock quantities in the customer storage room.",
     "storageBranch": "Branch / Location",
-    "storageBranchPlaceholder": "e.g. Main Branch, Al-Mansour Branch"
+    "storageBranchPlaceholder": "— Select a location —",
+    "storageBranchRequired": "Please select a branch / location",
+    "selectLocationFirst": "Select a location above to see the printers and consumables"
   },
   "xsmImport": {
     "title": "XSM Import",

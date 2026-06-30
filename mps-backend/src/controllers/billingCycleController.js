@@ -184,3 +184,12 @@ export async function resetStorageSubmission(req, res, next) {
     res.json(await cycleRepo.resetStorage(cycle.id));
   } catch (err) { next(err); }
 }
+
+export async function getLatestCycle(req, res, next) {
+  try {
+    const { contractId } = req.query;
+    if (!contractId) return res.status(400).json({ error: 'contractId required' });
+    const row = await cycleRepo.findLatestCycle(contractId);
+    res.json(row ? { periodEnd: row.period_end } : null);
+  } catch (err) { next(err); }
+}

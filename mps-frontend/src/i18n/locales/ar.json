@@ -316,7 +316,9 @@
     "storageSubmitTitle": "تسليم مخزن العميل",
     "storageSubmitNote": "قم بتحديث كميات المخزون في مخزن العميل.",
     "storageBranch": "الفرع / الموقع",
-    "storageBranchPlaceholder": "مثال: المقر الرئيسي، فرع المنصور"
+    "storageBranchPlaceholder": "— اختر الموقع —",
+    "storageBranchRequired": "يرجى اختيار الفرع / الموقع",
+    "selectLocationFirst": "اختر موقعاً من الأعلى لعرض الطابعات والمستهلكات"
   },
   "xsmImport": {
     "title": "استيراد XSM",

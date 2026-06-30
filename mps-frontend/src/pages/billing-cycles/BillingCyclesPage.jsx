@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw } from 'lucide-react'
@@ -12,6 +12,7 @@ import {
   useDeletedCycles,
   useHardDeleteCycle,
   useRestoreCycle,
+  useLatestBillingCycle,
 } from '../../api/hooks/useBillingCycles'
 import { useContracts } from '../../api/hooks/useContracts'
 import { usePermission } from '../../hooks/usePermission'
@@ -89,6 +90,17 @@ function CreateCycleModal({ onClose }) {
   const { data: contracts = [] } = useContracts({ isActive: true })
   const create = useCreateBillingCycle()
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const { data: latestCycle } = useLatestBillingCycle(form.contractId)
+
+  useEffect(() => {
+    setForm(f => ({ ...f, periodStart: '', periodEnd: '' }))
+  }, [form.contractId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (latestCycle?.periodEnd) {
+      setForm(f => ({ ...f, periodStart: latestCycle.periodEnd }))
+    }
+  }, [latestCycle])
 
   async function handleSubmit(e) {
     e.preventDefault()

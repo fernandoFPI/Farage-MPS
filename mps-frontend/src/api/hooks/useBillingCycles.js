@@ -151,6 +151,14 @@ export function useHardDeleteCycle() {
   })
 }
 
+export function useLatestBillingCycle(contractId) {
+  return useQuery({
+    queryKey: ['billing-cycles', 'latest', contractId],
+    queryFn: () => client.get('/api/billing-cycles/latest', { params: { contractId } }).then(r => r.data),
+    enabled: !!contractId,
+  })
+}
+
 export function useCityStatuses(cycleId) {
   return useQuery({
     queryKey: ['billing-cycles', cycleId, 'cities'],

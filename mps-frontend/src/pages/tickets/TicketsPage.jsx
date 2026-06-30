@@ -6,7 +6,6 @@ import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import { useBillingCycles, useBillingCycle, useLockPrinter, useUnlockPrinter, useSubmitStorage } from '../../api/hooks/useBillingCycles'
 import { useMeterReadings, useSubmitReading } from '../../api/hooks/useMeterReadings'
 import { useSubmitConsumableReading } from '../../api/hooks/useConsumableReadings'
-import { useCustomerStorage } from '../../api/hooks/useCustomerStorage'
 import { useAssignments } from '../../api/hooks/useAssignments'
 import { usePrinters, useUpdatePrinterCoordinates } from '../../api/hooks/usePrinters'
 import { useAuth } from '../../context/AuthContext'
@@ -81,8 +80,6 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
   const [timeLeft, setTimeLeft] = useState(null)
   const [expired, setExpired] = useState(false)
   const [consumables, setConsumables] = useState({})
-  const fileInputRef   = useRef(null)
-  const cameraInputRef = useRef(null)
   const isPsg = cycle?.contract?.contractMode === 'psg'
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
@@ -133,6 +130,34 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
       reader.readAsDataURL(file)
       newPhotos.push(file)
     }
+  }
+
+  function openCamera() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.setAttribute('capture', 'environment')
+    input.style.cssText = 'position:absolute;opacity:0;pointer-events:none;'
+    document.body.appendChild(input)
+    input.onchange = (e) => {
+      if (e.target.files?.length) handlePhotoFiles(Array.from(e.target.files))
+      document.body.removeChild(input)
+    }
+    input.click()
+  }
+
+  function openGallery() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.multiple = true
+    input.style.cssText = 'position:absolute;opacity:0;pointer-events:none;'
+    document.body.appendChild(input)
+    input.onchange = (e) => {
+      if (e.target.files?.length) handlePhotoFiles(Array.from(e.target.files))
+      document.body.removeChild(input)
+    }
+    input.click()
   }
 
   function removePhoto(i) {
@@ -430,28 +455,10 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
             )}
             {photos.length < 5 && (
               <>
-                {/* Camera capture — opens native camera directly */}
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
-                />
-                {/* Gallery / file picker */}
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
-                />
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() => cameraInputRef.current?.click()}
+                    onClick={openCamera}
                     className="flex items-center gap-2 rounded-lg border border-dashed border-brand-300 px-3 py-2.5 text-sm text-brand-600 hover:border-brand-400 hover:bg-brand-50 dark:border-brand-600 dark:text-brand-400 dark:hover:bg-brand-900/10 transition-colors"
                   >
                     <Camera className="h-4 w-4" />
@@ -459,7 +466,7 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
                   </button>
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={openGallery}
                     className="flex items-center gap-2 rounded-lg border border-dashed border-gray-300 px-3 py-2.5 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 dark:hover:text-brand-400 transition-colors"
                   >
                     <Image className="h-4 w-4" />
@@ -497,40 +504,70 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
 
 // ── Storage Submit Modal ──────────────────────────────────────────────────────
 
-function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
-  const customerId = cycle?.contract?.customer?.id
-  const { data: storageData = [] } = useCustomerStorage(customerId)
+function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap, onSuccess, t }) {
   const submitStorageMutation = useSubmitStorage()
 
   const [fields, setFields] = useState({})
-  const [initialized, setInitialized] = useState(false)
-  const [location, setLocation] = useState('')
+  const [location, setLocation] = useState(null) // null = not selected yet
   const [error, setError] = useState('')
 
-  // Deduplicate models — storageData may have multiple records per model (one per location)
-  const uniqueModels = useMemo(() => {
+  // Group contract printers by their location field
+  const printersByLocation = useMemo(() => {
+    const groups = {}
+    contractPrinters.forEach(a => {
+      const printer = printerMap[a.printerId]
+      if (!printer) return
+      const loc = printer.location ?? ''
+      if (!groups[loc]) groups[loc] = []
+      groups[loc].push(printer)
+    })
+    return groups
+  }, [contractPrinters, printerMap])
+
+  // Sorted location options — named locations first, blank last
+  const locationOptions = useMemo(() => {
+    return Object.keys(printersByLocation).sort((a, b) => {
+      if (a === '') return 1
+      if (b === '') return -1
+      return a.localeCompare(b)
+    })
+  }, [printersByLocation])
+
+  // Unique models at the selected location, with serial numbers for context
+  const modelsAtLocation = useMemo(() => {
+    if (location === null) return []
+    const printersHere = printersByLocation[location] ?? []
+    const modelMap = {}
+    printersHere.forEach(p => {
+      if (!modelMap[p.model]) {
+        modelMap[p.model] = { model: p.model, isBwOnly: p.isBwOnly ?? false, serials: [] }
+      }
+      if (p.serialNumber) modelMap[p.model].serials.push(p.serialNumber)
+    })
+    return Object.values(modelMap)
+  }, [printersByLocation, location])
+
+  // Reset when modal opens / closes; auto-select if only one location
+  useEffect(() => {
+    if (!open) { setLocation(null); setFields({}); setError(''); return }
+    if (locationOptions.length === 1) setLocation(locationOptions[0])
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Reset fields whenever location changes
+  const prevLocationRef = useRef(null)
+  useEffect(() => {
+    if (prevLocationRef.current === location) return
+    prevLocationRef.current = location
+    const printersHere = location !== null ? (printersByLocation[location] ?? []) : []
     const seen = new Set()
-    return storageData.filter(s => { if (seen.has(s.printerModel)) return false; seen.add(s.printerModel); return true })
-  }, [storageData])
-
-  useEffect(() => {
-    if (!open) { setInitialized(false); setLocation(''); setError(''); return }
-  }, [open])
-
-  useEffect(() => {
-    if (uniqueModels.length > 0 && !initialized) {
-      const init = {}
-      uniqueModels.forEach(s => {
-        init[s.printerModel] = {
-          cQty: 0, mQty: 0, yQty: 0, kQty: 0,
-          r1Qty: 0, r2Qty: 0, r3Qty: 0, r4Qty: 0, wasteTonQty: 0,
-          isBwOnly: s.isBwOnly ?? false,
-        }
-      })
-      setFields(init)
-      setInitialized(true)
-    }
-  }, [uniqueModels, initialized])
+    const init = {}
+    printersHere.forEach(p => {
+      if (seen.has(p.model)) return
+      seen.add(p.model)
+      init[p.model] = { cQty: 0, mQty: 0, yQty: 0, kQty: 0, r1Qty: 0, r2Qty: 0, r3Qty: 0, r4Qty: 0, wasteTonQty: 0, isBwOnly: p.isBwOnly ?? false }
+    })
+    setFields(init)
+  }, [location, printersByLocation])
 
   function setField(model, key, val) {
     setFields(prev => ({ ...prev, [model]: { ...prev[model], [key]: val === '' ? '' : Number(val) } }))
@@ -538,9 +575,10 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
 
   async function handleSubmit() {
     setError('')
+    if (location === null) { setError(t('tickets.storageBranchRequired')); return }
     const storageUpdates = Object.entries(fields).map(([printerModel, f]) => ({
       printerModel,
-      location: location.trim(),
+      location,
       cQty: Number(f.cQty) || 0, mQty: Number(f.mQty) || 0,
       yQty: Number(f.yQty) || 0, kQty: Number(f.kQty) || 0,
       r1Qty: Number(f.r1Qty) || 0, r2Qty: Number(f.r2Qty) || 0,
@@ -564,14 +602,14 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
   if (!open) return null
 
   const allConsumablesByModel = [
-    { key: 'cQty',       label: 'Cyan (C)',    colorOnly: true },
-    { key: 'mQty',       label: 'Magenta (M)', colorOnly: true },
-    { key: 'yQty',       label: 'Yellow (Y)',  colorOnly: true },
-    { key: 'kQty',       label: 'Black (K)',   colorOnly: false },
-    { key: 'r1Qty',      label: 'Drum R1',     colorOnly: false },
-    { key: 'r2Qty',      label: 'Drum R2',     colorOnly: false },
-    { key: 'r3Qty',      label: 'Drum R3',     colorOnly: false },
-    { key: 'r4Qty',      label: 'Drum R4',     colorOnly: false },
+    { key: 'cQty',        label: 'Cyan (C)',    colorOnly: true },
+    { key: 'mQty',        label: 'Magenta (M)', colorOnly: true },
+    { key: 'yQty',        label: 'Yellow (Y)',  colorOnly: true },
+    { key: 'kQty',        label: 'Black (K)',   colorOnly: false },
+    { key: 'r1Qty',       label: 'Drum R1',     colorOnly: false },
+    { key: 'r2Qty',       label: 'Drum R2',     colorOnly: false },
+    { key: 'r3Qty',       label: 'Drum R3',     colorOnly: false },
+    { key: 'r4Qty',       label: 'Drum R4',     colorOnly: false },
     { key: 'wasteTonQty', label: 'Waste Toner', colorOnly: false },
   ]
 
@@ -593,27 +631,40 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('tickets.storageSubmitNote')}</p>
 
-          {/* Branch / Location */}
-          <FormField label={t('tickets.storageBranch')}>
-            <input
-              type="text"
+          {/* Branch / Location dropdown */}
+          <FormField label={t('tickets.storageBranch')} required>
+            <select
               className={inputCls}
-              placeholder={t('tickets.storageBranchPlaceholder')}
-              value={location}
+              value={location ?? ''}
               onChange={e => setLocation(e.target.value)}
-            />
+            >
+              <option value="" disabled>{t('tickets.storageBranchPlaceholder')}</option>
+              {locationOptions.map(loc => (
+                <option key={loc || '__none__'} value={loc}>
+                  {loc || t('consumables.storageMainBranch')}
+                </option>
+              ))}
+            </select>
           </FormField>
 
-          {uniqueModels.length === 0 ? (
+          {/* Models at selected location */}
+          {location === null ? (
+            <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6 italic">
+              {t('tickets.selectLocationFirst')}
+            </p>
+          ) : modelsAtLocation.length === 0 ? (
             <p className="text-sm text-gray-400 dark:text-gray-500 text-center py-6">{t('common.noData')}</p>
           ) : (
-            uniqueModels.map(s => {
-              const modelFields = fields[s.printerModel] ?? {}
-              const modelConsumables = allConsumablesByModel.filter(c => !c.colorOnly || !s.isBwOnly)
+            modelsAtLocation.map(m => {
+              const modelFields = fields[m.model] ?? {}
+              const modelConsumables = allConsumablesByModel.filter(c => !c.colorOnly || !m.isBwOnly)
               return (
-                <div key={s.printerModel} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+                <div key={m.model} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                   <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
-                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{s.printerModel}</p>
+                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{m.model}</p>
+                    {m.serials.length > 0 && (
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{m.serials.join(' · ')}</p>
+                    )}
                   </div>
                   <div className="px-3 py-3 grid grid-cols-2 gap-2">
                     {modelConsumables.map(c => (
@@ -624,7 +675,7 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
                           min="0"
                           className={inputCls}
                           value={modelFields[c.key] ?? 0}
-                          onChange={e => setField(s.printerModel, c.key, e.target.value)}
+                          onChange={e => setField(m.model, c.key, e.target.value)}
                         />
                       </FormField>
                     ))}
@@ -649,7 +700,7 @@ function StorageSubmitModal({ open, onClose, cycle, onSuccess, t }) {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitStorageMutation.isPending || uniqueModels.length === 0}
+            disabled={submitStorageMutation.isPending || location === null || modelsAtLocation.length === 0}
             className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
           >
             {submitStorageMutation.isPending ? t('common.loading') : t('tickets.submitStorage')}
@@ -1114,6 +1165,8 @@ export default function TicketsPage() {
           open={storageModalOpen}
           onClose={() => setStorageModalOpen(false)}
           cycle={cycle}
+          contractPrinters={contractPrinters}
+          printerMap={printerMap}
           onSuccess={() => showToast({ title: t('tickets.storageSubmitSuccess'), variant: 'success' })}
           t={t}
         />

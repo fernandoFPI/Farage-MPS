@@ -92,7 +92,7 @@ export async function getEngineerDetail(userId, { cycleId, from, to } = {}) {
             p.serial_number, p.model, p.id AS printer_id,
             cu.name AS customer_name,
             bc.id AS cycle_id,
-            CONCAT(cu.name, ' — ', TO_CHAR(bc.period_start, 'Month YYYY')) AS cycle_name
+            CONCAT(cu.name, ' — ', TO_CHAR(bc.period_end, 'Month YYYY')) AS cycle_name
      FROM meter_readings mr
      JOIN printers p ON mr.printer_id = p.id
      JOIN billing_cycles bc ON mr.billing_cycle_id = bc.id

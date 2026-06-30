@@ -34,7 +34,7 @@ export async function findById(id) {
              'periodEnd',     bc.period_end,
              'status',        bc.status,
              'groupPosition', bc.group_position,
-             'cycleName',     CONCAT(cu.name, ' — ', TRIM(TO_CHAR(bc.period_start, 'Month YYYY')))
+             'cycleName',     CONCAT(cu.name, ' — ', TRIM(TO_CHAR(bc.period_end, 'Month YYYY')))
            ) ORDER BY bc.group_position ASC
          ) FILTER (WHERE bc.id IS NOT NULL),
          '[]'
@@ -72,7 +72,7 @@ export async function findAll({ contractId } = {}) {
              'periodStart',   bc.period_start,
              'status',        bc.status,
              'groupPosition', bc.group_position,
-             'cycleName',     CONCAT(cu.name, ' — ', TRIM(TO_CHAR(bc.period_start, 'Month YYYY')))
+             'cycleName',     CONCAT(cu.name, ' — ', TRIM(TO_CHAR(bc.period_end, 'Month YYYY')))
            ) ORDER BY bc.group_position ASC
          ) FILTER (WHERE bc.id IS NOT NULL),
          '[]'

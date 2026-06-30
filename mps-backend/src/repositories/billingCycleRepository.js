@@ -51,7 +51,7 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
     `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, co.service_type, cu.name AS customer_name,
             bu.full_name AS baseline_set_by_name,
             su.full_name AS storage_submitted_by_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
             cg.id   AS contract_group_id,
             cg.name AS contract_group_name,
             COALESCE(
@@ -92,7 +92,7 @@ export async function findById(id) {
     `SELECT bc.*,
        bu.full_name AS baseline_set_by_name,
        su.full_name AS storage_submitted_by_name,
-       TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+       TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
        cg.id   AS contract_group_id,
        cg.name AS contract_group_name,
        json_build_object(
@@ -159,7 +159,7 @@ export async function findByContractAndPeriod(contractId, periodStart) {
 
 export async function findByContractAndPeriodRange(contractId, fromDate, toDate) {
   const { rows } = await pool.query(
-    `SELECT bc.*, TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+    `SELECT bc.*, TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
             cu.name AS customer_name
      FROM billing_cycles bc
      JOIN contracts co ON bc.contract_id = co.id
@@ -228,7 +228,7 @@ export async function findLaterConfirmedCycles(contractId, afterPeriodStart) {
 export async function findByCycleGroupId(cycleGroupId) {
   const { rows } = await pool.query(
     `SELECT bc.*,
-       TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+       TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
        bu.full_name AS baseline_set_by_name,
        json_build_object(
          'id',               co.id,
@@ -279,7 +279,7 @@ export async function findAllCancelled() {
   const { rows } = await pool.query(
     `SELECT bc.*, co.contract_number, cu.name AS customer_name,
             cu2.full_name AS cancelled_by_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month
      FROM billing_cycles bc
      JOIN contracts co ON bc.contract_id = co.id
      JOIN customers cu ON co.customer_id = cu.id
@@ -403,7 +403,7 @@ export async function findAllDeleted() {
   const { rows } = await pool.query(
     `SELECT bc.*, co.contract_number, cu.name AS customer_name,
             du.full_name AS deleted_by_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month
      FROM billing_cycles bc
      JOIN contracts co ON bc.contract_id = co.id
      JOIN customers cu ON co.customer_id = cu.id
@@ -438,4 +438,17 @@ export async function resetStorage(id) {
     [id],
   );
   return findById(id);
+}
+
+export async function findLatestCycle(contractId) {
+  const { rows } = await pool.query(
+    `SELECT period_end FROM billing_cycles
+     WHERE contract_id = $1
+       AND is_cancelled = false
+       AND deleted_at IS NULL
+     ORDER BY period_end DESC
+     LIMIT 1`,
+    [contractId],
+  );
+  return rows[0] ?? null;
 }

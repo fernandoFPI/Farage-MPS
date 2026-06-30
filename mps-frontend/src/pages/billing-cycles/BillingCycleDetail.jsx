@@ -1070,7 +1070,7 @@ const { data: appSettings } = useSettings()
     <>
     <Tooltip.Provider delayDuration={200}>
       <div className="space-y-6">
-        <Breadcrumb items={[{ label: t('nav.billingCycles'), to: '/billing-cycles' }, { label: cycle.cycleName ?? `${cycle.contract?.contractNumber ?? '—'} — ${formatPeriod(cycle.periodStart, cycle.periodEnd)}` }]} />
+        <Breadcrumb items={[{ label: t('nav.billingCycles'), to: '/billing-cycles', onClick: (e) => { e.preventDefault(); navigate(-1) } }, { label: cycle.cycleName ?? `${cycle.contract?.contractNumber ?? '—'} — ${formatPeriod(cycle.periodStart, cycle.periodEnd)}` }]} />
         {/* ── Header ── */}
         <PageHeader
           title={cycle.cycleName ?? cycle.contract?.contractNumber ?? '—'}
@@ -1412,7 +1412,7 @@ const { data: appSettings } = useSettings()
                                   <span className="text-amber-400 dark:text-amber-600">|</span>
                                   <span>Fixed: {formatAmount(qTotalFixed, currency)}</span>
                                   <span className="text-amber-400 dark:text-amber-600">|</span>
-                                  <span className="font-semibold">Total: {formatAmount(qGrandTotal, currency)}</span>
+                                  <span className="font-semibold">Total: {formatAmount(summary?.grandTotal ?? qGrandTotal, currency)}</span>
                                 </div>
                               )}
                             </div>
@@ -1468,7 +1468,7 @@ const { data: appSettings } = useSettings()
                                       <td className="px-3 py-2 text-end">{formatAmount(qTotalBw, currency)}</td>
                                       <td className="px-3 py-2 text-end">{formatAmount(qTotalColor, currency)}</td>
                                       <td className="px-3 py-2 text-end text-amber-600 dark:text-amber-400">{formatAmount(qTotalFixed, currency)}</td>
-                                      <td className="px-3 py-2 text-end text-brand-700 dark:text-brand-300 text-sm">{formatAmount(qGrandTotal, currency)}</td>
+                                      <td className="px-3 py-2 text-end text-brand-700 dark:text-brand-300 text-sm">{formatAmount(summary?.grandTotal ?? qGrandTotal, currency)}</td>
                                     </tr>
                                   </tfoot>
                                 </table>

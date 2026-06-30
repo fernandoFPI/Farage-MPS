@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, Clock, Camera, ImagePlus, X } from 'lucide-react'
@@ -38,8 +38,6 @@ export default function SubmitReadingPage() {
   const [form, setForm] = useState(empty)
   const [photos, setPhotos] = useState([])
   const [error, setError] = useState('')
-  const fileInputRef = useRef(null)
-  const cameraInputRef = useRef(null)
   const submit = useSubmitReading()
 
   const { data: cycles = [] } = useBillingCycles({ status: 'open' })
@@ -105,6 +103,34 @@ export default function SubmitReadingPage() {
       }
       reader.readAsDataURL(file)
     }
+  }
+
+  function openCamera() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.setAttribute('capture', 'environment')
+    input.style.cssText = 'position:absolute;opacity:0;pointer-events:none;'
+    document.body.appendChild(input)
+    input.onchange = (e) => {
+      if (e.target.files?.length) handlePhotoFiles(Array.from(e.target.files))
+      document.body.removeChild(input)
+    }
+    input.click()
+  }
+
+  function openGallery() {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = 'image/*'
+    input.multiple = true
+    input.style.cssText = 'position:absolute;opacity:0;pointer-events:none;'
+    document.body.appendChild(input)
+    input.onchange = (e) => {
+      if (e.target.files?.length) handlePhotoFiles(Array.from(e.target.files))
+      document.body.removeChild(input)
+    }
+    input.click()
   }
 
   function removePhoto(i) {
@@ -256,29 +282,10 @@ export default function SubmitReadingPage() {
             </div>
           )}
           {photos.length < 5 && (
-            <>
-              {/* Gallery upload — no capture attribute so browser shows file picker */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                className="hidden"
-                onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
-              />
-              {/* Camera — capture="environment" opens rear camera directly on mobile */}
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                className="hidden"
-                onChange={e => { handlePhotoFiles(Array.from(e.target.files)); e.target.value = '' }}
-              />
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={openCamera}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 transition-colors"
                 >
                   <Camera className="h-4 w-4" />
@@ -286,7 +293,7 @@ export default function SubmitReadingPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={openGallery}
                   className="flex-1 flex items-center justify-center gap-2 rounded-xl border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 hover:border-brand-400 hover:text-brand-600 dark:border-gray-600 dark:text-gray-400 dark:hover:border-brand-500 transition-colors"
                 >
                   <ImagePlus className="h-4 w-4" />
@@ -294,7 +301,6 @@ export default function SubmitReadingPage() {
                   <span className="text-xs text-gray-400">({photos.length}/5)</span>
                 </button>
               </div>
-            </>
           )}
         </div>
 

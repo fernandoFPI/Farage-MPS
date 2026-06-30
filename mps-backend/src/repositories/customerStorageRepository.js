@@ -99,7 +99,7 @@ export async function addHistory(customerStorageId, billingCycleId, quantities, 
 export async function findHistory(customerId, printerModel) {
   const { rows } = await pool.query(
     `SELECT csh.*, u.full_name AS submitted_by_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_name
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_name
      FROM customer_storage_history csh
      JOIN customer_storage cs ON cs.id = csh.customer_storage_id
      LEFT JOIN users u ON u.id = csh.submitted_by_user_id

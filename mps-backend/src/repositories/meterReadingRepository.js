@@ -48,7 +48,7 @@ export async function findAll({ printerId, billingCycleId, source, customerId } 
             ) AS photos,
             p.serial_number, p.model, p.is_bw_only,
             cu.name AS customer_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_month,
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
             u.full_name AS submitted_by_name
      FROM meter_readings mr
      JOIN printers p ON mr.printer_id = p.id

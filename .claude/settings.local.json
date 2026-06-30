@@ -18,7 +18,30 @@
       "Bash(npx tsc *)",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\('recharts:', p.dependencies.recharts || p.devDependencies?.recharts || 'NOT FOUND'\\)\")",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\PC\\\\OneDrive - Farage Printing Industries\\\\Desktop\\\\MPS\" -Directory)",
-      "Bash(Select-Object Name)"
+      "Bash(Select-Object Name)",
+      "PowerShell(psql -U postgres -c \"DROP DATABASE IF EXISTS mps_db;\")",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "PowerShell($pg = \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\"; & \"$pg\\\\psql.exe\" -U postgres -c \"DROP DATABASE IF EXISTS mps_db;\")",
+      "PowerShell($pg = \"C:\\\\Program Files\\\\PostgreSQL\\\\18\\\\bin\"; $env:PGPASSWORD = \"\"; & \"$pg\\\\psql.exe\" -U postgres -c \"SELECT version\\(\\);\" 2>&1 | Select-Object -First 5)",
+      "Bash(\"/c/Program Files/PostgreSQL/18/bin/psql.exe\" -U postgres -c \"SELECT version\\(\\);\")",
+      "Bash(docker ps *)",
+      "Read(//c/Users/PC/OneDrive - Farage Printing Industries/Desktop/**)",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'SELECT current_user, version\\(\\);')",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'DROP DATABASE IF EXISTS mps_db;')",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'SELECT pg_terminate_backend\\(pid\\) FROM pg_stat_activity WHERE datname = '\\\\''mps_db'\\\\'' AND pid <> pg_backend_pid\\(\\);')",
+      "Bash(PGPASSWORD=postgres '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U postgres -d postgres -c 'SELECT current_user;')",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'SELECT pid, usename, application_name, client_addr, state FROM pg_stat_activity WHERE datname = '\\\\''mps_db'\\\\'';')",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'CREATE DATABASE mps_db OWNER fernando;')",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'SELECT pid, usename, application_name, state FROM pg_stat_activity WHERE datname = '\\\\''mps_db'\\\\'';')",
+      "PowerShell(Stop-Process -Id 29760 -Force -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Id 9960,18128,22352,29844 -Force -ErrorAction SilentlyContinue)",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d postgres -c 'SELECT pid FROM pg_stat_activity WHERE datname = '\\\\''mps_db'\\\\'';')",
+      "Read(//c/Program Files/PostgreSQL/18/data/**)",
+      "Bash(grep -v \"^$\")",
+      "Bash(PGPASSWORD=admin '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U postgres -d postgres -c 'CREATE DATABASE mps_db OWNER fernando;')",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d mps_db -c ' *)",
+      "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d mps_db -c '\\\\d billing_cycles')",
+      "Bash(xargs grep -l \"calculateOSG\\\\|getPrevQuarter\\\\|fixedChargeFrequency\\\\|excessFrequency\")"
     ]
   }
 }

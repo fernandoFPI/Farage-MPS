@@ -47,7 +47,7 @@ export async function findAll({ printerId, billingCycleId, customerId } = {}) {
             p.model AS printer_model,
             p.is_bw_only,
             cu.name AS customer_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_name
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_name
      FROM consumable_readings cr
      LEFT JOIN users u ON u.id = cr.submitted_by_user_id
      LEFT JOIN printers p ON p.id = cr.printer_id
@@ -69,7 +69,7 @@ export async function findById(id) {
             p.model AS printer_model,
             p.is_bw_only,
             cu.name AS customer_name,
-            TO_CHAR(bc.period_start, 'Month YYYY') AS cycle_name
+            TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_name
      FROM consumable_readings cr
      LEFT JOIN users u ON u.id = cr.submitted_by_user_id
      LEFT JOIN printers p ON p.id = cr.printer_id
