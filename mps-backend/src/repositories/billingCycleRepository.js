@@ -442,7 +442,7 @@ export async function resetStorage(id) {
 
 export async function findLatestCycle(contractId) {
   const { rows } = await pool.query(
-    `SELECT period_end FROM billing_cycles
+    `SELECT TO_CHAR(period_end, 'YYYY-MM-DD') AS period_end FROM billing_cycles
      WHERE contract_id = $1
        AND is_cancelled = false
        AND deleted_at IS NULL
