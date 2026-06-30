@@ -30,12 +30,13 @@ export async function getById(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const { fullName, email, roleId, isActive } = req.body;
+    const { fullName, email, roleId, isActive, password } = req.body;
     const user = await userService.updateUser(req.params.id, {
       fullName,
       email,
       roleId,
       isActive,
+      password,
     });
     res.json(user);
   } catch (err) {

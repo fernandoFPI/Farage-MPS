@@ -39,6 +39,34 @@ export async function getEngineersSummary() {
   }));
 }
 
+export async function getEngineersByCycle(billingCycleId) {
+  const { rows } = await pool.query(
+    `SELECT
+       u.id         AS engineer_id,
+       u.full_name,
+       COUNT(mr.id)::int                                                         AS readings_in_cycle,
+       ROUND(AVG(mr.submission_duration_seconds))::int                           AS avg_duration_seconds,
+       COUNT(CASE WHEN jsonb_array_length(mr.photos) > 0 THEN 1 END)::int       AS readings_with_photos,
+       COUNT(CASE WHEN mr.photos = '[]'::jsonb OR mr.photos IS NULL THEN 1 END)::int AS readings_without_photos,
+       COUNT(CASE WHEN mr.flagged = true THEN 1 END)::int                       AS flagged_readings
+     FROM meter_readings mr
+     JOIN users u ON mr.submitted_by_user_id = u.id
+     WHERE mr.billing_cycle_id = $1
+     GROUP BY u.id, u.full_name
+     ORDER BY u.full_name ASC`,
+    [billingCycleId],
+  );
+  return rows.map(row => ({
+    id:                    row.engineer_id,
+    name:                  row.full_name,
+    readingsInCycle:       row.readings_in_cycle,
+    avgDurationSeconds:    row.avg_duration_seconds     ?? null,
+    readingsWithPhotos:    row.readings_with_photos,
+    readingsWithoutPhotos: row.readings_without_photos,
+    flaggedReadings:       row.flagged_readings,
+  }));
+}
+
 export async function getEngineerDetail(userId, { cycleId, from, to } = {}) {
   // Summary
   const summaryResult = await pool.query(
