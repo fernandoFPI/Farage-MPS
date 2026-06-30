@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw } from 'lucide-react'
@@ -12,8 +12,8 @@ import {
   useDeletedCycles,
   useHardDeleteCycle,
   useRestoreCycle,
-  useLatestBillingCycle,
 } from '../../api/hooks/useBillingCycles'
+import client from '../../api/client'
 import { useContracts } from '../../api/hooks/useContracts'
 import { usePermission } from '../../hooks/usePermission'
 import { useAuth } from '../../context/AuthContext'
@@ -90,17 +90,19 @@ function CreateCycleModal({ onClose }) {
   const { data: contracts = [] } = useContracts({ isActive: true })
   const create = useCreateBillingCycle()
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const { data: latestCycle } = useLatestBillingCycle(form.contractId)
 
-  useEffect(() => {
-    setForm(f => ({ ...f, periodStart: '', periodEnd: '' }))
-  }, [form.contractId]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (latestCycle?.periodEnd) {
-      setForm(f => ({ ...f, periodStart: latestCycle.periodEnd }))
+  async function handleContractChange(contractId) {
+    setForm(f => ({ ...f, contractId, periodStart: '', periodEnd: '' }))
+    if (!contractId) return
+    try {
+      const res = await client.get('/api/billing-cycles/latest', { params: { contractId } })
+      if (res.data?.periodEnd) {
+        setForm(f => ({ ...f, periodStart: res.data.periodEnd }))
+      }
+    } catch {
+      // silent — user can still fill period start manually
     }
-  }, [latestCycle])
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -142,7 +144,7 @@ function CreateCycleModal({ onClose }) {
         <FormField label={t('contracts.title')} required>
           <SearchableSelect
             value={form.contractId}
-            onChange={v => set('contractId', v)}
+            onChange={handleContractChange}
             clearable={false}
             placeholder="—"
             options={contracts.map(c => ({
