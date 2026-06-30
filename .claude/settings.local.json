@@ -41,7 +41,10 @@
       "Bash(PGPASSWORD=admin '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U postgres -d postgres -c 'CREATE DATABASE mps_db OWNER fernando;')",
       "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d mps_db -c ' *)",
       "Bash(PGPASSWORD=Xerox@2026 '/c/Program Files/PostgreSQL/18/bin/psql.exe' -U fernando -d mps_db -c '\\\\d billing_cycles')",
-      "Bash(xargs grep -l \"calculateOSG\\\\|getPrevQuarter\\\\|fixedChargeFrequency\\\\|excessFrequency\")"
+      "Bash(xargs grep -l \"calculateOSG\\\\|getPrevQuarter\\\\|fixedChargeFrequency\\\\|excessFrequency\")",
+      "Bash(python -c \"import docx; print\\('ok'\\)\")",
+      "Bash(python -c \"from docx import Document; from docx.shared import Pt, RGBColor, Inches, Cm; from docx.enum.text import WD_ALIGN_PARAGRAPH; print\\('all imports ok'\\)\")",
+      "PowerShell(python \"C:\\\\Users\\\\PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-PC-OneDrive---Farage-Printing-Industries-Desktop-MPS\\\\d3f42c9a-4047-4480-b1c1-c892eee376a6\\\\scratchpad\\\\build_doc.py\")"
     ]
   }
 }

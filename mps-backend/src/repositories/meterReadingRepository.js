@@ -228,6 +228,46 @@ export async function getRecentReadings(printerId, beforeDate, count) {
   return rows.map(mapRow);
 }
 
+// Like findAllWithPrinterInfo but also joins users for engineer name — used by Odoo export
+export async function findAllWithEngineerForOdoo(billingCycleId, contractId) {
+  const { rows } = await pool.query(
+    `SELECT DISTINCT ON (mr.printer_id)
+       mr.*,
+       p.serial_number,
+       p.model,
+       p.city,
+       p.location,
+       p.is_bw_only,
+       u.id         AS engineer_id,
+       u.full_name  AS engineer_name,
+       (
+         SELECT cp.contract_type
+         FROM contract_printers cp
+         WHERE cp.printer_id = mr.printer_id
+           AND cp.contract_id = $2
+         ORDER BY cp.assigned_from DESC
+         LIMIT 1
+       ) AS contract_type
+     FROM meter_readings mr
+     JOIN printers p ON mr.printer_id = p.id
+     LEFT JOIN users u ON mr.submitted_by_user_id = u.id
+     WHERE mr.billing_cycle_id = $1
+     ORDER BY mr.printer_id, mr.read_at DESC`,
+    [billingCycleId, contractId],
+  );
+  return rows.map((row) => ({
+    ...mapRow(row),
+    serialNumber: row.serial_number,
+    model:        row.model,
+    city:         row.city     ?? null,
+    location:     row.location ?? null,
+    isBwOnly:     row.is_bw_only   ?? false,
+    contractType: row.contract_type,
+    engineerId:   row.engineer_id   ?? null,
+    engineerName: row.engineer_name ?? null,
+  }));
+}
+
 // One row per printer (most recent reading) with printer detail + contractType for the cycle summary
 export async function findAllWithPrinterInfo(billingCycleId, contractId) {
   const { rows } = await pool.query(

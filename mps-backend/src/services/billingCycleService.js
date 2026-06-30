@@ -1,6 +1,8 @@
 import * as cycleRepo from '../repositories/billingCycleRepository.js';
 import * as readingRepo from '../repositories/meterReadingRepository.js';
 import * as contractGroupRepo from '../repositories/contractGroupRepository.js';
+import * as consumableReadingRepo from '../repositories/consumableReadingRepository.js';
+import * as performanceRepo from '../repositories/performanceRepository.js';
 import pool from '../config/db.js';
 import {
   calculateBillableUsage,
@@ -963,4 +965,123 @@ export async function setBaseline(id, { isBaseline }, userId) {
     throw err;
   }
   return cycleRepo.setBaseline(id, isBaseline, userId);
+}
+
+// ── Odoo export ─────────────────────────────────────────────────────────────
+
+export async function getOdooExportData(cycleId) {
+  const cycle = await cycleRepo.findById(cycleId);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const summary = await getBillingCycleSummary(cycleId);
+
+  // Fetch raw meter readings with engineer info, consumables, and performance in parallel
+  const rawReadings = await readingRepo.findAllWithEngineerForOdoo(cycleId, cycle.contractId);
+
+  const [consumables, engineerPerformance] = await Promise.all([
+    consumableReadingRepo.findAll({ billingCycleId: cycleId }),
+    performanceRepo.getEngineersByCycle(cycleId),
+  ]);
+
+  // Fetch consumable readings — most recent per printer (findAll returns DESC submitted_at)
+  const consumableByPrinter = new Map();
+  for (const cr of consumables) {
+    if (!consumableByPrinter.has(cr.printerId)) consumableByPrinter.set(cr.printerId, cr);
+  }
+
+  const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
+  const isQuarterly = invoiceRulesForPrev.fixedChargeFrequency === 'quarterly'
+    && !!invoiceRulesForPrev.contractStartDate;
+
+  const printers = await Promise.all(rawReadings.map(async (reading) => {
+    const summaryPrinter = summary.printers?.find(p => p.printerId === reading.printerId);
+
+    let prevReading;
+    if (isQuarterly) {
+      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodStart);
+      prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
+        reading.printerId, cycleId, targetDate,
+      );
+    } else {
+      prevReading = await readingRepo.getPreviousCycleReading(
+        reading.printerId, cycleId, cycle.periodStart,
+      );
+    }
+
+    // A4/A3 period delta — 0 when no previous (baseline reading)
+    const a4Bw    = prevReading ? Math.max(0, reading.a4Bw    - prevReading.a4Bw)    : 0;
+    const a3Bw    = prevReading ? Math.max(0, reading.a3Bw    - prevReading.a3Bw)    : 0;
+    const a4Color = prevReading ? Math.max(0, reading.a4Color - prevReading.a4Color)  : 0;
+    const a3Color = prevReading ? Math.max(0, reading.a3Color - prevReading.a3Color)  : 0;
+
+    const cr = consumableByPrinter.get(reading.printerId) ?? null;
+
+    return {
+      id:           reading.printerId,
+      serialNumber: reading.serialNumber,
+      model:        reading.model,
+      isBwOnly:     reading.isBwOnly ?? false,
+      engineer: {
+        id:   reading.engineerId,
+        name: reading.engineerName,
+      },
+      pagesUsed:  { a4Bw, a3Bw, a4Color, a3Color },
+      billable:   {
+        bw:    summaryPrinter?.billableBw    ?? 0,
+        color: summaryPrinter?.billableColor ?? 0,
+      },
+      toner: cr ? {
+        c:  cr.cPct,
+        m:  cr.mPct,
+        y:  cr.yPct,
+        k:  cr.kPct,
+        r1: cr.r1Pct,
+        r2: cr.r2Pct,
+        r3: cr.r3Pct,
+        r4: cr.r4Pct,
+      } : null,
+      flagged:    summaryPrinter?.flagged    ?? false,
+      flagReason: summaryPrinter?.flagReason ?? null,
+    };
+  }));
+
+  const toPeriodStr = v => {
+    const d = v instanceof Date ? v : new Date(v);
+    const baghdad = new Date(d.getTime() + BAGHDAD_OFFSET_MS);
+    return `${baghdad.getUTCFullYear()}-${String(baghdad.getUTCMonth() + 1).padStart(2, '0')}-${String(baghdad.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  return {
+    exportedAt: new Date().toISOString(),
+    cycle: {
+      id:          cycle.id,
+      name:        cycle.cycleName,
+      periodStart: toPeriodStr(cycle.periodStart),
+      periodEnd:   toPeriodStr(cycle.periodEnd),
+      status:      cycle.status,
+    },
+    contract: {
+      id:                     cycle.contractId,
+      contractNumber:         cycle.contract.contractNumber,
+      officialContractNumber: cycle.contract.officialContractNumber ?? null,
+      serviceType:            cycle.contract.serviceType ?? null,
+      contractMode:           cycle.contract.contractMode ?? 'osg',
+    },
+    customer: {
+      id:   cycle.contract.customer.id,
+      name: cycle.contract.customer.name,
+    },
+    billing: {
+      totalBillableBw:    summary.totals?.totalBillableBw    ?? 0,
+      totalBillableColor: summary.totals?.totalBillableColor ?? 0,
+      grandTotal:         summary.grandTotal                  ?? 0,
+      invoiceLines:       summary.invoices                    ?? [],
+    },
+    printers,
+    engineerPerformance,
+  };
 }

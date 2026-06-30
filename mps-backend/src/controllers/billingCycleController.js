@@ -193,3 +193,9 @@ export async function getLatestCycle(req, res, next) {
     res.json(row ? { periodEnd: row.period_end } : null);
   } catch (err) { next(err); }
 }
+
+export async function getOdooExport(req, res, next) {
+  try {
+    res.json(await service.getOdooExportData(req.params.id));
+  } catch (err) { next(err); }
+}
