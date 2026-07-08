@@ -22,9 +22,11 @@ export function getPrevQuarterEndDate(contractStartDate, currentPeriodStart) {
   const cM = current.getUTCMonth() + 1;
 
   const monthsElapsed = (cY - sY) * 12 + (cM - sM);
-  const remainder     = monthsElapsed % 3;
-  const offset        = remainder === 0 ? 3 : remainder;
-  const targetMonths  = monthsElapsed - offset;
+  // For Q1M1 (monthsElapsed=0): no previous quarter → return a date before contract start (null baseline).
+  // For all other months: baseline = last month of previous quarter = floor(m/3)*3 - 1, clamped to 0 for Q1.
+  const targetMonths = monthsElapsed === 0
+    ? -1
+    : Math.max(0, Math.floor(monthsElapsed / 3) * 3 - 1);
 
   let tM = sM + targetMonths;
   let tY = sY + Math.floor((tM - 1) / 12);
@@ -127,9 +129,7 @@ function buildRulesMeta(rules, cycle) {
     monthInQuarter = posInPeriod + 1;
     quarterNumber = Math.floor(monthsElapsed / periodLength) + 1;
 
-    // quarterStartDate = start of the current quarter (current billing month is the LAST month)
-    // e.g. contractStart Jan 2026, Jun 2026 is Q2 end (monthsElapsed=5) → quarter started Apr 2026 (offset=3)
-    const quarterOffset = Math.max(0, Math.floor(monthsElapsed / periodLength) * periodLength - (periodLength - 1));
+    const quarterOffset = Math.floor(monthsElapsed / periodLength) * periodLength;
     const qStart = new Date(start);
     qStart.setMonth(start.getMonth() + quarterOffset);
     qStart.setDate(1); // normalize to 1st so billing cycles (always period_start=1st) are compared correctly
