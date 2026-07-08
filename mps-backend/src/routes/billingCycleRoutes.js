@@ -35,6 +35,7 @@ router.patch('/:id/period',    ...requireAdmin,   ctrl.updatePeriod);
 router.delete('/:id',        verifyToken, blockOdoo, ctrl.cancel);
 router.get('/:id/group-summary', verifyToken, blockOdoo, ctrl.groupSummary);
 router.patch('/:id/set-baseline',             verifyToken, blockOdoo,       ctrl.setBaseline);
+router.patch('/:id/manual-billing',           ...requireAdmin,               ctrl.setManualBillingAmount);
 router.post('/:id/lock-printer',              ...submitReadings,             ctrl.lockPrinter);
 router.delete('/:id/lock-printer/:printerId', ...submitReadings,             ctrl.unlockPrinter);
 router.patch('/:id/submit-storage',           ...submitReadings,             ctrl.submitStorage);

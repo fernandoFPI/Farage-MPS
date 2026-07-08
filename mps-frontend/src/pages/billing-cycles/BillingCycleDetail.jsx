@@ -16,6 +16,7 @@ import {
   useConfirmCity,
   useResetCity,
   useUpdateCyclePeriod,
+  useSetManualBillingAmount,
 } from '../../api/hooks/useBillingCycles'
 import { useBillingCycleGroupSummary, useDeleteCycleGroup, useCycleGroup } from '../../api/hooks/useCycleGroups'
 import { useMeterReadings, usePreviousReading } from '../../api/hooks/useMeterReadings'
@@ -920,12 +921,16 @@ const { data: appSettings } = useSettings()
   const [editPeriod, setEditPeriod] = useState(false)
   const [periodDraft, setPeriodDraft] = useState({ start: '', end: '' })
   const [periodSaveError, setPeriodSaveError] = useState('')
+  const [editManualAmount, setEditManualAmount] = useState(false)
+  const [manualAmountDraft, setManualAmountDraft] = useState('')
+  const [manualAmountError, setManualAmountError] = useState('')
   const [quarterExpanded, setQuarterExpanded] = useState(false)
   const [overrideExpanded, setOverrideExpanded] = useState({})
 
   const cancelMutation = useCancelCycle()
   const deleteGroupMutation = useDeleteCycleGroup()
   const setBaselineMutation = useSetBaseline()
+  const setManualAmountMutation = useSetManualBillingAmount()
 
   // Parallel fetches — independent loading states
   const { data: cycle, isLoading: cycleLoading, refetch: refetchCycle } = useBillingCycle(id)
@@ -1012,6 +1017,22 @@ const { data: appSettings } = useSettings()
     }
   }
 
+  async function handleSaveManualAmount() {
+    setManualAmountError('')
+    const parsed = parseFloat(manualAmountDraft)
+    if (manualAmountDraft.trim() !== '' && (isNaN(parsed) || parsed < 0)) {
+      setManualAmountError('Enter a valid non-negative amount')
+      return
+    }
+    try {
+      await setManualAmountMutation.mutateAsync({ id, amount: manualAmountDraft.trim() === '' ? null : parsed })
+      showToast({ title: 'Billing amount saved', variant: 'success' })
+      setEditManualAmount(false)
+    } catch (err) {
+      setManualAmountError(err.response?.data?.error || err.message)
+    }
+  }
+
   async function handleCancel() {
     setActionError('')
     try {
@@ -1045,6 +1066,7 @@ const { data: appSettings } = useSettings()
 
   const { status } = cycle
   const currency = cycle.contract?.currency ?? 'IQD'
+  const isLsLo = ['LS', 'LO'].includes(cycle.contract?.serviceType)
   const hasReadings = (summary?.printers?.length ?? 0) > 0
   const canGroupCycles = false
   const isPendingQuarterly = status === 'pending_quarterly'
@@ -1256,10 +1278,64 @@ const { data: appSettings } = useSettings()
           />
         )}
 
+        {/* ── Manual Billing Amount (LS / LO contracts only) ── */}
+        {isLsLo && canViewFinancial && (
+          <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <SectionHeader label="Billing Amount" />
+            <div className="mt-3">
+              {editManualAmount ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={manualAmountDraft}
+                      onChange={e => setManualAmountDraft(e.target.value)}
+                      placeholder="Enter amount"
+                      className="w-48 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm px-3 py-1.5"
+                    />
+                    <span className="text-sm text-gray-500">{currency}</span>
+                    <button
+                      onClick={handleSaveManualAmount}
+                      disabled={setManualAmountMutation.isPending}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-green-700 bg-green-50 border border-green-300 rounded hover:bg-green-100 dark:text-green-400 dark:bg-green-900/20 dark:border-green-700"
+                    >
+                      <Check size={14} />{setManualAmountMutation.isPending ? '...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => { setEditManualAmount(false); setManualAmountError('') }}
+                      className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-gray-600 bg-gray-50 border border-gray-300 rounded hover:bg-gray-100 dark:text-gray-400 dark:bg-gray-800 dark:border-gray-600"
+                    >
+                      <X size={14} />Cancel
+                    </button>
+                  </div>
+                  {manualAmountError && <p className="text-xs text-red-500">{manualAmountError}</p>}
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl font-bold text-brand-600 dark:text-brand-400">
+                    {cycle.manualBillingAmount != null
+                      ? formatAmount(cycle.manualBillingAmount, currency)
+                      : <span className="text-gray-400 dark:text-gray-500 text-base font-normal">Not set</span>}
+                  </span>
+                  {isAdmin && status !== 'invoiced' && (
+                    <button
+                      onClick={() => { setManualAmountDraft(cycle.manualBillingAmount != null ? String(cycle.manualBillingAmount) : ''); setEditManualAmount(true) }}
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Billing Summary ── */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-          <SectionHeader
-            label={t('billingCycles.summary')}
+          <SectionHeader label={t('billingCycles.summary')}
             action={
               <button onClick={() => refetchSummary()}
                 className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-400 dark:hover:bg-gray-800">

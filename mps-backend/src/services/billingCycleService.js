@@ -781,6 +781,21 @@ export async function unconfirmCycle(id) {
   return cycleRepo.update(id, { status: 'open', confirmedAt: null, confirmedByUserId: null });
 }
 
+export async function setManualBillingAmount(id, amount) {
+  const cycle = await cycleRepo.findById(id);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  if (cycle.status === 'invoiced') {
+    const err = new Error('Cannot edit an invoiced cycle');
+    err.status = 400;
+    throw err;
+  }
+  return cycleRepo.updateManualBillingAmount(id, amount);
+}
+
 export async function getGroupSummary(id) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {
@@ -1078,7 +1093,9 @@ export async function getOdooExportData(cycleId) {
     billing: {
       totalBillableBw:    summary.totals?.totalBillableBw    ?? 0,
       totalBillableColor: summary.totals?.totalBillableColor ?? 0,
-      grandTotal:         summary.grandTotal                  ?? 0,
+      grandTotal:         (['LS', 'LO'].includes(cycle.contract.serviceType) && cycle.manualBillingAmount != null)
+        ? cycle.manualBillingAmount
+        : (summary.grandTotal ?? 0),
       invoiceLines:       summary.invoices                    ?? [],
     },
     printers,

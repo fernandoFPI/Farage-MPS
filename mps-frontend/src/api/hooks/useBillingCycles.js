@@ -151,6 +151,15 @@ export function useHardDeleteCycle() {
   })
 }
 
+export function useSetManualBillingAmount() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, amount }) =>
+      client.patch(`/api/billing-cycles/${id}/manual-billing`, { amount }).then(r => r.data),
+    onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: ['billing-cycles', id] }),
+  })
+}
+
 export function useLatestBillingCycle(contractId) {
   return useQuery({
     queryKey: ['billing-cycles', 'latest', contractId],
