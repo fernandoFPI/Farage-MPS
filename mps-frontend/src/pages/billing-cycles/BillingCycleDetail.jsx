@@ -1426,7 +1426,7 @@ const { data: appSettings } = useSettings()
               </div>
 
               {/* Billing breakdown — one card per invoice */}
-              {canViewFinancial && (summary.isBaseline ? (
+              {canViewFinancial && !isLsLo && (summary.isBaseline ? (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('billingCycles.billing')}</p>
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/20">
@@ -2153,8 +2153,8 @@ const { data: appSettings } = useSettings()
               </button>
             )}
 
-            {/* Baseline toggle — admin and mps_specialist */}
-            {(isAdmin || canManage) && (
+            {/* Baseline toggle — admin and mps_specialist, not applicable for LS/LO */}
+            {(isAdmin || canManage) && !isLsLo && (
               cycle.isBaseline ? (
                 <button
                   onClick={() => { setActionError(''); setRemoveBaselineOpen(true) }}

@@ -46,7 +46,8 @@
       "Bash(python -c \"from docx import Document; from docx.shared import Pt, RGBColor, Inches, Cm; from docx.enum.text import WD_ALIGN_PARAGRAPH; print\\('all imports ok'\\)\")",
       "PowerShell(python \"C:\\\\Users\\\\PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-PC-OneDrive---Farage-Printing-Industries-Desktop-MPS\\\\d3f42c9a-4047-4480-b1c1-c892eee376a6\\\\scratchpad\\\\build_doc.py\")",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(grep -n \"isQuarterlyTotal\\\\|Billing Summary\\\\|{\\\\/\\\\* ── Billing\" mps-frontend/src/pages/billing-cycles/BillingCycleDetail.jsx)"
     ]
   }
 }
