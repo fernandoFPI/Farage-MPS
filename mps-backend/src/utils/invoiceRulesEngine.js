@@ -22,11 +22,9 @@ export function getPrevQuarterEndDate(contractStartDate, currentPeriodStart) {
   const cM = current.getUTCMonth() + 1;
 
   const monthsElapsed = (cY - sY) * 12 + (cM - sM);
-  // For Q1M1 (monthsElapsed=0): no previous quarter → return a date before contract start (null baseline).
-  // For all other months: baseline = last month of previous quarter = floor(m/3)*3 - 1, clamped to 0 for Q1.
-  const targetMonths = monthsElapsed === 0
-    ? -1
-    : Math.max(0, Math.floor(monthsElapsed / 3) * 3 - 1);
+  const remainder     = monthsElapsed % 3;
+  const offset        = remainder === 0 ? 3 : remainder;
+  const targetMonths  = monthsElapsed - offset;
 
   let tM = sM + targetMonths;
   let tY = sY + Math.floor((tM - 1) / 12);
@@ -87,7 +85,7 @@ function buildRulesMeta(rules, cycle) {
   let accumulatedCycles = [];
   switch (rules.excessFrequency) {
     case 'quarterly':
-      isExcessDue = rules.contractStartDate != null && monthsElapsed % 3 === 2;
+      isExcessDue = rules.contractStartDate != null && monthsElapsed % 3 === 0;
       accumulatedCycles = [];
       break;
     case 'semi_annual':
