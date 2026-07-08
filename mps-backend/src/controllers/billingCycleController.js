@@ -185,6 +185,16 @@ export async function resetStorageSubmission(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function setManualBillingAmount(req, res, next) {
+  try {
+    const amount = req.body.amount;
+    if (amount !== null && (typeof amount !== 'number' || isNaN(amount) || amount < 0)) {
+      return res.status(400).json({ error: 'amount must be a non-negative number or null' });
+    }
+    res.json(await service.setManualBillingAmount(req.params.id, amount));
+  } catch (err) { next(err); }
+}
+
 export async function getLatestCycle(req, res, next) {
   try {
     const { contractId } = req.query;

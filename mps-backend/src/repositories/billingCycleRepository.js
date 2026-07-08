@@ -29,8 +29,9 @@ function mapRow(row) {
     contractGroupId:   row.contract_group_id   ?? null,
     contractGroupName: row.contract_group_name ?? null,
     isGrouped:         !!row.contract_group_id,
-    deletedAt:         row.deleted_at         ?? null,
-    deletedByUserId:   row.deleted_by_user_id ?? null,
+    deletedAt:            row.deleted_at              ?? null,
+    deletedByUserId:      row.deleted_by_user_id      ?? null,
+    manualBillingAmount:  row.manual_billing_amount != null ? Number(row.manual_billing_amount) : null,
   };
 }
 
@@ -436,6 +437,14 @@ export async function resetStorage(id) {
      SET storage_submitted = false, storage_submitted_at = NULL, storage_submitted_by = NULL
      WHERE id = $1`,
     [id],
+  );
+  return findById(id);
+}
+
+export async function updateManualBillingAmount(id, amount) {
+  await pool.query(
+    `UPDATE billing_cycles SET manual_billing_amount = $1 WHERE id = $2`,
+    [amount, id],
   );
   return findById(id);
 }
