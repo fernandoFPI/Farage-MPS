@@ -129,7 +129,7 @@ function buildRulesMeta(rules, cycle) {
     monthInQuarter = posInPeriod + 1;
     quarterNumber = Math.floor(monthsElapsed / periodLength) + 1;
 
-    const quarterOffset = Math.floor(monthsElapsed / periodLength) * periodLength;
+    const quarterOffset = Math.max(0, Math.floor(monthsElapsed / periodLength) * periodLength - (periodLength - 1));
     const qStart = new Date(start);
     qStart.setMonth(start.getMonth() + quarterOffset);
     qStart.setDate(1); // normalize to 1st so billing cycles (always period_start=1st) are compared correctly
