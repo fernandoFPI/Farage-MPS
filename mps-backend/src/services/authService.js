@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import * as userRepo from '../repositories/userRepository.js';
+import { applyOverrides } from '../utils/permissions.js';
 
 export async function login(email, password) {
   const user = await userRepo.findByEmailWithPassword(email);
@@ -31,13 +32,14 @@ export async function login(email, password) {
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' },
   );
 
+  const effectiveRole = applyOverrides(user.role, user.permission_overrides ?? {});
   return {
     token,
     user: {
       id: user.id,
       fullName: user.full_name,
       email: user.email,
-      role: user.role,
+      role: effectiveRole,
     },
   };
 }
@@ -49,5 +51,6 @@ export async function getMe(userId) {
     err.status = 404;
     throw err;
   }
-  return user;
+  const effectiveRole = applyOverrides(user.role, user.permissionOverrides);
+  return { ...user, role: effectiveRole };
 }

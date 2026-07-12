@@ -42,8 +42,8 @@ export default function ContractDetail() {
   if (isLoading) return <LoadingSpinner className="py-20" />
   if (!contract) return <p className="text-gray-500 p-6">{t('common.noData')}</p>
 
-  const canViewFinancial = usePermission('can_view_financial_data')
-  const canManageContracts = usePermission('can_manage_contracts')
+  const canViewFinancial = usePermission('can_view_contract_pricing')
+  const canManageContracts = usePermission('can_edit_contracts')
   const isMinVol = contract.billingType === 'minimum_volume'
   const isPsg = contract.contractMode === 'psg' || contract.contractMode === 'psg_simple'
 

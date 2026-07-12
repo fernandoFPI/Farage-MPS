@@ -27,7 +27,7 @@ function stripFinancials(contract) {
 export async function list(req, res, next) {
   try {
     const result = await service.listContracts(req.query);
-    const canViewFinancial = req.user?.role?.can_view_financial_data !== false;
+    const canViewFinancial = req.user?.role?.can_view_contract_pricing !== false;
     res.json(canViewFinancial ? result : result.map(stripFinancials));
   } catch (err) { next(err); }
 }
@@ -41,7 +41,7 @@ export async function create(req, res, next) {
 export async function getById(req, res, next) {
   try {
     const result = await service.getContractById(req.params.id);
-    const canViewFinancial = req.user?.role?.can_view_financial_data !== false;
+    const canViewFinancial = req.user?.role?.can_view_contract_pricing !== false;
     res.json(canViewFinancial ? result : stripFinancials(result));
   } catch (err) { next(err); }
 }

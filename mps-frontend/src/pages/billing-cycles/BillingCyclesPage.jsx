@@ -175,7 +175,7 @@ export default function BillingCyclesPage() {
   const { showToast } = useToast()
   const { user } = useAuth()
   const isAdmin = user?.role?.name === 'admin'
-  const canManage = usePermission('can_manage_billing')
+  const canManage = usePermission('can_edit_billing')
   const canConfirm = usePermission('can_confirm_billing')
   const [tab, setTab] = useState('active')
 

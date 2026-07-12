@@ -4,7 +4,7 @@ import { blockOdoo } from '../middleware/odooGuard.js';
 import * as ctrl from '../controllers/printerController.js';
 
 const router = Router();
-const write   = [verifyToken, blockOdoo, requirePermission('can_manage_contracts')];
+const write   = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
 const readSub = [verifyToken, blockOdoo, requirePermission('can_submit_readings')];
 
 router.get('/',                    verifyToken, blockOdoo,   ctrl.list);

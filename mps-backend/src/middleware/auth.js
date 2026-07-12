@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import pool from '../config/db.js';
+import { applyOverrides } from '../utils/permissions.js';
 
 export async function verifyToken(req, res, next) {
   const header = req.headers['authorization'];
@@ -19,7 +20,8 @@ export async function verifyToken(req, res, next) {
   try {
     // Verify user still exists, is active, and fetch current role permissions
     const { rows } = await pool.query(
-      `SELECT u.id, u.email, u.full_name, u.is_active, row_to_json(r.*) AS role
+      `SELECT u.id, u.email, u.full_name, u.is_active,
+              u.permission_overrides, row_to_json(r.*) AS role
        FROM users u
        JOIN roles r ON u.role_id = r.id
        WHERE u.id = $1`,
@@ -31,7 +33,8 @@ export async function verifyToken(req, res, next) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
-    req.user = { id: user.id, email: user.email, fullName: user.full_name, role: user.role };
+    const effectiveRole = applyOverrides(user.role, user.permission_overrides);
+    req.user = { id: user.id, email: user.email, fullName: user.full_name, role: effectiveRole };
     next();
   } catch (err) {
     next(err);

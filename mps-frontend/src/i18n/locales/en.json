@@ -358,7 +358,13 @@
     "updated": "User updated successfully",
     "requiredFields": "Full name, email, and role are required.",
     "passwordRequired": "Password is required for new users.",
-    "odooIntegrationWarning": "This role is for system integration only. Share these credentials only with the Odoo team."
+    "odooIntegrationWarning": "This role is for system integration only. Share these credentials only with the Odoo team.",
+    "permissionOverrides": "Permission Overrides",
+    "permissionOverridesDesc": "Override a specific permission for this user, regardless of their role. The dot shows the effective result.",
+    "overrideFollowRole": "Follow role",
+    "overrideAllow": "Force allow",
+    "overrideBlock": "Force block",
+    "effectivePermission": "Effective"
   },
   "importLogs": {
     "title": "Import Logs",

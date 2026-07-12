@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import * as userRepo from '../repositories/userRepository.js';
+import { sanitiseOverrides } from '../utils/permissions.js';
 
 export async function listUsers(query) {
   const filter = {};
@@ -72,6 +73,16 @@ export async function updateUser(id, { fullName, email, roleId, isActive, passwo
 
   const passwordHash = password ? await bcrypt.hash(password, 12) : undefined;
   return userRepo.update(id, { fullName, email, roleId, isActive, passwordHash });
+}
+
+export async function updateUserPermissions(id, rawOverrides) {
+  const existing = await userRepo.findById(id);
+  if (!existing) {
+    const err = new Error('User not found');
+    err.status = 404;
+    throw err;
+  }
+  return userRepo.updatePermissionOverrides(id, sanitiseOverrides(rawOverrides));
 }
 
 export async function deactivateUser(id, requesterId) {

@@ -899,8 +899,9 @@ export default function BillingCycleDetail() {
   const { showToast } = useToast()
 
   const canConfirm = usePermission('can_confirm_billing')
-  const canManage = usePermission('can_manage_billing')
-  const canViewFinancial = usePermission('can_view_financial_data')
+  const canManage = usePermission('can_edit_billing')
+  const canViewBillingBreakdown = usePermission('can_view_billing_breakdown')
+  const canViewManualBilling = usePermission('can_view_manual_billing')
 const { data: appSettings } = useSettings()
   const showCalculationDetails = appSettings?.show_calculation_details === 'true'
   const { user } = useAuth()
@@ -1279,7 +1280,7 @@ const { data: appSettings } = useSettings()
         )}
 
         {/* ── Manual Billing Amount (LS / LO contracts only) ── */}
-        {isLsLo && canViewFinancial && (
+        {isLsLo && canViewManualBilling && (
           <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
             <SectionHeader label="Billing Amount" />
             <div className="mt-3">
@@ -1426,7 +1427,7 @@ const { data: appSettings } = useSettings()
               </div>
 
               {/* Billing breakdown — one card per invoice */}
-              {canViewFinancial && !isLsLo && (summary.isBaseline ? (
+              {canViewBillingBreakdown && !isLsLo && (summary.isBaseline ? (
                 <div>
                   <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('billingCycles.billing')}</p>
                   <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950/20">

@@ -4,7 +4,7 @@ import upload from '../middleware/upload.js';
 import * as ctrl from '../controllers/readingImportController.js';
 
 const router = Router();
-const guard = [verifyToken, requirePermission('can_manage_billing')];
+const guard = [verifyToken, requirePermission('can_edit_billing')];
 
 router.post('/',        ...guard, upload.single('file'), ctrl.importFile);
 router.get('/logs',     ...guard, ctrl.listLogs);

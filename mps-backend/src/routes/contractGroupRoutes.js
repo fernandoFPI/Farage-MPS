@@ -8,18 +8,19 @@ import {
 } from '../controllers/contractGroupController.js';
 
 const router = Router();
-const manage = [verifyToken, blockOdoo, requirePermission('can_manage_contracts')];
+const edit = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
+const del  = [verifyToken, blockOdoo, requirePermission('can_delete_contracts')];
 
 // Management endpoints — blocked for Odoo
 router.get('/',                              verifyToken, blockOdoo, listGroups);
-router.post('/',                             ...manage,              createGroup);
+router.post('/',                             ...edit,                createGroup);
 router.get('/by-contract/:contractId',       verifyToken, blockOdoo, getGroupByContract);
 router.get('/:id',                           verifyToken, blockOdoo, getGroup);
-router.put('/:id',                           ...manage,              updateGroup);
-router.delete('/:id',                        ...manage,              deleteGroup);
+router.put('/:id',                           ...edit,                updateGroup);
+router.delete('/:id',                        ...del,                 deleteGroup);
 router.get('/:id/summary',                   verifyToken, blockOdoo, getGroupSummary);
-router.post('/:id/members',                  ...manage,              addMember);
-router.delete('/:id/members/:contractId',    ...manage,              removeMember);
+router.post('/:id/members',                  ...edit,                addMember);
+router.delete('/:id/members/:contractId',    ...edit,                removeMember);
 
 // Odoo-accessible endpoints
 router.get('/:id/billing-summary',           verifyToken, requireOdooOrFinance, billingSummary);

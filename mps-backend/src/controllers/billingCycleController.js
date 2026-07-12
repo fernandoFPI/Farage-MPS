@@ -24,10 +24,18 @@ export async function getById(req, res, next) {
 export async function summary(req, res, next) {
   try {
     const result = await service.getBillingCycleSummary(req.params.id);
-    if (req.user?.role?.can_view_financial_data === false) {
-      const { billing, grandTotal, invoices, rulesMeta,
-              quarterlyBreakdown, quarterlyFixedCharge, quarterlyBreakdownStyle,
-              ...safe } = result;
+    const canViewBreakdown = req.user?.role?.can_view_billing_breakdown !== false;
+    const canViewTotals    = req.user?.role?.can_view_billing_totals    !== false;
+    if (!canViewBreakdown || !canViewTotals) {
+      let safe = { ...result };
+      if (!canViewBreakdown) {
+        const { billing, rulesMeta, quarterlyBreakdown, quarterlyFixedCharge, quarterlyBreakdownStyle, ...rest } = safe;
+        safe = rest;
+      }
+      if (!canViewTotals) {
+        const { grandTotal, invoices, ...rest } = safe;
+        safe = rest;
+      }
       return res.json(safe);
     }
     res.json(result);

@@ -6,7 +6,7 @@ import * as ctrl from '../controllers/billingCycleController.js';
 import * as cityCtrl from '../controllers/cityCycleStatusController.js';
 
 const router = Router();
-const manageBilling  = [verifyToken, blockOdoo, requirePermission('can_manage_billing')];
+const manageBilling  = [verifyToken, blockOdoo, requirePermission('can_edit_billing')];
 const confirmBilling = [verifyToken, blockOdoo, requirePermission('can_confirm_billing')];
 const submitReadings = [verifyToken, blockOdoo, requirePermission('can_submit_readings')];
 const requireAdmin   = [verifyToken, blockOdoo, (req, res, next) => req.user?.role?.name === 'admin' ? next() : res.status(403).json({ error: 'Admin only' })];

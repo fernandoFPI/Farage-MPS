@@ -20,7 +20,7 @@ export default function Dashboard() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const canSubmitReadings = usePermission('can_submit_readings')
-  const canManageBilling  = usePermission('can_manage_billing')
+  const canManageBilling  = usePermission('can_view_billing')
   const lang = i18n.language === 'ar' ? 'ar' : 'en'
   const roleLabel = getRoleLabel(user?.role?.name, lang)
 

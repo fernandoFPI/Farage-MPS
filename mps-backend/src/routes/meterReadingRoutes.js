@@ -12,6 +12,6 @@ router.post('/',          verifyToken, blockOdoo, requirePermission('can_submit_
 router.get('/:id/photos', verifyToken, blockOdoo,                                           ctrl.getPhotos);
 router.get('/:id',        verifyToken, blockOdoo,                                           ctrl.getById);
 router.put('/:id',        verifyToken, blockOdoo, requirePermission('can_submit_readings'), ctrl.update);
-router.delete('/:id',     verifyToken, blockOdoo, requirePermission('can_manage_billing'),  ctrl.remove);
+router.delete('/:id',     verifyToken, blockOdoo, requirePermission('can_edit_billing'),    ctrl.remove);
 
 export default router;

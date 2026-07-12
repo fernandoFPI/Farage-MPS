@@ -358,7 +358,13 @@
     "updated": "تم تحديث المستخدم بنجاح",
     "requiredFields": "الاسم الكامل والبريد الإلكتروني والدور مطلوبة.",
     "passwordRequired": "كلمة المرور مطلوبة للمستخدمين الجدد.",
-    "odooIntegrationWarning": "هذا الدور مخصص للتكامل مع النظام فقط. شارك هذه البيانات مع فريق Odoo فقط."
+    "odooIntegrationWarning": "هذا الدور مخصص للتكامل مع النظام فقط. شارك هذه البيانات مع فريق Odoo فقط.",
+    "permissionOverrides": "تجاوزات الصلاحيات",
+    "permissionOverridesDesc": "تجاوز صلاحية محددة لهذا المستخدم بغض النظر عن دوره. النقطة تُظهر النتيجة الفعلية.",
+    "overrideFollowRole": "اتبع الدور",
+    "overrideAllow": "سماح دائم",
+    "overrideBlock": "حظر دائم",
+    "effectivePermission": "الفعلي"
   },
   "importLogs": {
     "title": "سجلات الاستيراد",
