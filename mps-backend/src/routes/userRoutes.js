@@ -12,5 +12,6 @@ router.post('/', ...guard, userController.create);
 router.get('/:id', ...guard, userController.getById);
 router.put('/:id', ...guard, userController.update);
 router.delete('/:id', ...guard, userController.deactivate);
+router.patch('/:id/permissions', ...guard, userController.patchPermissionOverrides);
 
 export default router;

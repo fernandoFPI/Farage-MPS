@@ -4,7 +4,7 @@ import { blockOdoo } from '../middleware/odooGuard.js';
 import * as ctrl from '../controllers/cycleGroupController.js';
 
 const router = Router();
-const manageBilling = [verifyToken, blockOdoo, requirePermission('can_manage_billing')];
+const manageBilling = [verifyToken, blockOdoo, requirePermission('can_edit_billing')];
 
 router.get('/',       verifyToken, blockOdoo, ctrl.list);
 router.post('/',      ...manageBilling,        ctrl.create);

@@ -6,6 +6,7 @@ import {
   useUsers,
   useCreateUser,
   useUpdateUser,
+  useUpdateUserPermissions,
   useDeactivateUser,
 } from '../../api/hooks/useUsers'
 import { useRoles } from '../../api/hooks/useRoles'
@@ -21,17 +22,65 @@ import FormField, { inputCls } from '../../components/FormField'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import ErrorAlert from '../../components/ErrorAlert'
 import { fmtDate } from '../../utils/format'
-import { getRoleLabel } from '../../utils/roleLabels'
+import { getRoleLabel, getPermissionLabel } from '../../utils/roleLabels'
 import i18n from '../../i18n'
 
 const PERMISSION_FLAGS = [
   'can_submit_readings',
-  'can_manage_billing',
+  'can_view_contracts',
+  'can_create_contracts',
+  'can_edit_contracts',
+  'can_delete_contracts',
+  'can_view_billing',
+  'can_edit_billing',
   'can_confirm_billing',
+  'can_push_to_odoo',
+  'can_view_users',
   'can_manage_users',
-  'can_manage_contracts',
-  'can_view_financial_data',
+  'can_view_contract_pricing',
+  'can_view_billing_totals',
+  'can_view_billing_breakdown',
+  'can_view_manual_billing',
 ]
+
+function PermissionOverrideRow({ flag, lang, roleValue, overrideValue, onChange, t }) {
+  const effective = overrideValue !== undefined ? overrideValue : roleValue
+  const btnBase = 'px-2.5 py-0.5 text-xs transition-colors focus:outline-none'
+  return (
+    <div className="flex items-center gap-2 py-1">
+      <span className="flex-1 text-xs text-gray-700 dark:text-gray-300 truncate">
+        {getPermissionLabel(flag, lang)}
+      </span>
+      <div className="flex overflow-hidden rounded border border-gray-200 dark:border-gray-700">
+        <button type="button" title={t('users.overrideFollowRole')}
+          onClick={() => onChange(flag, null)}
+          className={`${btnBase} ${overrideValue === undefined
+            ? 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-100 font-semibold'
+            : 'bg-white dark:bg-gray-800 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+          —
+        </button>
+        <button type="button" title={t('users.overrideAllow')}
+          onClick={() => onChange(flag, true)}
+          className={`${btnBase} border-x border-gray-200 dark:border-gray-700 ${overrideValue === true
+            ? 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 font-semibold'
+            : 'bg-white dark:bg-gray-800 text-gray-400 hover:bg-green-50 dark:hover:bg-green-950/20'}`}>
+          ✓
+        </button>
+        <button type="button" title={t('users.overrideBlock')}
+          onClick={() => onChange(flag, false)}
+          className={`${btnBase} ${overrideValue === false
+            ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 font-semibold'
+            : 'bg-white dark:bg-gray-800 text-gray-400 hover:bg-red-50 dark:hover:bg-red-950/20'}`}>
+          ✕
+        </button>
+      </div>
+      <span
+        title={t('users.effectivePermission')}
+        className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${effective ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+      />
+    </div>
+  )
+}
 
 function UserFormModal({ initial, onClose }) {
   const { t } = useTranslation()
@@ -39,6 +88,7 @@ function UserFormModal({ initial, onClose }) {
   const { data: roles = [] } = useRoles()
   const create = useCreateUser()
   const update = useUpdateUser()
+  const updatePermissions = useUpdateUserPermissions()
   const isEdit = !!initial
 
   const [form, setForm] = useState({
@@ -47,10 +97,21 @@ function UserFormModal({ initial, onClose }) {
     password: '',
     roleId: initial?.roleId ?? initial?.role?.id ?? '',
   })
+  const [overrides, setOverrides] = useState(initial?.permissionOverrides ?? {})
   const [error, setError] = useState('')
 
   const selectedRole = roles.find(r => String(r.id) === String(form.roleId))
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
+
+  function handleOverrideChange(flag, value) {
+    setOverrides(prev => {
+      if (value === null) {
+        const { [flag]: _removed, ...rest } = prev
+        return rest
+      }
+      return { ...prev, [flag]: value }
+    })
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -66,6 +127,7 @@ function UserFormModal({ initial, onClose }) {
     try {
       if (isEdit) {
         await update.mutateAsync({ id: initial.id, ...payload })
+        await updatePermissions.mutateAsync({ id: initial.id, overrides })
         showToast({ title: t('users.updated'), variant: 'success' })
       } else {
         await create.mutateAsync(payload)
@@ -77,7 +139,8 @@ function UserFormModal({ initial, onClose }) {
     }
   }
 
-  const isPending = create.isPending || update.isPending
+  const isPending = create.isPending || update.isPending || updatePermissions.isPending
+  const lang = i18n.language === 'ar' ? 'ar' : 'en'
 
   return (
     <Modal
@@ -140,8 +203,32 @@ function UserFormModal({ initial, onClose }) {
               {PERMISSION_FLAGS.filter(f => f in selectedRole).map(flag => (
                 <div key={flag} className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${selectedRole[flag] ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
-                  <span className="text-xs text-gray-600 dark:text-gray-400">{flag}</span>
+                  <span className="text-xs text-gray-600 dark:text-gray-400">{getPermissionLabel(flag, lang)}</span>
                 </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {isEdit && selectedRole && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-700/60 dark:bg-amber-900/10">
+            <p className="mb-0.5 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+              {t('users.permissionOverrides')}
+            </p>
+            <p className="mb-2 text-xs text-amber-600 dark:text-amber-500">
+              {t('users.permissionOverridesDesc')}
+            </p>
+            <div className="divide-y divide-amber-100 dark:divide-amber-800/40">
+              {PERMISSION_FLAGS.map(flag => (
+                <PermissionOverrideRow
+                  key={flag}
+                  flag={flag}
+                  lang={lang}
+                  roleValue={!!selectedRole[flag]}
+                  overrideValue={overrides[flag]}
+                  onChange={handleOverrideChange}
+                  t={t}
+                />
               ))}
             </div>
           </div>

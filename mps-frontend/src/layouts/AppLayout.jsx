@@ -44,9 +44,9 @@ function NavSep() {
 function SidebarContent({ onClose }) {
   const { t } = useTranslation()
   const { user, logout } = useAuth()
-  const canManageContracts = usePermission('can_manage_contracts')
+  const canManageContracts = usePermission('can_view_contracts')
   const canSubmitReadings  = usePermission('can_submit_readings')
-  const canManageBilling   = usePermission('can_manage_billing')
+  const canManageBilling   = usePermission('can_view_billing')
   const canManageUsers     = usePermission('can_manage_users')
   const isEngineer         = user?.role?.name === 'engineer'
   const isServiceManager   = user?.role?.name === 'service_manager'

@@ -4,6 +4,7 @@ import pool from '../config/db.js';
 const SAFE_USER_COLS = `
   u.id, u.role_id, u.full_name, u.email,
   u.is_active, u.last_login_at, u.created_at,
+  u.permission_overrides,
   row_to_json(r.*) AS role
 `;
 
@@ -16,8 +17,9 @@ function mapRow(row) {
     email: row.email,
     isActive: row.is_active,
     lastLoginAt: row.last_login_at,
-    createdAt: row.created_at,
-    role: row.role,
+    createdAt:           row.created_at,
+    role:                row.role,
+    permissionOverrides: row.permission_overrides ?? {},
   };
 }
 
@@ -120,6 +122,15 @@ export async function update(id, fields) {
 
   if (rowCount === 0) return null;
   return findById(id);
+}
+
+export async function updatePermissionOverrides(userId, overrides) {
+  const { rowCount } = await pool.query(
+    `UPDATE users SET permission_overrides = $1 WHERE id = $2`,
+    [JSON.stringify(overrides), userId],
+  );
+  if (rowCount === 0) return null;
+  return findById(userId);
 }
 
 export async function updateLastLogin(id) {

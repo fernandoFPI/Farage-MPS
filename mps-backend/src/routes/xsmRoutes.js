@@ -5,7 +5,7 @@ import upload from '../middleware/upload.js';
 import * as ctrl from '../controllers/xsmController.js';
 
 const router = Router();
-const guard  = [verifyToken, blockOdoo, requirePermission('can_manage_billing')];
+const guard  = [verifyToken, blockOdoo, requirePermission('can_edit_billing')];
 
 router.post('/import',   ...guard, upload.single('file'), ctrl.importFile);
 router.get('/logs',      ...guard, ctrl.listLogs);

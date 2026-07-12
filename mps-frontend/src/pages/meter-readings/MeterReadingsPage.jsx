@@ -59,7 +59,7 @@ export default function MeterReadingsPage() {
   const isAdmin = user?.role?.name === 'admin'
   const isEngineer = user?.role?.name === 'engineer'
   const canSubmit = usePermission('can_submit_readings')
-  const canManage = usePermission('can_manage_billing')
+  const canManage = usePermission('can_edit_billing')
 
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
   const [searchParams, setSearchParams] = useSearchParams()

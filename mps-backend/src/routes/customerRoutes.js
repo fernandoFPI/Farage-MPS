@@ -5,7 +5,7 @@ import { odooRateLimit } from '../middleware/rateLimiter.js';
 import * as ctrl from '../controllers/customerController.js';
 
 const router = Router();
-const write = [verifyToken, blockOdoo, requirePermission('can_manage_contracts')];
+const write = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
 
 // Odoo can only fetch a single customer (for partner_id lookup)
 router.get('/:id',    verifyToken, odooRateLimit, ctrl.getById);

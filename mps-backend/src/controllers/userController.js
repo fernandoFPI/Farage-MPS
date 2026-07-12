@@ -44,6 +44,16 @@ export async function update(req, res, next) {
   }
 }
 
+export async function patchPermissionOverrides(req, res, next) {
+  try {
+    const user = await userService.updateUserPermissions(
+      req.params.id,
+      req.body.overrides ?? {},
+    );
+    res.json(user);
+  } catch (err) { next(err); }
+}
+
 export async function deactivate(req, res, next) {
   try {
     const result = await userService.deactivateUser(req.params.id, req.user.id);

@@ -60,7 +60,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
   const isPsg = form.contractMode === 'psg'
   const isPsgSimple = form.contractMode === 'psg_simple'
   const isPsgAny = isPsg || isPsgSimple
-  const canViewFinancial = usePermission('can_view_financial_data')
+  const canViewFinancial = usePermission('can_view_contract_pricing')
   useEffect(() => {
     if (initial) {
       setForm({ ...empty, ...initial,

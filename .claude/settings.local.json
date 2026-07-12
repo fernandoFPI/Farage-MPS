@@ -47,7 +47,8 @@
       "PowerShell(python \"C:\\\\Users\\\\PC\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-PC-OneDrive---Farage-Printing-Industries-Desktop-MPS\\\\d3f42c9a-4047-4480-b1c1-c892eee376a6\\\\scratchpad\\\\build_doc.py\")",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(grep -n \"isQuarterlyTotal\\\\|Billing Summary\\\\|{\\\\/\\\\* ── Billing\" mps-frontend/src/pages/billing-cycles/BillingCycleDetail.jsx)"
+      "Bash(grep -n \"isQuarterlyTotal\\\\|Billing Summary\\\\|{\\\\/\\\\* ── Billing\" mps-frontend/src/pages/billing-cycles/BillingCycleDetail.jsx)",
+      "Bash(python -c ' *)"
     ]
   }
 }

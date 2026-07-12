@@ -32,6 +32,15 @@ export function useUpdateUser() {
   })
 }
 
+export function useUpdateUserPermissions() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, overrides }) =>
+      client.patch(`/api/users/${id}/permissions`, { overrides }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  })
+}
+
 export function useDeactivateUser() {
   const qc = useQueryClient()
   return useMutation({

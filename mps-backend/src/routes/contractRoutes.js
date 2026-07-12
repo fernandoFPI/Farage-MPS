@@ -4,12 +4,14 @@ import { blockOdoo } from '../middleware/odooGuard.js';
 import * as ctrl from '../controllers/contractController.js';
 
 const router = Router();
-const write = [verifyToken, blockOdoo, requirePermission('can_manage_contracts')];
+const create = [verifyToken, blockOdoo, requirePermission('can_create_contracts')];
+const edit   = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
+const del    = [verifyToken, blockOdoo, requirePermission('can_delete_contracts')];
 
 router.get('/',       verifyToken, blockOdoo,  ctrl.list);
-router.post('/',      ...write,                ctrl.create);
+router.post('/',      ...create,               ctrl.create);
 router.get('/:id',    verifyToken, blockOdoo,  ctrl.getById);
-router.put('/:id',    ...write,                ctrl.update);
-router.delete('/:id', ...write,                ctrl.remove);
+router.put('/:id',    ...edit,                 ctrl.update);
+router.delete('/:id', ...del,                  ctrl.remove);
 
 export default router;

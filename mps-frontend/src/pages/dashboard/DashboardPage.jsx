@@ -28,14 +28,14 @@ export default function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const canSubmitReadings = usePermission('can_submit_readings')
-  const canManageBilling  = usePermission('can_manage_billing')
+  const canManageBilling  = usePermission('can_view_billing')
   const canManageUsers    = usePermission('can_manage_users')
   const lang = i18n.language === 'ar' ? 'ar' : 'en'
   const roleLabel = getRoleLabel(user?.role?.name, lang)
 
   useDocTitle(t('nav.dashboard'))
 
-  const canManageContracts = usePermission('can_manage_contracts')
+  const canManageContracts = usePermission('can_view_contracts')
 
   const { isLoading, stats, recentCycles } = useDashboardStats()
   const { data: printers = [] } = usePrinters()
