@@ -12,10 +12,11 @@ const submitReadings = [verifyToken, blockOdoo, requirePermission('can_submit_re
 const requireAdmin   = [verifyToken, blockOdoo, (req, res, next) => req.user?.role?.name === 'admin' ? next() : res.status(403).json({ error: 'Admin only' })];
 
 // Odoo-accessible routes (no blockOdoo, rate-limited)
-router.get('/',                   verifyToken, odooRateLimit, ctrl.list);
-router.get('/:id/summary',        verifyToken, odooRateLimit, ctrl.summary);
-router.get('/:id/odoo-export',    verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.getOdooExport);
-router.post('/:id/mark-invoiced', verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.markInvoiced);
+router.get('/',                    verifyToken, odooRateLimit, ctrl.list);
+router.get('/:id/summary',         verifyToken, odooRateLimit, ctrl.summary);
+router.get('/:id/odoo-export',     verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.getOdooExport);
+router.get('/:id/audit-export',    verifyToken, blockOdoo, requirePermission('can_view_billing'), ctrl.getAuditExport);
+router.post('/:id/mark-invoiced',  verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.markInvoiced);
 
 // Admin-only routes (must be before /:id)
 router.get('/cancelled',     ...requireAdmin,   ctrl.listCancelled);

@@ -180,11 +180,23 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
     return Object.keys(payload).length > 0 ? payload : null
   }
 
+  const [localError, setLocalError] = useState('')
+
   function handleSubmit(e) {
     e.preventDefault()
+    setLocalError('')
     const colorRequired = !isBwOnly
     if (!form.a4Bw || !form.a3Bw || (colorRequired && (!form.a4Color || !form.a3Color))) return
     if (photos.length === 0) return
+    if (!printerHasCoords && !capturedCoords) {
+      setLocalError(t('tickets.locationRequired'))
+      return
+    }
+    const missingConsumables = consumableKeys.filter(c => consumables[c] === '' || consumables[c] === undefined)
+    if (missingConsumables.length > 0) {
+      setLocalError(t('consumables.allRequired'))
+      return
+    }
 
     const meterPayload = {
       printerId: printer.id,
@@ -292,7 +304,7 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
           <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
             <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
               <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                {t('consumables.title')}
+                {t('consumables.title')} <span className="font-normal normal-case text-red-500">*</span>
               </p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{t('consumables.percentageNote')}</p>
             </div>
@@ -478,7 +490,7 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
             )}
           </div>
 
-          {error && <ErrorAlert message={error} />}
+          {(localError || error) && <ErrorAlert message={localError || error} />}
 
           <div className="flex gap-2 pt-1">
             <button
@@ -510,6 +522,8 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
   const [fields, setFields] = useState({})
   const [location, setLocation] = useState(null) // null = not selected yet
   const [error, setError] = useState('')
+  const [storageUnavailable, setStorageUnavailable] = useState(false)
+  const [unavailableReason, setUnavailableReason] = useState('')
 
   // Group contract printers by their location field
   const printersByLocation = useMemo(() => {
@@ -549,7 +563,7 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
 
   // Reset when modal opens / closes; auto-select if only one location
   useEffect(() => {
-    if (!open) { setLocation(null); setFields({}); setError(''); return }
+    if (!open) { setLocation(null); setFields({}); setError(''); setStorageUnavailable(false); setUnavailableReason(''); return }
     if (locationOptions.length === 1) setLocation(locationOptions[0])
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -575,6 +589,22 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
 
   async function handleSubmit() {
     setError('')
+    if (storageUnavailable) {
+      if (!unavailableReason.trim()) { setError(t('tickets.storageUnavailableReasonRequired')); return }
+      try {
+        await submitStorageMutation.mutateAsync({ id: cycle.id, storageUnavailableReason: unavailableReason.trim() })
+        onSuccess()
+        onClose()
+      } catch (err) {
+        const data = err.response?.data
+        if (err.response?.status === 409) {
+          setError(`${t('tickets.storageAlreadySubmitted')} — ${t('tickets.storageSubmittedBy')} ${data?.submittedByName ?? ''}`)
+        } else {
+          setError(data?.error || err.message)
+        }
+      }
+      return
+    }
     if (location === null) { setError(t('tickets.storageBranchRequired')); return }
     const storageUpdates = Object.entries(fields).map(([printerModel, f]) => ({
       printerModel,
@@ -631,6 +661,28 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('tickets.storageSubmitNote')}</p>
 
+          {/* Storage unavailable toggle */}
+          <label className="flex items-center gap-3 cursor-pointer select-none rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/60 dark:bg-amber-900/10">
+            <input
+              type="checkbox"
+              checked={storageUnavailable}
+              onChange={e => setStorageUnavailable(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+            />
+            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('tickets.storageUnavailable')}</span>
+          </label>
+
+          {storageUnavailable ? (
+            <FormField label={t('tickets.storageUnavailableReason')} required>
+              <textarea
+                className={inputCls + ' min-h-[90px] resize-none'}
+                value={unavailableReason}
+                onChange={e => setUnavailableReason(e.target.value)}
+                placeholder={t('tickets.storageUnavailableReasonPlaceholder')}
+              />
+            </FormField>
+          ) : (
+            <>
           {/* Branch / Location dropdown */}
           <FormField label={t('tickets.storageBranch')} required>
             <select
@@ -684,6 +736,8 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
               )
             })
           )}
+            </>
+          )}
 
           {error && <ErrorAlert message={error} />}
         </div>
@@ -700,7 +754,7 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitStorageMutation.isPending || location === null || modelsAtLocation.length === 0}
+            disabled={submitStorageMutation.isPending || (!storageUnavailable && (location === null || modelsAtLocation.length === 0))}
             className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
           >
             {submitStorageMutation.isPending ? t('common.loading') : t('tickets.submitStorage')}
@@ -1131,13 +1185,20 @@ export default function TicketsPage() {
               </div>
 
               {cycle.storageSubmitted ? (
-                <div className="rounded-xl border border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-900/10 px-4 py-3">
-                  <p className="flex items-center gap-2 text-sm font-medium text-green-700 dark:text-green-400">
+                <div className={`rounded-xl border px-4 py-3 ${cycle.storageUnavailableReason
+                  ? 'border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/10'
+                  : 'border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-900/10'}`}>
+                  <p className={`flex items-center gap-2 text-sm font-medium ${cycle.storageUnavailableReason
+                    ? 'text-amber-700 dark:text-amber-400'
+                    : 'text-green-700 dark:text-green-400'}`}>
                     <CheckCircle className="h-4 w-4" />
-                    {t('tickets.storageSubmitted')}
+                    {cycle.storageUnavailableReason ? t('tickets.storageUnavailableNote') : t('tickets.storageSubmitted')}
                   </p>
+                  {cycle.storageUnavailableReason && (
+                    <p className="text-xs text-amber-600 dark:text-amber-500 mt-1 italic">"{cycle.storageUnavailableReason}"</p>
+                  )}
                   {cycle.storageSubmittedByName && (
-                    <p className="text-xs text-green-600 dark:text-green-500 mt-1">
+                    <p className={`text-xs mt-1 ${cycle.storageUnavailableReason ? 'text-amber-600 dark:text-amber-500' : 'text-green-600 dark:text-green-500'}`}>
                       {t('tickets.storageSubmittedBy')} {cycle.storageSubmittedByName}
                       {cycle.storageSubmittedAt && (
                         <span> · {new Date(cycle.storageSubmittedAt).toLocaleString()}</span>
@@ -1165,7 +1226,7 @@ export default function TicketsPage() {
           open={storageModalOpen}
           onClose={() => setStorageModalOpen(false)}
           cycle={cycle}
-          contractPrinters={contractPrinters}
+          contractPrinters={contractPrinters.filter(a => submittedIds.has(a.printerId))}
           printerMap={printerMap}
           onSuccess={() => showToast({ title: t('tickets.storageSubmitSuccess'), variant: 'success' })}
           t={t}

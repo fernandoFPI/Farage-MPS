@@ -26,6 +26,7 @@ function mapRow(row) {
     storageSubmittedAt: row.storage_submitted_at ?? null,
     storageSubmittedBy: row.storage_submitted_by ?? null,
     storageSubmittedByName: row.storage_submitted_by_name ?? null,
+    storageUnavailableReason: row.storage_unavailable_reason ?? null,
     contractGroupId:   row.contract_group_id   ?? null,
     contractGroupName: row.contract_group_name ?? null,
     isGrouped:         !!row.contract_group_id,
@@ -380,12 +381,13 @@ export async function setBaseline(id, isBaseline, userId) {
   return findById(id);
 }
 
-export async function markStorageSubmitted(id, userId) {
+export async function markStorageSubmitted(id, userId, unavailableReason = null) {
   await pool.query(
     `UPDATE billing_cycles
-     SET storage_submitted = true, storage_submitted_at = NOW(), storage_submitted_by = $2
+     SET storage_submitted = true, storage_submitted_at = NOW(), storage_submitted_by = $2,
+         storage_unavailable_reason = $3
      WHERE id = $1`,
-    [id, userId],
+    [id, userId, unavailableReason ?? null],
   );
   return findById(id);
 }

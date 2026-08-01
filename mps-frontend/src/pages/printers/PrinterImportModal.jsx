@@ -11,7 +11,7 @@ const HEADERS = [
   'Fixed Charge Override', 'BW Price Override', 'Color Price Override',
   'Min BW Override', 'Min Color Override',
   '',
-  'Latitude', 'Longitude',
+  'Latitude', 'Longitude', 'Service Type (MPS / FSMA)',
 ]
 
 function downloadTemplate() {

@@ -600,7 +600,7 @@ export default function MeterReadingsPage() {
                 {/* Counter fields */}
                 <FormField label={t('meterReadings.a4Bw')}>
                   <input
-                    type="number" inputMode="numeric" min="0"
+                    type="number" inputMode="numeric" min="0" onWheel={e => e.target.blur()}
                     className={inputCls}
                     value={editForm.a4Bw}
                     onChange={e => setEdit('a4Bw', e.target.value)}
@@ -608,7 +608,7 @@ export default function MeterReadingsPage() {
                 </FormField>
                 <FormField label={t('meterReadings.a3Bw')}>
                   <input
-                    type="number" inputMode="numeric" min="0"
+                    type="number" inputMode="numeric" min="0" onWheel={e => e.target.blur()}
                     className={inputCls}
                     value={editForm.a3Bw}
                     onChange={e => setEdit('a3Bw', e.target.value)}
@@ -616,7 +616,7 @@ export default function MeterReadingsPage() {
                 </FormField>
                 <FormField label={t('meterReadings.a4Color')}>
                   <input
-                    type="number" inputMode="numeric" min="0"
+                    type="number" inputMode="numeric" min="0" onWheel={e => e.target.blur()}
                     className={inputCls}
                     value={editForm.a4Color}
                     onChange={e => setEdit('a4Color', e.target.value)}
@@ -624,7 +624,7 @@ export default function MeterReadingsPage() {
                 </FormField>
                 <FormField label={t('meterReadings.a3Color')}>
                   <input
-                    type="number" inputMode="numeric" min="0"
+                    type="number" inputMode="numeric" min="0" onWheel={e => e.target.blur()}
                     className={inputCls}
                     value={editForm.a3Color}
                     onChange={e => setEdit('a3Color', e.target.value)}
@@ -633,7 +633,7 @@ export default function MeterReadingsPage() {
                 {editing.contractType === 'psg' && (
                   <FormField label={t('meterReadings.xls')}>
                     <input
-                      type="number" inputMode="numeric" min="0"
+                      type="number" inputMode="numeric" min="0" onWheel={e => e.target.blur()}
                       className={inputCls}
                       value={editForm.xls}
                       onChange={e => setEdit('xls', e.target.value)}

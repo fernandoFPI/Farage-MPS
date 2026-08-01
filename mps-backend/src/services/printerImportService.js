@@ -64,6 +64,7 @@ function parseSheet(buffer) {
       minColorOverride:     safeNum(row[11]) != null ? Math.round(safeNum(row[11])) : null,
       latitude:             safeNum(row[13]),
       longitude:            safeNum(row[14]),
+      serviceType:          safeStr(row[15]),
     });
   }
   return rows;
@@ -134,6 +135,13 @@ export async function importPrinterFile({ buffer, filename, userId }) {
       continue;
     }
 
+    if (row.serviceType && !['MPS', 'FSMA'].includes(row.serviceType.toUpperCase())) {
+      failedRows++;
+      errors.push({ row: rowNum, serialNumber: row.serialNumber, contractNumber: row.contractNumber, reason: `Invalid Service Type "${row.serviceType}" — must be MPS or FSMA` });
+      continue;
+    }
+    const serviceTypeNorm = row.serviceType ? row.serviceType.toUpperCase() : null;
+
     if (!row.assignedFrom || isNaN(new Date(row.assignedFrom))) {
       failedRows++;
       errors.push({ row: rowNum, serialNumber: row.serialNumber, contractNumber: row.contractNumber, reason: 'Invalid or missing Assigned From date' });
@@ -185,6 +193,7 @@ export async function importPrinterFile({ buffer, filename, userId }) {
         isBwOnly:     typeNorm === 'b&w',
         latitude:     row.latitude,
         longitude:    row.longitude,
+        serviceType:  serviceTypeNorm,
       });
 
       // ── Create assignment (PSG contracts ignore price overrides) ──────

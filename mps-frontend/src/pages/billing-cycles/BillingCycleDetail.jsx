@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock, Pencil, Check, X } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock, Pencil, Check, X, Download } from 'lucide-react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   useBillingCycle,
@@ -17,7 +17,9 @@ import {
   useResetCity,
   useUpdateCyclePeriod,
   useSetManualBillingAmount,
+  useAuditExport,
 } from '../../api/hooks/useBillingCycles'
+import { generateBillingAuditExcel, downloadBlob } from '../../utils/billingAuditExcel'
 import { useBillingCycleGroupSummary, useDeleteCycleGroup, useCycleGroup } from '../../api/hooks/useCycleGroups'
 import { useMeterReadings, usePreviousReading } from '../../api/hooks/useMeterReadings'
 import { useConsumableReadings } from '../../api/hooks/useConsumableReadings'
@@ -953,8 +955,20 @@ const { data: appSettings } = useSettings()
   const reopenMutation = useReopenCycle()
   const unconfirmMutation = useUnconfirmCycle()
   const updatePeriodMutation = useUpdateCyclePeriod()
+  const auditExportMutation = useAuditExport()
 
   // ── Action handlers ──────────────────────────────────────────────────────
+  async function handleExportAudit() {
+    try {
+      const data = await auditExportMutation.mutateAsync(id)
+      const blob = generateBillingAuditExcel(data)
+      const filename = `audit-${cycle?.contract?.contractNumber ?? id}-${data.header?.period ?? ''}.xlsx`
+        .replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_.]/g, '')
+      downloadBlob(blob, filename)
+    } catch (err) {
+      showToast({ title: err.response?.data?.error || err.message, variant: 'warning' })
+    }
+  }
   async function handleConfirm() {
     setActionError('')
     try {
@@ -1152,6 +1166,14 @@ const { data: appSettings } = useSettings()
           }
           actions={
             <div className="flex gap-2">
+              <button
+                onClick={handleExportAudit}
+                disabled={auditExportMutation.isPending}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:text-gray-300 disabled:opacity-50"
+              >
+                <Download className="h-4 w-4" />
+                {auditExportMutation.isPending ? t('common.loading') : 'Export Excel'}
+              </button>
               <button onClick={() => navigate(-1)}
                 className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:text-gray-300">
                 <ArrowLeft className="h-4 w-4 rtl:rotate-180" />{t('common.back')}

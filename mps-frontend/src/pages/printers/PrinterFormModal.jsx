@@ -10,7 +10,7 @@ import PinDropModal from '../../components/PinDropModal'
 import { useCreatePrinter, useUpdatePrinter } from '../../api/hooks/usePrinters'
 import { useAuth } from '../../context/AuthContext'
 
-const empty = { serialNumber: '', model: '', city: '', location: '', xsmDeviceId: '', xsmEnabled: false, isBwOnly: false, latitude: '', longitude: '' }
+const empty = { serialNumber: '', model: '', city: '', location: '', xsmDeviceId: '', xsmEnabled: false, isBwOnly: false, latitude: '', longitude: '', serviceType: '' }
 
 export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssign }) {
   const { t } = useTranslation()
@@ -31,6 +31,7 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
       isBwOnly: initial.isBwOnly ?? false,
       latitude: initial.latitude ?? '',
       longitude: initial.longitude ?? '',
+      serviceType: initial.serviceType ?? '',
     } : empty)
     setError('')
     assignAfterSave.current = false
@@ -47,7 +48,7 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
   function buildPayload() {
     const lat = form.latitude !== '' ? parseFloat(form.latitude) : null
     const lng = form.longitude !== '' ? parseFloat(form.longitude) : null
-    return { ...form, latitude: lat, longitude: lng }
+    return { ...form, latitude: lat, longitude: lng, serviceType: form.serviceType || null }
   }
 
   async function handleSubmit(e) {
@@ -142,6 +143,13 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
         </div>
         <FormField label={t('printers.xsmDeviceId')}>
           <input className={inputCls} value={form.xsmDeviceId} onChange={e => set('xsmDeviceId', e.target.value)} />
+        </FormField>
+        <FormField label={t('printers.serviceType')}>
+          <select className={inputCls} value={form.serviceType} onChange={e => set('serviceType', e.target.value)}>
+            <option value="">—</option>
+            <option value="MPS">MPS</option>
+            <option value="FSMA">FSMA</option>
+          </select>
         </FormField>
         <div>
           <div className="flex items-end gap-2">
