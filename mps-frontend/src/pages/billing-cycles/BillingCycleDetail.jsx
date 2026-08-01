@@ -961,7 +961,7 @@ const { data: appSettings } = useSettings()
   async function handleExportAudit() {
     try {
       const data = await auditExportMutation.mutateAsync(id)
-      const blob = generateBillingAuditExcel(data)
+      const blob = await generateBillingAuditExcel(data)
       const filename = `audit-${cycle?.contract?.contractNumber ?? id}-${data.header?.period ?? ''}.xlsx`
         .replace(/\s+/g, '-').replace(/[^a-zA-Z0-9\-_.]/g, '')
       downloadBlob(blob, filename)

@@ -1042,6 +1042,7 @@ export async function getAuditExportData(cycleId) {
       engineer:          reading.engineerName ?? '',
       isBwOnly:          reading.isBwOnly ?? false,
       submittedAt:       reading.readAt ?? null,
+      prevSubmittedAt:   prevReading?.readAt ?? null,
       prevCounters:      prevReading
         ? { a4Bw: prevReading.a4Bw, a4Color: prevReading.a4Color, a3Bw: prevReading.a3Bw, a3Color: prevReading.a3Color }
         : null,
