@@ -197,7 +197,9 @@
     "contractInactive": "العقد غير نشط",
     "row": "صف",
     "latitude": "خط العرض",
-    "longitude": "خط الطول"
+    "longitude": "خط الطول",
+    "serviceType": "نوع الخدمة",
+    "serviceTypeHint": "MPS أو FSMA — للتعريف فقط، لا يؤثر على الفوترة"
   },
   "assignments": {
     "title": "التعيينات",
@@ -318,7 +320,13 @@
     "storageBranch": "الفرع / الموقع",
     "storageBranchPlaceholder": "— اختر الموقع —",
     "storageBranchRequired": "يرجى اختيار الفرع / الموقع",
-    "selectLocationFirst": "اختر موقعاً من الأعلى لعرض الطابعات والمستهلكات"
+    "selectLocationFirst": "اختر موقعاً من الأعلى لعرض الطابعات والمستهلكات",
+    "storageUnavailable": "معلومات التخزين غير متاحة",
+    "storageUnavailableReason": "السبب",
+    "storageUnavailableReasonPlaceholder": "اشرح سبب عدم إمكانية تقديم معلومات التخزين...",
+    "storageUnavailableReasonRequired": "يرجى تقديم سبب",
+    "storageUnavailableNote": "التخزين غير متاح",
+    "locationRequired": "الموقع مطلوب لهذه الطابعة. يرجى تحديد موقعك أو إسقاط دبوس قبل الإرسال."
   },
   "xsmImport": {
     "title": "استيراد XSM",
@@ -551,7 +559,8 @@
     "storageMainBranch": "المقر الرئيسي",
     "consumableSaveError": "تم حفظ قراءة العداد لكن تعذر حفظ مستويات المستلزمات. يرجى المحاولة مرة أخرى.",
     "storageSaveError": "فشل تحديث المخزن. يرجى المحاولة مرة أخرى.",
-    "levelsSaved": "تم حفظ المستلزمات"
+    "levelsSaved": "تم حفظ المستلزمات",
+    "allRequired": "يرجى تعبئة جميع مستويات المستلزمات قبل الإرسال"
   },
   "performance": {
     "title": "الأداء",

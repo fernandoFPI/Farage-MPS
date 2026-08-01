@@ -197,7 +197,9 @@
     "contractInactive": "Contract is inactive",
     "row": "Row",
     "latitude": "Latitude",
-    "longitude": "Longitude"
+    "longitude": "Longitude",
+    "serviceType": "Service Type",
+    "serviceTypeHint": "MPS or FSMA — for identification only, does not affect billing"
   },
   "assignments": {
     "title": "Assignments",
@@ -318,7 +320,13 @@
     "storageBranch": "Branch / Location",
     "storageBranchPlaceholder": "— Select a location —",
     "storageBranchRequired": "Please select a branch / location",
-    "selectLocationFirst": "Select a location above to see the printers and consumables"
+    "selectLocationFirst": "Select a location above to see the printers and consumables",
+    "storageUnavailable": "Storage info not available",
+    "storageUnavailableReason": "Reason",
+    "storageUnavailableReasonPlaceholder": "Explain why storage information could not be submitted...",
+    "storageUnavailableReasonRequired": "Please provide a reason",
+    "storageUnavailableNote": "Storage unavailable",
+    "locationRequired": "Location is required for this printer. Please capture your location or drop a pin before submitting."
   },
   "xsmImport": {
     "title": "XSM Import",
@@ -551,7 +559,8 @@
     "storageMainBranch": "Main Branch",
     "consumableSaveError": "Meter reading saved but consumable levels could not be saved. Please try again.",
     "storageSaveError": "Storage update failed. Please try again.",
-    "levelsSaved": "Consumables saved"
+    "levelsSaved": "Consumables saved",
+    "allRequired": "Please fill in all consumable levels before submitting"
   },
   "performance": {
     "title": "Performance",

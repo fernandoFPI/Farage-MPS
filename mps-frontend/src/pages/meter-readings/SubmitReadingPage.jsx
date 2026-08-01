@@ -85,6 +85,7 @@ export default function SubmitReadingPage() {
           className={mobileInputCls}
           value={form[key]}
           onChange={e => set(key, e.target.value)}
+          onWheel={e => e.target.blur()}
           placeholder="0"
         />
       </FormField>

@@ -15,6 +15,7 @@ function mapRow(row) {
     createdAt: row.created_at,
     latitude: row.latitude != null ? parseFloat(row.latitude) : null,
     longitude: row.longitude != null ? parseFloat(row.longitude) : null,
+    serviceType: row.service_type ?? null,
   };
 }
 
@@ -84,12 +85,12 @@ export async function serialNumberExists(serialNumber, excludeId = null) {
   return rows.length > 0;
 }
 
-export async function create({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, latitude, longitude }) {
+export async function create({ serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, latitude, longitude, serviceType }) {
   const { rows } = await pool.query(
-    `INSERT INTO printers (serial_number, model, city, location, xsm_device_id, xsm_enabled, is_bw_only, latitude, longitude)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO printers (serial_number, model, city, location, xsm_device_id, xsm_enabled, is_bw_only, latitude, longitude, service_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
      RETURNING id`,
-    [serialNumber, model, city, location, xsmDeviceId ?? null, xsmEnabled ?? false, isBwOnly ?? false, latitude ?? null, longitude ?? null],
+    [serialNumber, model, city, location, xsmDeviceId ?? null, xsmEnabled ?? false, isBwOnly ?? false, latitude ?? null, longitude ?? null, serviceType ?? null],
   );
   return findById(rows[0].id);
 }
@@ -106,6 +107,7 @@ export async function update(id, fields) {
     lastSeenAt: 'last_seen_at',
     latitude: 'latitude',
     longitude: 'longitude',
+    serviceType: 'service_type',
   };
 
   const setClauses = [];

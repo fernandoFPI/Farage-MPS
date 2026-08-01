@@ -159,7 +159,13 @@ export async function submitStorage(req, res, next) {
     if (!customerId) return res.status(400).json({ error: 'Cycle has no associated customer' });
 
     // Process storage updates (one entry per model, non-blocking per model)
-    const { storageUpdates = [] } = req.body;
+    const { storageUpdates = [], storageUnavailableReason } = req.body;
+
+    if (storageUnavailableReason) {
+      const updated = await cycleRepo.markStorageSubmitted(cycle.id, req.user.id, storageUnavailableReason.trim());
+      return res.json(updated);
+    }
+
     await Promise.all(
       storageUpdates.map(({ printerModel, location = '', ...quantities }) =>
         storageService.updateCustomerStorage(
@@ -215,5 +221,11 @@ export async function getLatestCycle(req, res, next) {
 export async function getOdooExport(req, res, next) {
   try {
     res.json(await service.getOdooExportData(req.params.id));
+  } catch (err) { next(err); }
+}
+
+export async function getAuditExport(req, res, next) {
+  try {
+    res.json(await service.getAuditExportData(req.params.id));
   } catch (err) { next(err); }
 }

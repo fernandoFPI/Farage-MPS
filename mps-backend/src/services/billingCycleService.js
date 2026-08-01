@@ -982,6 +982,120 @@ export async function setBaseline(id, { isBaseline }, userId) {
   return cycleRepo.setBaseline(id, isBaseline, userId);
 }
 
+// ── Audit export ─────────────────────────────────────────────────────────────
+
+export async function getAuditExportData(cycleId) {
+  const cycle = await cycleRepo.findById(cycleId);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+
+  const [summary, rawReadings, consumables] = await Promise.all([
+    getBillingCycleSummary(cycleId),
+    readingRepo.findAllWithEngineerForOdoo(cycleId, cycle.contractId),
+    consumableReadingRepo.findAll({ billingCycleId: cycleId }),
+  ]);
+
+  const consumableByPrinter = new Map();
+  for (const cr of consumables) {
+    if (!consumableByPrinter.has(cr.printerId)) consumableByPrinter.set(cr.printerId, cr);
+  }
+
+  const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
+  const isQuarterly = invoiceRulesForPrev.fixedChargeFrequency === 'quarterly'
+    && !!invoiceRulesForPrev.contractStartDate;
+
+  const toPeriodStr = v => {
+    const d = v instanceof Date ? v : new Date(v);
+    const baghdad = new Date(d.getTime() + BAGHDAD_OFFSET_MS);
+    return `${baghdad.getUTCFullYear()}-${String(baghdad.getUTCMonth() + 1).padStart(2, '0')}-${String(baghdad.getUTCDate()).padStart(2, '0')}`;
+  };
+
+  const printers = await Promise.all(rawReadings.map(async (reading) => {
+    const sp = summary.printers?.find(p => p.printerId === reading.printerId);
+
+    let prevReading;
+    if (isQuarterly) {
+      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodStart);
+      prevReading = await readingRepo.getPreviousQuarterEndCycleReading(reading.printerId, cycleId, targetDate);
+    } else {
+      prevReading = await readingRepo.getPreviousCycleReading(reading.printerId, cycleId, cycle.periodStart);
+    }
+
+    const a4Bw    = prevReading ? Math.max(0, reading.a4Bw    - prevReading.a4Bw)    : 0;
+    const a3Bw    = prevReading ? Math.max(0, reading.a3Bw    - prevReading.a3Bw)    : 0;
+    const a4Color = prevReading ? Math.max(0, reading.a4Color - prevReading.a4Color)  : 0;
+    const a3Color = prevReading ? Math.max(0, reading.a3Color - prevReading.a3Color)  : 0;
+
+    const cr = consumableByPrinter.get(reading.printerId) ?? null;
+    const printerInvoice = summary.invoices?.find(
+      inv => inv.type === 'osg_override' && inv.printerId === reading.printerId,
+    );
+
+    return {
+      serialNumber:      reading.serialNumber,
+      model:             reading.model,
+      city:              reading.city     ?? '',
+      location:          reading.location ?? '',
+      engineer:          reading.engineerName ?? '',
+      isBwOnly:          reading.isBwOnly ?? false,
+      submittedAt:       reading.readAt ?? null,
+      prevCounters:      prevReading
+        ? { a4Bw: prevReading.a4Bw, a4Color: prevReading.a4Color, a3Bw: prevReading.a3Bw, a3Color: prevReading.a3Color }
+        : null,
+      currCounters:      { a4Bw: reading.a4Bw, a4Color: reading.a4Color, a3Bw: reading.a3Bw, a3Color: reading.a3Color },
+      pagesUsed:         { a4Bw, a3Bw, a4Color, a3Color, totalBw: a4Bw + a3Bw, totalColor: a4Color + a3Color },
+      effectiveMinBw:    sp?.effectiveMinBwPages    ?? null,
+      effectiveMinColor: sp?.effectiveMinColorPages ?? null,
+      billableBw:        sp?.billableBw    ?? 0,
+      billableColor:     sp?.billableColor ?? 0,
+      hasOverride:       !!printerInvoice,
+      printerBilling:    printerInvoice?.billing ?? null,
+      flagged:           sp?.flagged    ?? false,
+      flagReason:        sp?.flagReason ?? null,
+      consumables: cr ? {
+        k:         cr.kPct,
+        c:         cr.cPct,
+        m:         cr.mPct,
+        y:         cr.yPct,
+        r1:        cr.r1Pct,
+        r2:        cr.r2Pct,
+        r3:        cr.r3Pct,
+        r4:        cr.r4Pct,
+        wasteTone: cr.wasteTonePct,
+      } : null,
+    };
+  }));
+
+  return {
+    exportedAt: new Date().toISOString(),
+    header: {
+      customerName:           cycle.contract?.customer?.name ?? '',
+      contractNumber:         cycle.contract?.contractNumber ?? '',
+      officialContractNumber: cycle.contract?.officialContractNumber ?? null,
+      period:                 cycle.cycleName ?? '',
+      periodStart:            toPeriodStr(cycle.periodStart),
+      periodEnd:              toPeriodStr(cycle.periodEnd),
+      currency:               cycle.contract?.currency ?? 'IQD',
+      status:                 cycle.status,
+    },
+    contract: {
+      contractMode:  cycle.contract?.contractMode ?? 'osg',
+      fixedCharge:   Number(cycle.contract?.fixedCharge)   || 0,
+      bwPrice:       Number(cycle.contract?.bwPrice)       || 0,
+      colorPrice:    Number(cycle.contract?.colorPrice)    || 0,
+      minBwPages:    Number(cycle.contract?.minBwPages)    || 0,
+      minColorPages: Number(cycle.contract?.minColorPages) || 0,
+    },
+    printers,
+    invoices:            summary.invoices ?? [],
+    grandTotal:          summary.grandTotal ?? 0,
+    manualBillingAmount: cycle.manualBillingAmount ?? null,
+  };
+}
+
 // ── Odoo export ─────────────────────────────────────────────────────────────
 
 export async function getOdooExportData(cycleId) {

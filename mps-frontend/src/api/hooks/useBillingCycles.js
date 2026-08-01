@@ -112,8 +112,8 @@ export function useSetBaseline() {
 export function useSubmitStorage() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, storageUpdates }) =>
-      client.patch(`/api/billing-cycles/${id}/submit-storage`, { storageUpdates }).then(r => r.data),
+    mutationFn: ({ id, storageUpdates, storageUnavailableReason }) =>
+      client.patch(`/api/billing-cycles/${id}/submit-storage`, { storageUpdates, storageUnavailableReason }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
   })
 }
@@ -157,6 +157,12 @@ export function useSetManualBillingAmount() {
     mutationFn: ({ id, amount }) =>
       client.patch(`/api/billing-cycles/${id}/manual-billing`, { amount }).then(r => r.data),
     onSuccess: (_data, { id }) => qc.invalidateQueries({ queryKey: ['billing-cycles', id] }),
+  })
+}
+
+export function useAuditExport() {
+  return useMutation({
+    mutationFn: (id) => client.get(`/api/billing-cycles/${id}/audit-export`).then(r => r.data),
   })
 }
 

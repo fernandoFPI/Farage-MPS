@@ -179,7 +179,7 @@ function UserFormModal({ initial, onClose }) {
         <FormField label={t('users.role')} required>
           <select className={inputCls} value={form.roleId} onChange={e => set('roleId', e.target.value)}>
             <option value="">—</option>
-            {roles.map(r => (
+            {roles.filter(r => r.name !== 'odoo_integration' || r.id === form.roleId).map(r => (
               <option key={r.id} value={r.id}>
                 {getRoleLabel(r.name, i18n.language === 'ar' ? 'ar' : 'en')}
               </option>

@@ -15,6 +15,7 @@ const requireAdmin   = [verifyToken, blockOdoo, (req, res, next) => req.user?.ro
 router.get('/',                    verifyToken, odooRateLimit, ctrl.list);
 router.get('/:id/summary',         verifyToken, odooRateLimit, ctrl.summary);
 router.get('/:id/odoo-export',     verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.getOdooExport);
+router.get('/:id/audit-export',    verifyToken, blockOdoo, requirePermission('can_view_billing'), ctrl.getAuditExport);
 router.post('/:id/mark-invoiced',  verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.markInvoiced);
 
 // Admin-only routes (must be before /:id)
