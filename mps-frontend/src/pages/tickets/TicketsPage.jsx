@@ -1226,7 +1226,7 @@ export default function TicketsPage() {
           open={storageModalOpen}
           onClose={() => setStorageModalOpen(false)}
           cycle={cycle}
-          contractPrinters={contractPrinters.filter(a => submittedIds.has(a.printerId))}
+          contractPrinters={contractPrinters}
           printerMap={printerMap}
           onSuccess={() => showToast({ title: t('tickets.storageSubmitSuccess'), variant: 'success' })}
           t={t}
