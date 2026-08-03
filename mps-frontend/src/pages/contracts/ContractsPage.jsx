@@ -82,6 +82,15 @@ export default function ContractsPage() {
         ? <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">{r.serviceType}</span>
         : <span className="text-xs text-gray-400">—</span>,
     },
+    { key: 'odooCompany', label: 'Company', className: 'hidden md:table-cell',
+      render: r => r.odooCompany
+        ? <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+            r.odooCompany === 'FPI'
+              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+              : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+          }`}>{r.odooCompany}</span>
+        : <span className="text-xs text-gray-400">—</span>,
+    },
     { key: 'billingType', label: t('contracts.billingType'), className: 'hidden lg:table-cell',
       render: r => r.contractMode !== 'osg' ? <span className="text-xs text-gray-400">—</span> : <StatusBadge status={r.billingType} /> },
     { key: 'fixedCharge', label: t('contracts.fixedCharge'), className: 'hidden lg:table-cell',
