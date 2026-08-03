@@ -170,6 +170,13 @@ export async function createContract(data) {
     }
   }
 
+  const VALID_COMPANIES = ['FPI', 'AL Farage'];
+  if (!normalised.odooCompany || !VALID_COMPANIES.includes(normalised.odooCompany)) {
+    const err = new Error('odooCompany is required and must be one of: FPI, AL Farage');
+    err.status = 400;
+    throw err;
+  }
+
   const numExists = await repo.contractNumberExists(contractNumber);
   if (numExists) {
     const err = new Error('Contract number already exists');
@@ -224,6 +231,15 @@ export async function updateContract(id, fields) {
     const allowed = SERVICE_TYPES[normalised.contractMode] ?? [];
     if (!allowed.includes(normalised.serviceType)) {
       const err = new Error(`serviceType must be one of: ${allowed.join(', ')} for ${normalised.contractMode} contracts`);
+      err.status = 400;
+      throw err;
+    }
+  }
+
+  if (fields.odooCompany !== undefined) {
+    const VALID_COMPANIES = ['FPI', 'AL Farage'];
+    if (!fields.odooCompany || !VALID_COMPANIES.includes(fields.odooCompany)) {
+      const err = new Error('odooCompany must be one of: FPI, AL Farage');
       err.status = 400;
       throw err;
     }

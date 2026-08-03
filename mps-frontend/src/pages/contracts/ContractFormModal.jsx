@@ -31,6 +31,7 @@ const empty = {
   a4Price: '', a3Price: '', startDate: '', endDate: '',
   confirmationSlaDays: '5', isActive: true,
   serviceType: '',
+  odooCompany: '',
   invoiceRules: { ...DEFAULT_INVOICE_RULES },
 }
 
@@ -75,6 +76,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         startDate: initial.startDate?.slice(0, 10) ?? '', endDate: initial.endDate?.slice(0, 10) ?? '',
         officialContractNumber: initial.officialContractNumber ?? '',
         serviceType: initial.serviceType ?? '',
+        odooCompany: initial.odooCompany ?? '',
         invoiceRules: {
           ...DEFAULT_INVOICE_RULES,
           ...(initial.invoiceRules ?? {}),
@@ -106,6 +108,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
   async function handleSubmit(e) {
     e.preventDefault()
     if (!form.customerId || !form.contractNumber || !form.startDate) return setError('Customer, contract number and start date are required')
+    if (!form.odooCompany) return setError('Odoo Company is required — select FPI or AL Farage')
     if (canViewFinancial && isPsgAny && (!form.a4Price || Number(form.a4Price) <= 0)) return setError('A4 Price is required and must be > 0 for PSG contracts')
     if (canViewFinancial && isPsg && (!form.a3Price || Number(form.a3Price) <= 0)) return setError('A3 Price is required and must be > 0 for PSG contracts')
     const rules = form.invoiceRules ?? DEFAULT_INVOICE_RULES
@@ -138,6 +141,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
         a4Price: isPsgAny ? (Number(form.a4Price) || 0) : 0,
         a3Price: isPsg    ? (Number(form.a3Price) || 0) : 0,
         serviceType: form.serviceType || null,
+        odooCompany: form.odooCompany || null,
         invoiceRules: {
           fixedChargeFrequency:    rules.fixedChargeFrequency,
           excessFrequency:         rules.excessFrequency,
@@ -271,6 +275,18 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
           </select>
           <p className="text-xs text-gray-400 dark:text-gray-500">{t('contracts.serviceTypeHelper')}</p>
         </div>
+
+        {/* Odoo Company */}
+        <FormField label="Odoo Company" required>
+          <select className={inputCls} value={form.odooCompany} onChange={e => set('odooCompany', e.target.value)}>
+            <option value="">— Select company —</option>
+            <option value="FPI">FPI — Farage Printing Industries</option>
+            <option value="AL Farage">AL Farage</option>
+          </select>
+          <p className="mt-1 text-xs text-gray-400 dark:text-gray-500">
+            The Odoo company this contract's invoices will be posted under.
+          </p>
+        </FormField>
 
         {/* OSG-only fields */}
         {!isPsgAny && (

@@ -27,6 +27,7 @@ function mapRow(row) {
     officialContractNumber: row.official_contract_number ?? null,
     serviceType: row.service_type ?? null,
     invoiceRules: row.invoice_rules ?? null,
+    odooCompany: row.odoo_company ?? null,
   };
 }
 
@@ -139,8 +140,8 @@ export async function create(data) {
        excess_bw_price, excess_color_price,
        a4_price, a3_price,
        start_date, end_date, confirmation_sla_days, is_active,
-       contract_mode, official_contract_number, service_type, invoice_rules
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)
+       contract_mode, official_contract_number, service_type, invoice_rules, odoo_company
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23)
      RETURNING id`,
     [
       data.customerId,
@@ -165,6 +166,7 @@ export async function create(data) {
       data.officialContractNumber ?? null,
       data.serviceType ?? null,
       data.invoiceRules != null ? JSON.stringify(data.invoiceRules) : null,
+      data.odooCompany ?? null,
     ],
   );
   return findById(rows[0].id);
@@ -192,6 +194,7 @@ export async function update(id, fields) {
     officialContractNumber: 'official_contract_number',
     serviceType: 'service_type',
     invoiceRules: 'invoice_rules',
+    odooCompany: 'odoo_company',
   };
 
   const setClauses = [];

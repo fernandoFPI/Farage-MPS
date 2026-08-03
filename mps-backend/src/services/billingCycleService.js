@@ -1197,6 +1197,7 @@ export async function getOdooExportData(cycleId) {
       officialContractNumber: cycle.contract.officialContractNumber ?? null,
       serviceType:            cycle.contract.serviceType ?? null,
       contractMode:           cycle.contract.contractMode ?? 'osg',
+      odoo_company:           cycle.contract.odooCompany ?? null,
     },
     customer: {
       id:   cycle.contract.customer.id,
