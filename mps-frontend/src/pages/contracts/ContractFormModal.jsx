@@ -20,6 +20,7 @@ const DEFAULT_INVOICE_RULES = {
   excessFrequency:         'monthly',
   overrideInvoicing:       'separate',
   groupingStrategy:        'contract',
+  fixedChargeScope:        'contract',
   contractStartDate:       '',
   quarterlyBreakdownStyle: 'monthly',
 }
@@ -147,6 +148,7 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
           excessFrequency:         rules.excessFrequency,
           overrideInvoicing:       rules.overrideInvoicing,
           groupingStrategy:        rules.groupingStrategy,
+          fixedChargeScope:        rules.fixedChargeScope || 'contract',
           contractStartDate:       rules.contractStartDate || null,
           quarterlyBreakdownStyle: rules.quarterlyBreakdownStyle || 'monthly',
         },
@@ -388,6 +390,30 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
                             checked={rules.fixedChargeFrequency === val} onChange={() => setRule('fixedChargeFrequency', val)} />
                           <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
                             rules.fixedChargeFrequency === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                          }`} />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Fixed Charge Scope */}
+                  <div>
+                    <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.fixedChargeScope')}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        ['contract', t('contracts.fixedChargeScopeContract')],
+                        ['per_printer', t('contracts.fixedChargeScopePerPrinter')],
+                      ].map(([val, label]) => (
+                        <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                          rules.fixedChargeScope === val
+                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                        }`}>
+                          <input type="radio" className="sr-only" name="fixedChargeScope" value={val}
+                            checked={(rules.fixedChargeScope ?? 'contract') === val} onChange={() => setRule('fixedChargeScope', val)} />
+                          <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                            (rules.fixedChargeScope ?? 'contract') === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
                           }`} />
                           {label}
                         </label>

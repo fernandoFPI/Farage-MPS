@@ -39,6 +39,7 @@ export function getDefaultRules() {
     excessFrequency:         'monthly',
     overrideInvoicing:       'separate',
     groupingStrategy:        'contract',
+    fixedChargeScope:        'contract',
     contractStartDate:       null,
     quarterlyBreakdownStyle: 'monthly',
   };
@@ -50,7 +51,7 @@ export function applyInvoiceRules({ printers, contract, cycle }) {
   const rules = { ...getDefaultRules(), ...(contract.invoiceRules ?? {}) };
   const rulesMeta = buildRulesMeta(rules, cycle);
 
-  const groups = groupPrinters(printers, rules.groupingStrategy, rules.overrideInvoicing);
+  const groups = groupPrinters(printers, rules.groupingStrategy, rules.overrideInvoicing, rules.fixedChargeScope);
 
   const rawInvoices = groups.map(group => {
     const billing = calculateGroupBilling(group, contract);
@@ -176,20 +177,27 @@ function calculateNextFixedChargeDate(rules, cycle, monthsElapsed, periodLength)
 
 // ── Grouping ──────────────────────────────────────────────────────────────────
 
-function groupPrinters(printers, groupingStrategy, overrideInvoicing) {
+function groupPrinters(printers, groupingStrategy, overrideInvoicing, fixedChargeScope) {
   const overrideSeparate = overrideInvoicing !== 'combined' && overrideInvoicing !== 'merge';
+  const perPrinter = fixedChargeScope === 'per_printer';
 
   // Split override vs non-override printers for OSG contracts
   const hasAnyOverride = printers.some(p => p.hasOverride && p.contractType === 'osg');
 
   // If all PSG or grouping doesn't interact with overrides, treat as one bucket
-  if (!hasAnyOverride || !overrideSeparate) {
+  if (!hasAnyOverride && !perPrinter || !overrideSeparate && !perPrinter) {
     return buildGroups(printers, groupingStrategy);
   }
 
-  // Override printers always get their own group (separate line items)
-  const overridePrinters = printers.filter(p => p.hasOverride && p.contractType === 'osg');
-  const regularPrinters  = printers.filter(p => !(p.hasOverride && p.contractType === 'osg'));
+  // With per_printer scope, ALL OSG printers get their own group (reuses override path so
+  // quarterly breakdowns and all downstream logic work without any additional changes)
+  const overridePrinters = perPrinter
+    ? printers.filter(p => p.contractType === 'osg')
+    : printers.filter(p => p.hasOverride && p.contractType === 'osg');
+
+  const regularPrinters = perPrinter
+    ? printers.filter(p => p.contractType !== 'osg')
+    : printers.filter(p => !(p.hasOverride && p.contractType === 'osg'));
 
   const regularGroups  = buildGroups(regularPrinters, groupingStrategy);
   const overrideGroups = overridePrinters.map(p => ({
@@ -201,11 +209,11 @@ function groupPrinters(printers, groupingStrategy, overrideInvoicing) {
       printerId: p.printerId,
       allBwOnly: p.isBwOnly ?? false,
       overrides: {
-        fixedCharge:   p.priceOverride.fixedCharge   != null,
-        bwPrice:       p.priceOverride.bwPrice        != null,
-        colorPrice:    p.priceOverride.colorPrice     != null,
-        minBwPages:    p.priceOverride.overrideMinBwPages    != null,
-        minColorPages: p.priceOverride.overrideMinColorPages != null,
+        fixedCharge:   p.priceOverride?.fixedCharge          != null,
+        bwPrice:       p.priceOverride?.bwPrice               != null,
+        colorPrice:    p.priceOverride?.colorPrice            != null,
+        minBwPages:    p.priceOverride?.overrideMinBwPages    != null,
+        minColorPages: p.priceOverride?.overrideMinColorPages != null,
       },
     },
   }));
