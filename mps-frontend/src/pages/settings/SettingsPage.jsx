@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { ChevronRight, Activity } from 'lucide-react'
 import { useSettingsRaw, useUpdateSetting, useRecalculateExcess } from '../../api/hooks/useSettings'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
@@ -155,6 +157,32 @@ export default function SettingsPage() {
             </div>
           </div>
         )}
+
+        {/* Integrations section */}
+        <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+          <div className="px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+              Integrations
+            </h2>
+          </div>
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            <Link
+              to="/settings/odoo-sync"
+              className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors group"
+            >
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400">
+                <Activity className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Odoo Sync Log</p>
+                <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                  Track sale order sync status across all confirmed billing cycles
+                </p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300 flex-shrink-0 transition-colors" />
+            </Link>
+          </div>
+        </div>
       </div>
 
       <ConfirmDialog

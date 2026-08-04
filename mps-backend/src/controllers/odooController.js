@@ -6,3 +6,9 @@ export async function handleCallback(req, res, next) {
     res.json(await service.handleOdooCallback({ cycleId, orderType, status, odooRef, errorCode, errorMessage }));
   } catch (err) { next(err); }
 }
+
+export async function getSyncLog(req, res, next) {
+  try {
+    res.json(await service.getSyncLog());
+  } catch (err) { next(err); }
+}

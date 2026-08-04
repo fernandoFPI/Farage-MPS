@@ -7,5 +7,6 @@ import * as ctrl from '../controllers/odooController.js';
 const router = Router();
 
 router.post('/callback', verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.handleCallback);
+router.get('/sync-log',  verifyToken, requireOdooOrFinance, ctrl.getSyncLog);
 
 export default router;

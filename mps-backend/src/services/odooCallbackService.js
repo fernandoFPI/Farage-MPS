@@ -56,3 +56,32 @@ export async function handleOdooCallback({ cycleId, orderType, status, odooRef, 
 
   return { cycleId, odooStatus: aggregateStatus, orders: updatedOrders };
 }
+
+export async function getSyncLog() {
+  const { rows } = await pool.query(
+    `SELECT
+       bc.id,
+       bc.period_start,
+       bc.odoo_status,
+       bc.odoo_orders,
+       c.contract_number,
+       c.odoo_company,
+       cu.name AS customer_name
+     FROM billing_cycles bc
+     JOIN contracts c ON c.id = bc.contract_id
+     JOIN customers cu ON cu.id = c.customer_id
+     WHERE bc.status = 'confirmed'
+     ORDER BY bc.period_start DESC, cu.name ASC
+     LIMIT 500`,
+  );
+
+  return rows.map(r => ({
+    id:             r.id,
+    periodStart:    r.period_start,
+    odooStatus:     r.odoo_status ?? null,
+    odooOrders:     r.odoo_orders ?? [],
+    contractNumber: r.contract_number,
+    odooCompany:    r.odoo_company ?? null,
+    customerName:   r.customer_name,
+  }));
+}
