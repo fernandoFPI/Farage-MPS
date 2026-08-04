@@ -17,8 +17,8 @@ export async function create(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const { assignedFrom, assignedUntil, contractType, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages } = req.body;
-    res.json(await service.updateAssignment(req.params.id, { assignedFrom, assignedUntil, contractType, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages }));
+    const { contractId, assignedFrom, assignedUntil, contractType, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages } = req.body;
+    res.json(await service.updateAssignment(req.params.id, { contractId, assignedFrom, assignedUntil, contractType, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages }));
   } catch (err) { next(err); }
 }
 
