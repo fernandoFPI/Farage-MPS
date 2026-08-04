@@ -23,8 +23,7 @@ jobs:
             cd /opt/mps
             git pull origin main
             docker compose build --no-cache
+            docker compose run --rm mps-backend npm run migrate
             docker compose up -d
-            sleep 10
-            docker compose exec -T mps-backend npm run migrate
             docker image prune -f
             echo "Deployment complete"
