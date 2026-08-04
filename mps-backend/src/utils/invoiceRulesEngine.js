@@ -40,6 +40,7 @@ export function getDefaultRules() {
     overrideInvoicing:       'separate',
     groupingStrategy:        'contract',
     fixedChargeScope:        'contract',
+    odooOrderSplit:          'single',
     contractStartDate:       null,
     quarterlyBreakdownStyle: 'monthly',
   };

@@ -1097,6 +1097,117 @@ export async function getAuditExportData(cycleId) {
   };
 }
 
+// ── Odoo order-line builders ─────────────────────────────────────────────────
+
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+function toPeriodLabel(value) {
+  const d = value instanceof Date ? value : new Date(value);
+  const baghdad = new Date(d.getTime() + BAGHDAD_OFFSET_MS);
+  return `${MONTH_NAMES_EN[baghdad.getUTCMonth()]} ${baghdad.getUTCFullYear()}`;
+}
+
+// Converts one invoice group (from applyInvoiceRules) into flat order lines.
+// Returns [] when charges are deferred or zero — callers omit empty SOs automatically.
+function buildInvoiceOrderLines(invoice, periodLabel, customerName) {
+  const lines = [];
+  const b = invoice.billing;
+  const sn = invoice.serialNumber ?? null;
+  const snLabel = sn
+    ? ` — SN#${sn}`
+    : invoice.serialNumbers?.length
+      ? ` — ${invoice.serialNumbers.map(s => `SN#${s}`).join(', ')}`
+      : '';
+  const baseDesc = `${customerName}${snLabel} — ${periodLabel}`;
+
+  // PSG (non-simple): A4 and A3 page lines — split mode not applicable to PSG
+  if (b.billingType === 'psg') {
+    if ((b.totalA4 ?? 0) > 0 && (b.a4Price ?? 0) > 0) {
+      lines.push({ type: 'a4_pages', serialNumber: sn, description: `A4 Pages — ${baseDesc}`, qty: b.totalA4, unitPrice: b.a4Price, subtotal: b.a4Cost });
+    }
+    if ((b.totalA3 ?? 0) > 0 && (b.a3Price ?? 0) > 0) {
+      lines.push({ type: 'a3_pages', serialNumber: sn, description: `A3 Pages — ${baseDesc}`, qty: b.totalA3, unitPrice: b.a3Price, subtotal: b.a3Cost });
+    }
+    return lines;
+  }
+
+  // Fixed charge — zeroed and flagged as fixedChargeDeferred when not the billing month
+  if (!b.fixedChargeDeferred && (b.fixedCharge ?? 0) > 0) {
+    lines.push({
+      type:        'fixed_charge',
+      serialNumber: sn,
+      description: `Fixed Charge — ${baseDesc}`,
+      qty:         1,
+      unitPrice:   b.fixedCharge,
+      subtotal:    b.fixedCharge,
+    });
+  }
+
+  // Click charges — zeroed and flagged as excessDeferred when not the excess billing month
+  if (!b.excessDeferred) {
+    // per_click → bwUnits; minimum_volume → bwExcess; psg_simple → bwUnits
+    const bwQty       = b.bwUnits ?? b.bwExcess ?? 0;
+    const bwUnitPrice = b.bwPrice ?? b.a4Price ?? 0;
+    if (bwQty > 0 && (b.bwCost ?? 0) > 0) {
+      lines.push({
+        type:        'bw_clicks',
+        serialNumber: sn,
+        description: `BW Impressions — ${baseDesc}`,
+        qty:         bwQty,
+        unitPrice:   bwUnitPrice,
+        subtotal:    b.bwCost,
+      });
+    }
+
+    if (!invoice.allBwOnly) {
+      const colorQty       = b.colorUnits ?? b.colorExcess ?? 0;
+      const colorUnitPrice = b.colorPrice ?? b.a4Price ?? 0;
+      if (colorQty > 0 && (b.colorCost ?? 0) > 0) {
+        lines.push({
+          type:        'color_clicks',
+          serialNumber: sn,
+          description: `Color Impressions — ${baseDesc}`,
+          qty:         colorQty,
+          unitPrice:   colorUnitPrice,
+          subtotal:    b.colorCost,
+        });
+      }
+    }
+  }
+
+  return lines;
+}
+
+// Groups flat lines into sale-order buckets based on the contract's odooOrderSplit rule.
+// SOs with no lines or zero subtotal are omitted — this naturally handles deferred
+// quarters (e.g. fixed-charge month not due → fixed SO empty → dropped).
+function groupIntoOrders(allLines, splitMode, periodLabel) {
+  const defs =
+    splitMode === 'fixed_separate'
+      ? [
+          { orderType: 'fixed_charge', types: ['fixed_charge'],                                        label: `Fixed Charges — ${periodLabel}` },
+          { orderType: 'clicks',       types: ['bw_clicks', 'color_clicks', 'a4_pages', 'a3_pages'],  label: `Usage Charges — ${periodLabel}` },
+        ]
+      : splitMode === 'all_separate'
+      ? [
+          { orderType: 'fixed_charge',  types: ['fixed_charge'],               label: `Fixed Charges — ${periodLabel}` },
+          { orderType: 'bw_clicks',     types: ['bw_clicks', 'a4_pages'],      label: `BW Impressions — ${periodLabel}` },
+          { orderType: 'color_clicks',  types: ['color_clicks', 'a3_pages'],   label: `Color Impressions — ${periodLabel}` },
+        ]
+      : [
+          { orderType: 'all', types: ['fixed_charge', 'bw_clicks', 'color_clicks', 'a4_pages', 'a3_pages'], label: `Billing — ${periodLabel}` },
+        ];
+
+  const orders = [];
+  for (const def of defs) {
+    const lines    = allLines.filter(l => def.types.includes(l.type));
+    const subtotal = lines.reduce((s, l) => s + l.subtotal, 0);
+    if (lines.length === 0 || subtotal === 0) continue;
+    orders.push({ orderType: def.orderType, label: def.label, subtotal, lines });
+  }
+  return orders;
+}
+
 // ── Odoo export ─────────────────────────────────────────────────────────────
 
 export async function getOdooExportData(cycleId) {
@@ -1197,6 +1308,7 @@ export async function getOdooExportData(cycleId) {
       officialContractNumber: cycle.contract.officialContractNumber ?? null,
       serviceType:            cycle.contract.serviceType ?? null,
       contractMode:           cycle.contract.contractMode ?? 'osg',
+      currency:               cycle.contract.currency ?? 'IQD',
       odoo_company:           cycle.contract.odooCompany ?? null,
     },
     customer: {
@@ -1206,10 +1318,16 @@ export async function getOdooExportData(cycleId) {
     billing: {
       totalBillableBw:    summary.totals?.totalBillableBw    ?? 0,
       totalBillableColor: summary.totals?.totalBillableColor ?? 0,
-      grandTotal:         (['LS', 'LO'].includes(cycle.contract.serviceType) && cycle.manualBillingAmount != null)
+      grandTotal:  (['LS', 'LO'].includes(cycle.contract.serviceType) && cycle.manualBillingAmount != null)
         ? cycle.manualBillingAmount
         : (summary.grandTotal ?? 0),
-      invoiceLines:       summary.invoices                    ?? [],
+      orders: (() => {
+        const splitMode    = cycle.contract.invoiceRules?.odooOrderSplit ?? 'single';
+        const periodLabel  = toPeriodLabel(cycle.periodStart);
+        const customerName = cycle.contract.customer.name;
+        const allLines     = (summary.invoices ?? []).flatMap(inv => buildInvoiceOrderLines(inv, periodLabel, customerName));
+        return groupIntoOrders(allLines, splitMode, periodLabel);
+      })(),
     },
     printers,
     engineerPerformance,

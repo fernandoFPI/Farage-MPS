@@ -169,7 +169,15 @@
     "groupPrinter": "لكل طابعة",
     "quarterlyBreakdownStyle": "أسلوب تفصيل ربع السنة",
     "breakdownStyleMonthly": "تفصيل شهري — عرض كل شهر كصف منفصل",
-    "breakdownStyleQuarterlyTotal": "إجمالي ربع السنة — عرض الإجمالي المجمع للفترة كاملة"
+    "breakdownStyleQuarterlyTotal": "إجمالي ربع السنة — عرض الإجمالي المجمع للفترة كاملة",
+    "invoiceRulesFrequencies": "ترددات الفوترة",
+    "invoiceRulesGrouping": "تجميع سطور الرسوم",
+    "invoiceRulesOdoo": "أوامر بيع أودو",
+    "odooOrderSplit": "تقسيم أوامر البيع",
+    "odooOrderSplitHelper": "يتحكم في كيفية إرسال فوترة هذا العقد إلى أودو — أمر بيع واحد أو مقسّم حسب نوع الرسوم.",
+    "odooOrderSplitSingle": "أمر بيع واحد — جميع أنواع الرسوم معاً",
+    "odooOrderSplitFixedSeparate": "أمران — الرسوم الثابتة منفصلة عن رسوم الاستخدام",
+    "odooOrderSplitAllSeparate": "3 أوامر — الرسوم الثابتة والنقرات الأبيض والنقرات الملونة كل منها أمر مستقل"
   },
   "printers": {
     "title": "الطابعات",

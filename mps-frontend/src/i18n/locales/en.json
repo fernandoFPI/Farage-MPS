@@ -169,7 +169,15 @@
     "groupPrinter": "Per printer",
     "quarterlyBreakdownStyle": "Quarterly Breakdown Style",
     "breakdownStyleMonthly": "Monthly detail — show each month as a separate row",
-    "breakdownStyleQuarterlyTotal": "Quarterly total — show combined total for the whole period"
+    "breakdownStyleQuarterlyTotal": "Quarterly total — show combined total for the whole period",
+    "invoiceRulesFrequencies": "Billing Frequencies",
+    "invoiceRulesGrouping": "Charge Line Grouping",
+    "invoiceRulesOdoo": "Odoo Sale Orders",
+    "odooOrderSplit": "Sale Order Split",
+    "odooOrderSplitHelper": "Controls how this contract's billing is sent to Odoo — one sale order or split by charge type.",
+    "odooOrderSplitSingle": "Single SO — all charge types in one sale order",
+    "odooOrderSplitFixedSeparate": "2 SOs — Fixed charges separate from usage clicks",
+    "odooOrderSplitAllSeparate": "3 SOs — Fixed, BW clicks, and Color clicks each get their own SO"
   },
   "printers": {
     "title": "Printers",

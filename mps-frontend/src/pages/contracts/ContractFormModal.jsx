@@ -21,6 +21,7 @@ const DEFAULT_INVOICE_RULES = {
   overrideInvoicing:       'separate',
   groupingStrategy:        'contract',
   fixedChargeScope:        'contract',
+  odooOrderSplit:          'single',
   contractStartDate:       '',
   quarterlyBreakdownStyle: 'monthly',
 }
@@ -148,9 +149,10 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
           excessFrequency:         rules.excessFrequency,
           overrideInvoicing:       rules.overrideInvoicing,
           groupingStrategy:        rules.groupingStrategy,
-          fixedChargeScope:        rules.fixedChargeScope || 'contract',
-          contractStartDate:       rules.contractStartDate || null,
-          quarterlyBreakdownStyle: rules.quarterlyBreakdownStyle || 'monthly',
+          fixedChargeScope:        rules.fixedChargeScope        || 'contract',
+          odooOrderSplit:          rules.odooOrderSplit           || 'single',
+          contractStartDate:       rules.contractStartDate        || null,
+          quarterlyBreakdownStyle: rules.quarterlyBreakdownStyle  || 'monthly',
         },
       }
       if (isEdit) await update.mutateAsync({ id: initial.id, ...payload })
@@ -347,7 +349,9 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
             rules.fixedChargeFrequency !== 'monthly' ||
             rules.excessFrequency !== 'monthly' ||
             rules.overrideInvoicing !== 'separate' ||
-            rules.groupingStrategy !== 'contract'
+            rules.groupingStrategy !== 'contract' ||
+            (rules.fixedChargeScope ?? 'contract') !== 'contract' ||
+            (rules.odooOrderSplit ?? 'single') !== 'single'
           const needsStartDate = rules.fixedChargeFrequency !== 'monthly' || rules.excessFrequency !== 'monthly'
           return (
             <div className="rounded-lg border border-gray-200 dark:border-gray-700">
@@ -368,206 +372,248 @@ export default function ContractFormModal({ open, onClose, initial, defaultCusto
               </button>
 
               {rulesOpen && (
-                <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 space-y-4">
+                <div className="border-t border-gray-200 dark:border-gray-700 px-4 py-4 space-y-5">
                   <p className="text-xs text-gray-400 dark:text-gray-500">{t('contracts.invoiceRulesNote')}</p>
 
-                  {/* Fixed Charge Frequency */}
+                  {/* ── Billing Frequencies ── */}
                   <div>
-                    <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.fixedChargeFrequency')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        ['monthly', t('contracts.freqMonthly')],
-                        ['quarterly', t('contracts.freqQuarterly')],
-                        ['semi_annual', t('contracts.freqSemiAnnual')],
-                        ['annual', t('contracts.freqAnnual')],
-                      ].map(([val, label]) => (
-                        <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                          rules.fixedChargeFrequency === val
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                        }`}>
-                          <input type="radio" className="sr-only" name="fixedChargeFrequency" value={val}
-                            checked={rules.fixedChargeFrequency === val} onChange={() => setRule('fixedChargeFrequency', val)} />
-                          <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
-                            rules.fixedChargeFrequency === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
-                          }`} />
-                          {label}
-                        </label>
-                      ))}
+                    <p className="mb-3 pb-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">{t('contracts.invoiceRulesFrequencies')}</p>
+                    <div className="space-y-3">
+
+                      {/* Fixed Charge Frequency */}
+                      <div>
+                        <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.fixedChargeFrequency')}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            ['monthly',     t('contracts.freqMonthly')],
+                            ['quarterly',   t('contracts.freqQuarterly')],
+                            ['semi_annual', t('contracts.freqSemiAnnual')],
+                            ['annual',      t('contracts.freqAnnual')],
+                          ].map(([val, label]) => (
+                            <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              rules.fixedChargeFrequency === val
+                                ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                            }`}>
+                              <input type="radio" className="sr-only" name="fixedChargeFrequency" value={val}
+                                checked={rules.fixedChargeFrequency === val} onChange={() => setRule('fixedChargeFrequency', val)} />
+                              <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                                rules.fixedChargeFrequency === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                              }`} />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Excess Frequency */}
+                      <div>
+                        <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.excessFrequency')}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            ['monthly',     t('contracts.freqMonthly')],
+                            ['quarterly',   t('contracts.freqQuarterly')],
+                            ['semi_annual', t('contracts.freqSemiAnnual')],
+                            ['annual',      t('contracts.freqAnnual')],
+                          ].map(([val, label]) => (
+                            <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              rules.excessFrequency === val
+                                ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                            }`}>
+                              <input type="radio" className="sr-only" name="excessFrequency" value={val}
+                                checked={rules.excessFrequency === val} onChange={() => setRule('excessFrequency', val)} />
+                              <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                                rules.excessFrequency === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                              }`} />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Contract Start Date + period preview + breakdown style — only when non-monthly */}
+                      {needsStartDate && (
+                        <div className="space-y-3">
+                          <FormField label={t('contracts.contractStartDate')} required>
+                            <input type="date" className={inputCls} value={rules.contractStartDate ?? ''}
+                              onChange={e => setRule('contractStartDate', e.target.value)} />
+                            <p className="mt-1 text-xs text-gray-400">{t('contracts.contractStartDateHelper')}</p>
+                          </FormField>
+
+                          {rules.contractStartDate && (() => {
+                            const freqMonths = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 }
+                            const periodMonths = Math.max(
+                              freqMonths[rules.fixedChargeFrequency] || 1,
+                              freqMonths[rules.excessFrequency] || 1,
+                            )
+                            const start = new Date(rules.contractStartDate + 'T00:00:00')
+                            const periods = Array.from({ length: 4 }, (_, i) => {
+                              const pStart = new Date(start)
+                              pStart.setMonth(start.getMonth() + i * periodMonths)
+                              const pEnd = new Date(start)
+                              pEnd.setMonth(start.getMonth() + (i + 1) * periodMonths)
+                              pEnd.setDate(pEnd.getDate() - 1)
+                              const fmt = d => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+                              const fmtFull = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              return { label: `Period ${i + 1}`, range: `${fmt(pStart)} – ${fmt(pEnd)}`, end: `ends ${fmtFull(pEnd)}` }
+                            })
+                            return (
+                              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
+                                <table className="min-w-full text-xs">
+                                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                                    {periods.map(p => (
+                                      <tr key={p.label} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
+                                        <td className="px-3 py-1.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{p.label}</td>
+                                        <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{p.range}</td>
+                                        <td className="px-3 py-1.5 text-gray-400 dark:text-gray-500 whitespace-nowrap">{p.end}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            )
+                          })()}
+
+                          <div>
+                            <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.quarterlyBreakdownStyle')}</p>
+                            <div className="grid grid-cols-1 gap-2">
+                              {[
+                                ['monthly',         t('contracts.breakdownStyleMonthly')],
+                                ['quarterly_total', t('contracts.breakdownStyleQuarterlyTotal')],
+                              ].map(([val, label]) => (
+                                <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                                  rules.quarterlyBreakdownStyle === val
+                                    ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                                    : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                                }`}>
+                                  <input type="radio" className="sr-only" name="quarterlyBreakdownStyle" value={val}
+                                    checked={rules.quarterlyBreakdownStyle === val} onChange={() => setRule('quarterlyBreakdownStyle', val)} />
+                                  <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                                    rules.quarterlyBreakdownStyle === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                                  }`} />
+                                  {label}
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
                     </div>
                   </div>
 
-                  {/* Fixed Charge Scope */}
+                  {/* ── Charge Line Grouping ── */}
                   <div>
-                    <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.fixedChargeScope')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        ['contract', t('contracts.fixedChargeScopeContract')],
-                        ['per_printer', t('contracts.fixedChargeScopePerPrinter')],
-                      ].map(([val, label]) => (
-                        <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                          rules.fixedChargeScope === val
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                        }`}>
-                          <input type="radio" className="sr-only" name="fixedChargeScope" value={val}
-                            checked={(rules.fixedChargeScope ?? 'contract') === val} onChange={() => setRule('fixedChargeScope', val)} />
-                          <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
-                            (rules.fixedChargeScope ?? 'contract') === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
-                          }`} />
-                          {label}
-                        </label>
-                      ))}
+                    <p className="mb-3 pb-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">{t('contracts.invoiceRulesGrouping')}</p>
+                    <div className="space-y-3">
+
+                      {/* Fixed Charge Scope */}
+                      <div>
+                        <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.fixedChargeScope')}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            ['contract',    t('contracts.fixedChargeScopeContract')],
+                            ['per_printer', t('contracts.fixedChargeScopePerPrinter')],
+                          ].map(([val, label]) => (
+                            <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              (rules.fixedChargeScope ?? 'contract') === val
+                                ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                            }`}>
+                              <input type="radio" className="sr-only" name="fixedChargeScope" value={val}
+                                checked={(rules.fixedChargeScope ?? 'contract') === val} onChange={() => setRule('fixedChargeScope', val)} />
+                              <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                                (rules.fixedChargeScope ?? 'contract') === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                              }`} />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Override Invoicing */}
+                      <div>
+                        <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.overrideInvoicing')}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            ['separate', t('contracts.overrideSeparate')],
+                            ['combined', t('contracts.overrideMerge')],
+                          ].map(([val, label]) => (
+                            <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              rules.overrideInvoicing === val
+                                ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                            }`}>
+                              <input type="radio" className="sr-only" name="overrideInvoicing" value={val}
+                                checked={rules.overrideInvoicing === val} onChange={() => setRule('overrideInvoicing', val)} />
+                              <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                                rules.overrideInvoicing === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                              }`} />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Printer Grouping */}
+                      <div>
+                        <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.groupingStrategy')}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            ['contract',  t('contracts.groupContract')],
+                            ['city',      t('contracts.groupCity')],
+                            ['location',  t('contracts.groupLocation')],
+                            ['printer',   t('contracts.groupPrinter')],
+                          ].map(([val, label]) => (
+                            <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                              rules.groupingStrategy === val
+                                ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
+                            }`}>
+                              <input type="radio" className="sr-only" name="groupingStrategy" value={val}
+                                checked={rules.groupingStrategy === val} onChange={() => setRule('groupingStrategy', val)} />
+                              <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
+                                rules.groupingStrategy === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                              }`} />
+                              {label}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
                     </div>
                   </div>
 
-                  {/* Excess Frequency */}
+                  {/* ── Odoo Sale Orders ── */}
                   <div>
-                    <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.excessFrequency')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        ['monthly', t('contracts.freqMonthly')],
-                        ['quarterly', t('contracts.freqQuarterly')],
-                        ['semi_annual', t('contracts.freqSemiAnnual')],
-                        ['annual', t('contracts.freqAnnual')],
-                      ].map(([val, label]) => (
-                        <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                          rules.excessFrequency === val
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                        }`}>
-                          <input type="radio" className="sr-only" name="excessFrequency" value={val}
-                            checked={rules.excessFrequency === val} onChange={() => setRule('excessFrequency', val)} />
-                          <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
-                            rules.excessFrequency === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
-                          }`} />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Override Invoicing */}
-                  <div>
-                    <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.overrideInvoicing')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        ['separate', t('contracts.overrideSeparate')],
-                        ['combined', t('contracts.overrideMerge')],
-                      ].map(([val, label]) => (
-                        <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                          rules.overrideInvoicing === val
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                        }`}>
-                          <input type="radio" className="sr-only" name="overrideInvoicing" value={val}
-                            checked={rules.overrideInvoicing === val} onChange={() => setRule('overrideInvoicing', val)} />
-                          <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
-                            rules.overrideInvoicing === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
-                          }`} />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Grouping Strategy */}
-                  <div>
-                    <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.groupingStrategy')}</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[
-                        ['contract', t('contracts.groupContract')],
-                        ['city', t('contracts.groupCity')],
-                        ['location', t('contracts.groupLocation')],
-                        ['printer', t('contracts.groupPrinter')],
-                      ].map(([val, label]) => (
-                        <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                          rules.groupingStrategy === val
-                            ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
-                            : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
-                        }`}>
-                          <input type="radio" className="sr-only" name="groupingStrategy" value={val}
-                            checked={rules.groupingStrategy === val} onChange={() => setRule('groupingStrategy', val)} />
-                          <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
-                            rules.groupingStrategy === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
-                          }`} />
-                          {label}
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Quarterly Breakdown Style — only shown when any frequency is non-monthly */}
-                  {needsStartDate && (
+                    <p className="mb-3 pb-1.5 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">{t('contracts.invoiceRulesOdoo')}</p>
                     <div>
-                      <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.quarterlyBreakdownStyle')}</p>
+                      <p className="mb-1.5 text-sm font-medium text-gray-700 dark:text-gray-300">{t('contracts.odooOrderSplit')}</p>
+                      <p className="mb-2 text-xs text-gray-400 dark:text-gray-500">{t('contracts.odooOrderSplitHelper')}</p>
                       <div className="grid grid-cols-1 gap-2">
                         {[
-                          ['monthly',         t('contracts.breakdownStyleMonthly')],
-                          ['quarterly_total', t('contracts.breakdownStyleQuarterlyTotal')],
+                          ['single',         t('contracts.odooOrderSplitSingle')],
+                          ['fixed_separate', t('contracts.odooOrderSplitFixedSeparate')],
+                          ['all_separate',   t('contracts.odooOrderSplitAllSeparate')],
                         ].map(([val, label]) => (
                           <label key={val} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
-                            rules.quarterlyBreakdownStyle === val
+                            (rules.odooOrderSplit ?? 'single') === val
                               ? 'border-brand-500 bg-brand-50 text-brand-700 dark:border-brand-500 dark:bg-brand-900/20 dark:text-brand-300'
                               : 'border-gray-200 text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:text-gray-400'
                           }`}>
-                            <input type="radio" className="sr-only" name="quarterlyBreakdownStyle" value={val}
-                              checked={rules.quarterlyBreakdownStyle === val} onChange={() => setRule('quarterlyBreakdownStyle', val)} />
+                            <input type="radio" className="sr-only" name="odooOrderSplit" value={val}
+                              checked={(rules.odooOrderSplit ?? 'single') === val} onChange={() => setRule('odooOrderSplit', val)} />
                             <span className={`h-3 w-3 rounded-full border-2 flex-shrink-0 ${
-                              rules.quarterlyBreakdownStyle === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
+                              (rules.odooOrderSplit ?? 'single') === val ? 'border-brand-500 bg-brand-500' : 'border-gray-300 dark:border-gray-600'
                             }`} />
                             {label}
                           </label>
                         ))}
                       </div>
                     </div>
-                  )}
+                  </div>
 
-                  {/* Contract Start Date — only shown when any frequency is non-monthly */}
-                  {needsStartDate && (
-                    <div>
-                      <FormField label={t('contracts.contractStartDate')} required>
-                        <input type="date" className={inputCls} value={rules.contractStartDate ?? ''}
-                          onChange={e => setRule('contractStartDate', e.target.value)} />
-                        <p className="mt-1 text-xs text-gray-400">{t('contracts.contractStartDateHelper')}</p>
-                      </FormField>
-
-                      {/* Period preview */}
-                      {rules.contractStartDate && (() => {
-                        const freqMonths = { monthly: 1, quarterly: 3, semi_annual: 6, annual: 12 }
-                        const periodMonths = Math.max(
-                          freqMonths[rules.fixedChargeFrequency] || 1,
-                          freqMonths[rules.excessFrequency] || 1,
-                        )
-                        const start = new Date(rules.contractStartDate + 'T00:00:00')
-                        const periods = Array.from({ length: 4 }, (_, i) => {
-                          const pStart = new Date(start)
-                          pStart.setMonth(start.getMonth() + i * periodMonths)
-                          const pEnd = new Date(start)
-                          pEnd.setMonth(start.getMonth() + (i + 1) * periodMonths)
-                          pEnd.setDate(pEnd.getDate() - 1)
-                          const fmt = d => d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-                          const fmtFull = d => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                          return { label: `Period ${i + 1}`, range: `${fmt(pStart)} – ${fmt(pEnd)}`, end: `ends ${fmtFull(pEnd)}` }
-                        })
-                        return (
-                          <div className="mt-2 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700">
-                            <table className="min-w-full text-xs">
-                              <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                                {periods.map(p => (
-                                  <tr key={p.label} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
-                                    <td className="px-3 py-1.5 font-medium text-gray-500 dark:text-gray-400 whitespace-nowrap">{p.label}</td>
-                                    <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{p.range}</td>
-                                    <td className="px-3 py-1.5 text-gray-400 dark:text-gray-500 whitespace-nowrap">{p.end}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )
-                      })()}
-                    </div>
-                  )}
                 </div>
               )}
             </div>
