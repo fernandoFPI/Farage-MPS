@@ -38,12 +38,21 @@ export async function createAssignment({ contractId, printerId, assignedFrom, as
   return repo.create({ contractId, printerId, assignedFrom, assignedUntil, contractType: 'osg', fixedCharge: fixedCharge ?? null, bwPrice: bwPrice ?? null, colorPrice: colorPrice ?? null, overrideMinBwPages: overrideMinBwPages ?? null, overrideMinColorPages: overrideMinColorPages ?? null });
 }
 
-export async function updateAssignment(id, { assignedFrom, assignedUntil, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages }) {
+export async function updateAssignment(id, { contractId, assignedFrom, assignedUntil, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages }) {
   const existing = await repo.findById(id);
   if (!existing) {
     const err = new Error('Assignment not found');
     err.status = 404;
     throw err;
+  }
+
+  if (contractId && contractId !== existing.contractId) {
+    const contractOk = await repo.contractExists(contractId);
+    if (!contractOk) {
+      const err = new Error('Contract not found');
+      err.status = 400;
+      throw err;
+    }
   }
 
   const newFrom = assignedFrom ?? existing.assignedFrom;
@@ -55,7 +64,7 @@ export async function updateAssignment(id, { assignedFrom, assignedUntil, fixedC
     throw err;
   }
 
-  return repo.update(id, { assignedFrom, assignedUntil, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages });
+  return repo.update(id, { contractId, assignedFrom, assignedUntil, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages });
 }
 
 export async function removeAssignment(id) {

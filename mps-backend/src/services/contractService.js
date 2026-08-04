@@ -1,4 +1,5 @@
 import * as repo from '../repositories/contractRepository.js';
+import * as cpRepo from '../repositories/contractPrinterRepository.js';
 import { getDefaultRules } from '../utils/invoiceRulesEngine.js';
 
 const VALID_BILLING_TYPES = ['per_click', 'minimum_volume'];
@@ -276,6 +277,7 @@ export async function deleteContract(id) {
     throw err;
   }
 
+  await cpRepo.deleteByContractId(id);
   await repo.deleteById(id);
   return { message: 'Contract deleted' };
 }

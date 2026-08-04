@@ -156,8 +156,13 @@ export async function create({ contractId, printerId, assignedFrom, assignedUnti
   return findById(rows[0].id);
 }
 
+export async function deleteByContractId(contractId) {
+  await pool.query(`DELETE FROM contract_printers WHERE contract_id = $1`, [contractId]);
+}
+
 export async function update(id, fields) {
   const columnMap = {
+    contractId:            'contract_id',
     assignedFrom:          'assigned_from',
     assignedUntil:         'assigned_until',
     contractType:          'contract_type',
