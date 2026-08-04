@@ -953,6 +953,29 @@ export async function markInvoiced(id, body) {
     console.error('Could not write invoice log:', e.message);
   }
 
+  // Sync tracking: if no orders tracked yet (old single-SO flow), record as synced.
+  // If the new callback flow already populated odoo_orders, leave it untouched.
+  try {
+    const { rows: [raw] } = await pool.query(
+      `SELECT odoo_orders FROM billing_cycles WHERE id = $1`, [id],
+    );
+    if (!raw?.odoo_orders?.length) {
+      await pool.query(
+        `UPDATE billing_cycles SET odoo_orders = $1, odoo_status = 'synced' WHERE id = $2`,
+        [JSON.stringify([{
+          orderType:    'all',
+          status:       'synced',
+          odooRef:      odooInvoiceId,
+          errorCode:    null,
+          errorMessage: null,
+          syncedAt:     new Date().toISOString(),
+        }]), id],
+      );
+    }
+  } catch (e) {
+    console.error('Could not update odoo sync status:', e.message);
+  }
+
   return {
     message: 'Billing cycle marked as invoiced',
     cycleId: id,
@@ -1321,12 +1344,29 @@ export async function getOdooExportData(cycleId) {
       grandTotal:  (['LS', 'LO'].includes(cycle.contract.serviceType) && cycle.manualBillingAmount != null)
         ? cycle.manualBillingAmount
         : (summary.grandTotal ?? 0),
-      orders: (() => {
+      orders: await (async () => {
         const splitMode    = cycle.contract.invoiceRules?.odooOrderSplit ?? 'single';
         const periodLabel  = toPeriodLabel(cycle.periodStart);
         const customerName = cycle.contract.customer.name;
         const allLines     = (summary.invoices ?? []).flatMap(inv => buildInvoiceOrderLines(inv, periodLabel, customerName));
-        return groupIntoOrders(allLines, splitMode, periodLabel);
+        const orders       = groupIntoOrders(allLines, splitMode, periodLabel);
+
+        if (orders.length > 0 && cycle.status === 'confirmed') {
+          const pendingEntries = orders.map(o => ({
+            orderType:    o.orderType,
+            status:       'pending',
+            odooRef:      null,
+            errorCode:    null,
+            errorMessage: null,
+            syncedAt:     null,
+          }));
+          await pool.query(
+            `UPDATE billing_cycles SET odoo_orders = $1, odoo_status = 'pending' WHERE id = $2`,
+            [JSON.stringify(pendingEntries), cycleId],
+          );
+        }
+
+        return orders;
       })(),
     },
     printers,
