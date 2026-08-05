@@ -22,6 +22,7 @@ import systemSettingsRoutes from './routes/systemSettingsRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import odooRoutes from './routes/odooRoutes.js';
+import monitorRoutes from './routes/monitorRoutes.js';
 
 const app = express();
 
@@ -56,7 +57,8 @@ app.use('/api/contract-groups', contractGroupRoutes);
 app.use('/api/settings', systemSettingsRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/odoo', odooRoutes);
+app.use('/api/odoo',    odooRoutes);
+app.use('/api/monitor', monitorRoutes);
 
 // Odoo integration audit logger
 app.use((req, res, next) => {

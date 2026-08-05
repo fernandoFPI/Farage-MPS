@@ -5,7 +5,7 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import {
   LayoutDashboard, Users, FileText, Printer,
   Gauge, Upload, Receipt, UserCog, ClipboardList,
-  LogOut, Menu, X, ChevronDown, Sun, Moon, Ticket, BarChart2, Package, Layers, Map, Settings,
+  LogOut, Menu, X, ChevronDown, Sun, Moon, Ticket, BarChart2, Package, Layers, Map, Settings, Activity,
 } from 'lucide-react'
 import i18n from '../i18n'
 import { useAuth } from '../context/AuthContext'
@@ -103,6 +103,9 @@ function SidebarContent({ onClose }) {
             <NavItem to="/consumables"    icon={Package}       label={t('nav.consumables')}   onClick={onClose} />
             {user?.role?.name !== 'mps_specialist' && user?.role?.name !== 'service_manager' && (
               <NavItem to="/import-logs" icon={ClipboardList} label={t('nav.importLogs')} onClick={onClose} />
+            )}
+            {(user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead' || user?.role?.name === 'mps_specialist') && (
+              <NavItem to="/monitor" icon={Activity} label="Operations Monitor" onClick={onClose} />
             )}
           </>
         )}

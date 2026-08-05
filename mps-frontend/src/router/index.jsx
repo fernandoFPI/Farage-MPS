@@ -30,6 +30,7 @@ import MapPage from '../pages/map/MapPage'
 import SettingsPage from '../pages/settings/SettingsPage'
 import OdooSyncPage from '../pages/settings/OdooSyncPage'
 import ChartsPage from '../pages/charts/ChartsPage'
+import MonitorPage from '../pages/monitor/MonitorPage'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -92,6 +93,7 @@ export default function RouterConfig() {
           <Route path="settings" element={<SettingsPage />} />
           <Route path="settings/odoo-sync" element={<OdooSyncPage />} />
           <Route path="charts" element={<ChartsPage />} />
+          <Route path="monitor" element={<MonitorPage />} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>
