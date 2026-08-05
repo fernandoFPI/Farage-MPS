@@ -400,7 +400,7 @@ function CycleGapRow({ row }) {
   )
 }
 
-function CycleGapsTab({ data, isLoading }) {
+function CycleGapsTab({ data, isLoading, graceDays, onGraceDaysChange }) {
   const [search, setSearch] = useState('')
   const [subFilter, setSubFilter] = useState('all') // all | never | idle
   const { sort, onSort, sorted } = useSort('days_since_last_cycle', 'desc')
@@ -443,6 +443,21 @@ function CycleGapsTab({ data, isLoading }) {
 
   return (
     <div>
+      {/* Grace period control */}
+      <div className="flex items-center gap-2 mb-4 p-3 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 text-sm">
+        <Filter className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+        <span className="text-amber-700 dark:text-amber-300 flex-shrink-0">Flag if no cycle covers today, and last cycle ended more than</span>
+        <input
+          type="number"
+          min={0}
+          max={30}
+          value={graceDays}
+          onChange={e => onGraceDaysChange(Math.max(0, Math.min(30, parseInt(e.target.value) || 0)))}
+          className="w-14 px-2 py-1 rounded border border-amber-300 dark:border-amber-700 bg-white dark:bg-gray-800 text-center text-sm font-semibold text-amber-800 dark:text-amber-200 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+        />
+        <span className="text-amber-700 dark:text-amber-300 flex-shrink-0">days ago</span>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <div className="flex-1">
           <SearchBar value={search} onChange={setSearch} placeholder="Search customer, contract, specialist…" />
@@ -826,10 +841,11 @@ export default function MonitorPage() {
   useDocTitle('Operations Monitor')
   const [activeTab, setActiveTab] = useState('readings')
   const [lastUpdated, setLastUpdated] = useState(() => new Date().toISOString())
+  const [graceDays, setGraceDays] = useState(5)
   const qc = useQueryClient()
 
   const readings = useReadingGaps()
-  const cycles   = useCycleGaps()
+  const cycles   = useCycleGaps(graceDays)
   const odoo     = useOdooMonitorStatus()
 
   const refresh = useCallback(() => {
@@ -897,7 +913,7 @@ export default function MonitorPage() {
       {activeTab === 'cycles' && (
         <>
           <SectionHeader icon={CalendarX} title="Contracts Without an Open Cycle" count={summaryCycles} accent="red" />
-          <CycleGapsTab data={cycles.data} isLoading={cycles.isLoading} />
+          <CycleGapsTab data={cycles.data} isLoading={cycles.isLoading} graceDays={graceDays} onGraceDaysChange={setGraceDays} />
         </>
       )}
       {activeTab === 'odoo' && (

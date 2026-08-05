@@ -68,10 +68,12 @@ export async function getReadingGaps() {
 }
 
 /**
- * Active contracts that have no currently-open billing cycle.
- * Includes info about their last closed cycle so you can see how long ago it ended.
+ * Active contracts where no billing cycle covers the current date.
+ * A 5-day grace period applies so newly-ended cycles don't flash immediately.
+ * "Covers today" means period_start <= today <= period_end regardless of status —
+ * so a July cycle still being processed doesn't hide a missing August cycle.
  */
-export async function getCycleGaps() {
+export async function getCycleGaps({ graceDays = 5 } = {}) {
   const { rows } = await pool.query(`
     SELECT
       co.id                              AS contract_id,
@@ -93,7 +95,7 @@ export async function getCycleGaps() {
       CASE
         WHEN lc.period_end IS NOT NULL
         THEN (CURRENT_DATE - lc.period_end::date)
-        ELSE NULL
+        ELSE (CURRENT_DATE - co.start_date::date)
       END                                AS days_since_last_cycle
     FROM contracts co
     JOIN customers cu ON co.customer_id = cu.id
@@ -112,16 +114,23 @@ export async function getCycleGaps() {
     WHERE co.is_active   = true
       AND co.start_date <= CURRENT_DATE
       AND (co.end_date IS NULL OR co.end_date >= CURRENT_DATE)
-      -- No open cycle right now
+      -- No cycle whose date range actually covers today
       AND NOT EXISTS (
         SELECT 1 FROM billing_cycles bc
         WHERE bc.contract_id  = co.id
-          AND bc.status       = 'open'
           AND bc.is_cancelled = false
           AND bc.deleted_at   IS NULL
+          AND bc.period_start <= CURRENT_DATE
+          AND bc.period_end   >= CURRENT_DATE
+      )
+      -- Grace period: only alert after N days past the last cycle end (or contract start)
+      AND (
+        (lc.period_end IS NOT NULL AND lc.period_end  < CURRENT_DATE - ($1 || ' days')::interval)
+        OR
+        (lc.period_end IS NULL     AND co.start_date  < CURRENT_DATE - ($1 || ' days')::interval)
       )
     ORDER BY days_since_last_cycle DESC NULLS LAST, co.contract_number
-  `);
+  `, [graceDays]);
   return rows;
 }
 
@@ -203,13 +212,23 @@ export async function getSummary() {
     pool.query(`
       SELECT COUNT(*)::int AS count
       FROM contracts co
+      LEFT JOIN LATERAL (
+        SELECT bc.period_end FROM billing_cycles bc
+        WHERE bc.contract_id = co.id AND bc.is_cancelled = false AND bc.deleted_at IS NULL
+        ORDER BY bc.period_end DESC LIMIT 1
+      ) lc ON true
       WHERE co.is_active = true
         AND co.start_date <= CURRENT_DATE
         AND (co.end_date IS NULL OR co.end_date >= CURRENT_DATE)
         AND NOT EXISTS (
           SELECT 1 FROM billing_cycles bc
-          WHERE bc.contract_id = co.id AND bc.status = 'open'
-            AND bc.is_cancelled = false AND bc.deleted_at IS NULL
+          WHERE bc.contract_id = co.id AND bc.is_cancelled = false AND bc.deleted_at IS NULL
+            AND bc.period_start <= CURRENT_DATE AND bc.period_end >= CURRENT_DATE
+        )
+        AND (
+          (lc.period_end IS NOT NULL AND lc.period_end  < CURRENT_DATE - INTERVAL '5 days')
+          OR
+          (lc.period_end IS NULL     AND co.start_date  < CURRENT_DATE - INTERVAL '5 days')
         )
     `),
     pool.query(`

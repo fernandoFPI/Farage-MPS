@@ -8,7 +8,8 @@ export async function getReadingGaps(req, res, next) {
 
 export async function getCycleGaps(req, res, next) {
   try {
-    res.json(await repo.getCycleGaps());
+    const graceDays = Math.max(0, Math.min(30, parseInt(req.query.graceDays ?? '5', 10) || 5));
+    res.json(await repo.getCycleGaps({ graceDays }));
   } catch (err) { next(err); }
 }
 

@@ -21,10 +21,10 @@ export function useReadingGaps() {
   });
 }
 
-export function useCycleGaps() {
+export function useCycleGaps(graceDays = 5) {
   return useQuery({
-    queryKey: ['monitor', 'cycle-gaps'],
-    queryFn: () => client.get('/api/monitor/cycle-gaps').then(r => r.data),
+    queryKey: ['monitor', 'cycle-gaps', graceDays],
+    queryFn: () => client.get('/api/monitor/cycle-gaps', { params: { graceDays } }).then(r => r.data),
     staleTime: STALE,
     refetchInterval: STALE,
   });
