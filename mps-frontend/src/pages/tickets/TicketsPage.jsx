@@ -808,11 +808,15 @@ export default function TicketsPage() {
 
   const contractPrinters = useMemo(() => {
     if (!cycle?.contractId) return []
+    // Use the cycle's period start as the reference so printers that were
+    // active when the cycle opened remain submittable even if assignedUntil
+    // has since passed (e.g. an assignment that ended with the prior month).
+    const ref = cycle.periodStart?.slice(0, 10) ?? today
     return allAssignments.filter(
       a => a.contractId === cycle.contractId &&
-           (!a.assignedUntil || a.assignedUntil.slice(0, 10) >= today),
+           (!a.assignedUntil || a.assignedUntil.slice(0, 10) >= ref),
     )
-  }, [allAssignments, cycle?.contractId])
+  }, [allAssignments, cycle?.contractId, cycle?.periodStart])
 
   const submittedIds = useMemo(
     () => new Set(cycleReadings.map(r => r.printerId)),
