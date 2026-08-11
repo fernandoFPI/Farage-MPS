@@ -9,8 +9,8 @@
 ## PRE-FLIGHT: Open Questions (resolve before writing a single line of Odoo code)
 
 ### Q1 — Service account credentials
-`odoo-integration@farage.com / 8kO64yKC174y` appears in the API docs as the example credentials. The MPS codebase seeds the `odoo_integration` **role** but seeds **no users** — the actual user account must be created manually through the MPS admin UI (Users page → create user, assign `odoo_integration` role). Before starting:
-- Log in to the MPS platform as admin → Users → confirm whether `odoo-integration@farage.com` exists
+The API docs list example credentials (redacted here — do not commit real credentials to source control). The MPS codebase seeds the `odoo_integration` **role** but seeds **no users** — the actual user account must be created manually through the MPS admin UI (Users page → create user, assign `odoo_integration` role). Before starting:
+- Log in to the MPS platform as admin → Users → confirm whether the service account exists
 - If it doesn't exist, create it with a strong random password (24+ chars)
 - Set `mps.service_email` and `mps.service_password` in Odoo `ir.config_parameter` immediately after — never put credentials in code
 
@@ -101,7 +101,7 @@ The module must handle:
 POST https://mps.farage.com/api/auth/login
 Content-Type: application/json
 
-{ "email": "odoo-integration@farage.com", "password": "8kO64yKC174y" }
+{ "email": "<mps.service_email from ir.config_parameter>", "password": "<mps.service_password>" }
 
 Response:
 { "token": "<JWT>", "user": { "id": "...", "role": "odoo_integration", "email": "..." } }
@@ -355,6 +355,34 @@ Idempotent: calling callback again for the same `cycleId + orderType` overwrites
 
 ---
 
+#### POST /api/odoo/resolution-error
+**New (2026-08-11).** For failures that happen *before* any Sale Order can be determined — the MPS customer, contract, or company couldn't be resolved to an Odoo record at all. Deliberately separate from `/odoo/callback`: there's no real `orderType` to attach a pre-flight failure to, and forcing one through `/odoo/callback` would leave a stale error entry in `odoo_orders` forever once the mapping is fixed and the cycle later syncs successfully (nothing would ever overwrite that entry — callbacks only replace entries matching their own `orderType`).
+
+```json
+POST /api/odoo/resolution-error
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "cycleId":      "a1b2c3d4-...",
+  "errorCode":    "UNMAPPED_CUSTOMER",
+  "errorMessage": "No Odoo partner mapped to MPS customer 'Acme Corporation' (d1d2d3d4-...). Set x_mps_customer_id on the correct res.partner record."
+}
+```
+
+`errorCode` is one of `UNMAPPED_CUSTOMER`, `UNMAPPED_CONTRACT`, `UNMAPPED_COMPANY` (informational — not validated server-side).
+
+Response 200:
+```json
+{ "cycleId": "a1b2c3d4-...", "odooStatus": "error" }
+```
+
+Effect: writes a `success = false` row to `invoice_logs` (visible in the Operations Monitor's existing error-log detail) and sets `billing_cycles.odoo_status = 'error'` directly. Does **not** touch `odoo_orders` — the next real `/odoo/callback` call, once the mapping is fixed and the cycle actually syncs, recomputes `odoo_status` fresh from `odoo_orders` as normal and naturally supersedes this.
+
+The "Odoo Sync Log" page (`OdooSyncPage.jsx`) now surfaces this: `getSyncLog()` returns a `resolutionError` string (the latest unresolved `invoice_logs` message) whenever `odooOrders` is still empty, and the sync log row shows it under "Sync never started: …" instead of the generic "No sync records yet" placeholder.
+
+---
+
 #### GET /api/billing-cycles/:id/summary
 Lightweight billing summary — aggregate totals only, no per-printer data. Use for quick validation if needed; not required in main flow.
 
@@ -503,8 +531,8 @@ Set these in Odoo → Settings → Technical → Parameters → System Parameter
 
 | Key | Value |
 |-----|-------|
-| `mps.service_email` | `odoo-integration@farage.com` |
-| `mps.service_password` | `8kO64yKC174y` |
+| `mps.service_email` | The MPS service account email (see team password manager) |
+| `mps.service_password` | The MPS service account password (see team password manager) |
 
 **Never hardcode credentials in Python source.**
 
@@ -926,6 +954,7 @@ Every entity in MPS has a stable UUID that never changes and is never reused. St
 - `GET /api/billing-cycles/:id/odoo-export` endpoint (auto-sets pending status)
 - `POST /api/billing-cycles/:id/mark-invoiced` endpoint
 - `POST /api/odoo/callback` endpoint (tracks per-SO sync status, updates `odoo_orders` JSONB column)
+- `POST /api/odoo/resolution-error` endpoint (whole-cycle pre-flight failures — unmapped customer/contract/company — logged to `invoice_logs`, surfaced in the Odoo Sync Log page; see §1.4)
 - `GET /api/performance/engineers` and `/:id` endpoints
 - `odoo_integration` role with blockOdoo middleware scoping access to only these endpoints
 - Rate limiter (100 req / 15-min window, shared across all Odoo endpoints)
