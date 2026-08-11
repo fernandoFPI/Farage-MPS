@@ -205,6 +205,28 @@ export async function createReading(body, userId) {
     prevReading = await readingRepo.getPreviousCycleReading(printerId, cycle.id, cycle.periodStart);
   }
 
+  // 7b. Guard: counter values must not be lower than the previous reading.
+  // Counters are odometer-style — they only go up. A lower value means a
+  // mis-keyed entry. Skip for baseline cycles (they establish the starting point).
+  if (prevReading && !cycle.isBaseline) {
+    const violations = [];
+    if (a4Bw < prevReading.a4Bw)
+      violations.push(`A4 BW (entered: ${a4Bw.toLocaleString()}, previous: ${prevReading.a4Bw.toLocaleString()})`);
+    if (a3Bw < prevReading.a3Bw)
+      violations.push(`A3 BW (entered: ${a3Bw.toLocaleString()}, previous: ${prevReading.a3Bw.toLocaleString()})`);
+    if (!isBwOnly && a4ColorFinal < prevReading.a4Color)
+      violations.push(`A4 Color (entered: ${a4ColorFinal.toLocaleString()}, previous: ${prevReading.a4Color.toLocaleString()})`);
+    if (!isBwOnly && a3ColorFinal < prevReading.a3Color)
+      violations.push(`A3 Color (entered: ${a3ColorFinal.toLocaleString()}, previous: ${prevReading.a3Color.toLocaleString()})`);
+    if (violations.length > 0) {
+      const err = new Error(
+        `Reading rejected: counter values cannot be lower than the previous reading — ${violations.join('; ')}`,
+      );
+      err.status = 400;
+      throw err;
+    }
+  }
+
   // 8. Calculate cumulative excess to store — absolute counter values, never the period delta.
   // Billing time subtracts consecutive stored values to derive period usage.
   let storedExcessBw, storedExcessColor;
