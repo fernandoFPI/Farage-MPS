@@ -62,6 +62,7 @@ export default function CustomerDetail() {
           <InfoRow label={t('customers.email')} value={customer.email} />
           <InfoRow label={t('customers.requiresConfirmation')} value={<StatusBadge status={customer.requiresConfirmation} />} />
           <InfoRow label={t('common.createdAt')} value={fmtDate(customer.createdAt)} />
+          <InfoRow label="UUID" value={<span className="font-mono text-xs text-gray-500 dark:text-gray-400 select-all">{customer.id}</span>} />
         </div>
 
         {/* Contracts */}
