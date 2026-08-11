@@ -66,7 +66,17 @@ export async function getSyncLog() {
        bc.odoo_orders,
        c.contract_number,
        c.odoo_company,
-       cu.name AS customer_name
+       cu.name AS customer_name,
+       -- Most recent failed attempt with no orderType yet (i.e. the cycle
+       -- never made it past customer/contract/company resolution on the
+       -- Odoo side). odoo_orders stays empty in this case, so without this
+       -- the sync log would show "Error" with nothing to explain why.
+       (SELECT il.error_message
+        FROM invoice_logs il
+        WHERE il.billing_cycle_id = bc.id
+          AND il.success = false
+        ORDER BY il.created_at DESC
+        LIMIT 1)                AS resolution_error
      FROM billing_cycles bc
      JOIN contracts c ON c.id = bc.contract_id
      JOIN customers cu ON cu.id = c.customer_id
@@ -83,5 +93,46 @@ export async function getSyncLog() {
     contractNumber: r.contract_number,
     odooCompany:    r.odoo_company ?? null,
     customerName:   r.customer_name,
+    resolutionError: (r.odoo_orders?.length ? null : r.resolution_error) ?? null,
   }));
+}
+
+/**
+ * Report a whole-cycle failure that happened before any Sale Order could
+ * be determined — e.g. the customer/contract/company isn't mapped on the
+ * Odoo side yet. Deliberately separate from handleOdooCallback: there is
+ * no real orderType to attach this to, and shoehorning it into odoo_orders
+ * would leave a stale error entry behind forever once the cycle is fixed
+ * and later syncs successfully (nothing would ever overwrite that entry,
+ * since callbacks only replace entries matching their own orderType).
+ */
+export async function handleResolutionError({ cycleId, errorCode, errorMessage }) {
+  if (!cycleId || !errorMessage) {
+    const err = new Error('cycleId and errorMessage are required');
+    err.status = 400; throw err;
+  }
+
+  const { rows } = await pool.query(
+    `SELECT id FROM billing_cycles WHERE id = $1`,
+    [cycleId],
+  );
+  if (!rows[0]) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404; throw err;
+  }
+
+  const logMessage = errorCode ? `${errorCode}: ${errorMessage}` : errorMessage;
+
+  await pool.query(
+    `INSERT INTO invoice_logs (billing_cycle_id, success, error_message, attempt_number)
+     VALUES ($1, false, $2, 1)`,
+    [cycleId, logMessage],
+  );
+
+  await pool.query(
+    `UPDATE billing_cycles SET odoo_status = 'error' WHERE id = $1`,
+    [cycleId],
+  );
+
+  return { cycleId, odooStatus: 'error' };
 }

@@ -78,8 +78,16 @@ function StatCard({ status, count, total }) {
   )
 }
 
-function OrderDetailTable({ orders }) {
+function OrderDetailTable({ orders, resolutionError }) {
   if (!orders?.length) {
+    if (resolutionError) {
+      return (
+        <p className="text-xs text-red-500 dark:text-red-400 py-1">
+          <span className="font-semibold">Sync never started: </span>
+          {resolutionError}
+        </p>
+      )
+    }
     return (
       <p className="text-xs text-gray-400 dark:text-gray-500 italic py-1">
         No sync records yet — push this cycle to Odoo first.
@@ -197,7 +205,7 @@ function CycleRow({ cycle }) {
       {expanded && (
         <tr className={`border-l-2 ${cfg.border} bg-gray-50/60 dark:bg-gray-800/20`}>
           <td colSpan={7} className="px-6 py-3">
-            <OrderDetailTable orders={cycle.odooOrders} />
+            <OrderDetailTable orders={cycle.odooOrders} resolutionError={cycle.resolutionError} />
           </td>
         </tr>
       )}

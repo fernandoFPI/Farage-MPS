@@ -12,3 +12,10 @@ export async function getSyncLog(req, res, next) {
     res.json(await service.getSyncLog());
   } catch (err) { next(err); }
 }
+
+export async function handleResolutionError(req, res, next) {
+  try {
+    const { cycleId, errorCode, errorMessage } = req.body;
+    res.json(await service.handleResolutionError({ cycleId, errorCode, errorMessage }));
+  } catch (err) { next(err); }
+}
