@@ -79,15 +79,20 @@ function StatCard({ status, count, total }) {
 }
 
 function OrderDetailTable({ orders, resolutionError }) {
+  // The backend only sends resolutionError when nothing in `orders` has
+  // progressed past its initial 'pending' placeholder (set the moment
+  // /odoo-export is called, before Odoo attempts anything) — so whenever
+  // it's present, it's more informative than a table of bare "Pending"
+  // rows with no explanation.
+  if (resolutionError) {
+    return (
+      <p className="text-xs text-red-500 dark:text-red-400 py-1">
+        <span className="font-semibold">Sync never started: </span>
+        {resolutionError}
+      </p>
+    )
+  }
   if (!orders?.length) {
-    if (resolutionError) {
-      return (
-        <p className="text-xs text-red-500 dark:text-red-400 py-1">
-          <span className="font-semibold">Sync never started: </span>
-          {resolutionError}
-        </p>
-      )
-    }
     return (
       <p className="text-xs text-gray-400 dark:text-gray-500 italic py-1">
         No sync records yet — push this cycle to Odoo first.

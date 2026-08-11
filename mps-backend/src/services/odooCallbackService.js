@@ -93,7 +93,14 @@ export async function getSyncLog() {
     contractNumber: r.contract_number,
     odooCompany:    r.odoo_company ?? null,
     customerName:   r.customer_name,
-    resolutionError: (r.odoo_orders?.length ? null : r.resolution_error) ?? null,
+    // odoo_orders is seeded with 'pending' placeholders the moment /odoo-export
+    // is called (see getOdooExportData), before Odoo attempts anything — so its
+    // mere presence doesn't mean a real sync happened. Only suppress the
+    // resolution error once at least one entry has moved past that placeholder
+    // (a real synced/error attempt for a specific order type).
+    resolutionError: (
+      r.odoo_orders?.some(o => o.status !== 'pending') ? null : r.resolution_error
+    ) ?? null,
   }));
 }
 

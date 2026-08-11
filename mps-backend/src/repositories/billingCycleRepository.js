@@ -117,6 +117,7 @@ export async function findById(id) {
          'contractMode',       co.contract_mode,
          'serviceType',        co.service_type,
          'invoiceRules',       co.invoice_rules,
+         'odooCompany',        co.odoo_company,
          'customer', json_build_object(
            'id',   cu.id,
            'name', cu.name
