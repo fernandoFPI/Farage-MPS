@@ -1893,7 +1893,21 @@ const { data: appSettings } = useSettings()
                 <span className="text-base font-bold text-teal-600 dark:text-teal-400">{formatAmount(groupSummary.grandTotal, currency)}</span>
               </div>
             </div>
-            {status === 'confirmed' && (
+            {status === 'confirmed' && cycle.odooStatus === 'synced' && (
+              <div className="mt-4 flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                <ArrowUpCircle className="text-blue-500 flex-shrink-0" size={18} />
+                <div>
+                  <p className="text-sm font-medium text-blue-800 dark:text-blue-400">{t('billingCycles.saleOrderCreated')}</p>
+                  <p className="text-xs text-blue-600 dark:text-blue-500 mt-0.5">
+                    {t('billingCycles.saleOrderCreatedDesc')}
+                    {(cycle.odooOrders || []).filter(o => o.status === 'synced' && o.odooRef).length > 0 && (
+                      <>: <span className="font-mono font-medium">{(cycle.odooOrders || []).filter(o => o.status === 'synced' && o.odooRef).map(o => o.odooRef).join(', ')}</span></>
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+            {status === 'confirmed' && cycle.odooStatus !== 'synced' && (
               <div className="mt-4 flex items-center gap-2 p-4 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
                 <Clock className="text-amber-500 flex-shrink-0" size={18} />
                 <div>
@@ -2154,7 +2168,13 @@ const { data: appSettings } = useSettings()
             )}
 
             {/* Odoo invoice status */}
-            {status === 'confirmed' && (
+            {status === 'confirmed' && cycle.odooStatus === 'synced' && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                <ArrowUpCircle className="text-blue-500 flex-shrink-0 h-4 w-4" />
+                <span className="text-sm font-medium text-blue-800 dark:text-blue-400">{t('billingCycles.saleOrderCreated')}</span>
+              </div>
+            )}
+            {status === 'confirmed' && cycle.odooStatus !== 'synced' && (
               <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-200 dark:border-amber-800">
                 <Clock className="text-amber-500 flex-shrink-0 h-4 w-4" />
                 <span className="text-sm font-medium text-amber-800 dark:text-amber-400">{t('billingCycles.awaitingOdoo')}</span>

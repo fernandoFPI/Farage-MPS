@@ -14,6 +14,13 @@ function mapRow(row) {
     confirmedAt: row.confirmed_at,
     odooInvoiceId: row.odoo_invoice_id,
     invoicedAt: row.invoiced_at,
+    // Populated by /odoo/callback the moment Odoo creates a Sale Order for
+    // this cycle — well before it's actually invoiced (odooInvoiceId stays
+    // null until then). Exposing these lets the UI show "Sale Order
+    // created, awaiting invoice" instead of a bare "awaiting Odoo" with no
+    // indication anything already happened on the Odoo side.
+    odooStatus: row.odoo_status ?? null,
+    odooOrders: row.odoo_orders ?? [],
     createdAt: row.created_at,
     cycleGroupId: row.cycle_group_id ?? null,
     groupPosition: row.group_position ?? null,
