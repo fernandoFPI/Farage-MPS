@@ -1,4 +1,5 @@
 import * as service from '../services/meterReadingService.js';
+import * as repo from '../repositories/meterReadingRepository.js';
 
 export async function list(req, res, next) {
   try {
@@ -40,6 +41,20 @@ export async function getPhotos(req, res, next) {
     }
     const photos = await service.getReadingPhotos(req.params.id);
     res.json(photos);
+  } catch (err) { next(err); }
+}
+
+export async function deletePhoto(req, res, next) {
+  try {
+    const roleName = req.user?.role?.name;
+    if (roleName !== 'admin' && roleName !== 'mps_team_lead') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const remaining = await repo.deletePhoto(req.params.id, req.params.photoId);
+    if (remaining === null) {
+      return res.status(404).json({ error: 'Photo not found' });
+    }
+    res.json({ remaining: remaining.length });
   } catch (err) { next(err); }
 }
 

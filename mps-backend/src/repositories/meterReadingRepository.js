@@ -404,6 +404,25 @@ export async function findManyByIds(ids) {
   return rows;
 }
 
+export async function deletePhoto(readingId, photoId) {
+  const { rows } = await pool.query(
+    `SELECT photos FROM meter_readings WHERE id = $1`,
+    [readingId],
+  );
+  if (!rows[0]) return null;
+
+  const photos = rows[0].photos ?? [];
+  const filtered = photos.filter(p => p.id !== photoId);
+
+  if (filtered.length === photos.length) return null; // photo not found
+
+  await pool.query(
+    `UPDATE meter_readings SET photos = $1 WHERE id = $2`,
+    [JSON.stringify(filtered), readingId],
+  );
+  return filtered;
+}
+
 export async function deleteManyByIds(ids) {
   if (!ids.length) return 0;
   const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');

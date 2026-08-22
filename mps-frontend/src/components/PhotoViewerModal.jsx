@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, ChevronLeft, ChevronRight, Download, ExternalLink } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Download, ExternalLink, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import client from '../api/client'
+import { useAuth } from '../context/AuthContext'
 
 function PhotoImage({ photo, zoom, rotation, position, isDragging }) {
   const [loaded, setLoaded] = useState(false)
@@ -36,8 +37,11 @@ function PhotoImage({ photo, zoom, rotation, position, isDragging }) {
 
 export default function PhotoViewerModal({ readingId, onClose }) {
   const { t } = useTranslation()
+  const { user } = useAuth()
+  const canDelete = user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead'
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [index, setIndex] = useState(0)
 
   // Zoom / pan state
@@ -216,6 +220,23 @@ export default function PhotoViewerModal({ readingId, onClose }) {
     win.document.close()
   }
 
+  const handleDeletePhoto = async () => {
+    if (!currentPhoto?.id) return
+    if (!window.confirm(t('meterReadings.confirmDeletePhoto', 'Delete this photo? This cannot be undone.'))) return
+    setDeleting(true)
+    try {
+      await client.delete(`/api/meter-readings/${readingId}/photos/${currentPhoto.id}`)
+      const next = photos.filter(p => p.id !== currentPhoto.id)
+      setPhotos(next)
+      setIndex(i => Math.min(i, Math.max(0, next.length - 1)))
+    } catch (err) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to delete photo'
+      window.alert(msg)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const btnCls = 'flex h-8 w-8 items-center justify-center rounded-full border border-gray-700 text-gray-300 hover:bg-gray-800 disabled:opacity-30 transition-colors'
 
   return (
@@ -335,6 +356,16 @@ export default function PhotoViewerModal({ readingId, onClose }) {
             >
               <Download className="h-4 w-4" />
             </button>
+            {canDelete && (
+              <button
+                onClick={handleDeletePhoto}
+                disabled={!currentPhoto || deleting}
+                title={t('meterReadings.deletePhoto', 'Delete photo')}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-red-800 text-red-400 hover:bg-red-900/40 disabled:opacity-30 transition-colors"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 

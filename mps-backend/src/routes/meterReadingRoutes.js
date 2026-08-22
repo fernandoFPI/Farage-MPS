@@ -9,7 +9,8 @@ router.get('/previous',   verifyToken, blockOdoo,                               
 router.delete('/bulk',    verifyToken, blockOdoo,                                           ctrl.bulkDelete);
 router.get('/',           verifyToken, blockOdoo,                                           ctrl.list);
 router.post('/',          verifyToken, blockOdoo, requirePermission('can_submit_readings'), ctrl.create);
-router.get('/:id/photos', verifyToken, blockOdoo,                                           ctrl.getPhotos);
+router.get('/:id/photos',               verifyToken, blockOdoo, ctrl.getPhotos);
+router.delete('/:id/photos/:photoId',   verifyToken, blockOdoo, ctrl.deletePhoto);
 router.get('/:id',        verifyToken, blockOdoo,                                           ctrl.getById);
 router.put('/:id',        verifyToken, blockOdoo, requirePermission('can_submit_readings'), ctrl.update);
 router.delete('/:id',     verifyToken, blockOdoo, requirePermission('can_edit_billing'),    ctrl.remove);
