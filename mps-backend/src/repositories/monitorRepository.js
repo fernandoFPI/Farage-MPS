@@ -199,7 +199,7 @@ export async function getTvData() {
   const [summary, readingGaps, cycleGaps, odooIssues, readingsToday, recentActivity] = await Promise.all([
     getSummary(),
 
-    // Top incomplete cycles (limit 15 for TV)
+    // Incomplete cycles for the current month only
     pool.query(`
       SELECT cu.name AS customer_name,
              bc.id   AS cycle_id,
@@ -214,6 +214,7 @@ export async function getTvData() {
         AND bc.is_cancelled = false
         AND bc.deleted_at   IS NULL
         AND bc.is_baseline  = false
+        AND bc.period_start >= date_trunc('month', CURRENT_DATE)
         AND (
           EXISTS (SELECT 1 FROM billing_cycle_city_status x WHERE x.billing_cycle_id = bc.id AND x.submitted_printers < x.total_printers)
           OR NOT EXISTS (SELECT 1 FROM billing_cycle_city_status x WHERE x.billing_cycle_id = bc.id)
@@ -223,7 +224,7 @@ export async function getTvData() {
       LIMIT 15
     `),
 
-    // Top missing cycles (limit 10)
+    // Contracts missing a cycle for the current month (last cycle ended ≤ 60 days ago)
     pool.query(`
       SELECT cu.name AS customer_name,
              co.contract_number,
@@ -247,14 +248,16 @@ export async function getTvData() {
             AND bc.period_start <= CURRENT_DATE AND bc.period_end >= CURRENT_DATE
         )
         AND (
-          (lc.period_end IS NOT NULL AND lc.period_end  < CURRENT_DATE - INTERVAL '5 days')
-          OR (lc.period_end IS NULL  AND co.start_date  < CURRENT_DATE - INTERVAL '5 days')
+          (lc.period_end IS NOT NULL AND lc.period_end >= CURRENT_DATE - INTERVAL '60 days'
+                                    AND lc.period_end  <  CURRENT_DATE - INTERVAL '5 days')
+          OR (lc.period_end IS NULL  AND co.start_date >= CURRENT_DATE - INTERVAL '60 days'
+                                    AND co.start_date  <  CURRENT_DATE - INTERVAL '5 days')
         )
-      ORDER BY days_since DESC NULLS LAST
-      LIMIT 10
+      ORDER BY days_since ASC
+      LIMIT 15
     `),
 
-    // Odoo errors/pending (limit 10)
+    // Odoo errors/pending for cycles from the current and previous month
     pool.query(`
       SELECT cu.name AS customer_name, bc.odoo_status, bc.period_start, bc.period_end
       FROM billing_cycles bc
@@ -264,6 +267,7 @@ export async function getTvData() {
         AND bc.deleted_at   IS NULL
         AND bc.status IN ('confirmed', 'invoiced')
         AND bc.odoo_status IN ('error', 'pending', 'partial')
+        AND bc.period_start >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
       ORDER BY CASE bc.odoo_status WHEN 'error' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END, bc.confirmed_at DESC
       LIMIT 10
     `),
