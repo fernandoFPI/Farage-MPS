@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import SearchableSelect from '../../components/SearchableSelect'
 import { customerOptions, billingCycleOptions, printerOptions } from '../../utils/filterOptions'
-import { Plus, Trash2, AlertTriangle, Pencil, X, Info, List, LayoutGrid, Image, FileUp } from 'lucide-react'
+import { Plus, Trash2, AlertTriangle, Pencil, X, Info, List, LayoutGrid, Image, FileUp, PlusCircle } from 'lucide-react'
 import ReadingImportModal from './ReadingImportModal'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { useMeterReadings, useDeleteReading, useUpdateReading, useBulkDeleteReadings } from '../../api/hooks/useMeterReadings'
@@ -58,6 +58,7 @@ export default function MeterReadingsPage() {
   const { user } = useAuth()
   const isAdmin = user?.role?.name === 'admin'
   const isEngineer = user?.role?.name === 'engineer'
+  const canAddPhoto = user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead'
   const canSubmit = usePermission('can_submit_readings')
   const canManage = usePermission('can_edit_billing')
 
@@ -418,6 +419,14 @@ export default function MeterReadingsPage() {
                             >
                               <Image className="h-4 w-4" />
                               <span className="text-xs">{r.photos.length}</span>
+                            </button>
+                          ) : canAddPhoto ? (
+                            <button
+                              onClick={() => setPhotoReadingId(r.id)}
+                              className="flex items-center gap-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                              title="Add photo"
+                            >
+                              <PlusCircle className="h-4 w-4" />
                             </button>
                           ) : (
                             <span className="text-gray-300 dark:text-gray-600">—</span>

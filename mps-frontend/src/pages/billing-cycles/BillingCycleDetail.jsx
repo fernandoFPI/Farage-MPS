@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock, Pencil, Check, X, Download } from 'lucide-react'
+import { ArrowLeft, RefreshCw, AlertTriangle, CheckCircle, XCircle, RotateCcw, ArrowUpCircle, Trash2, ChevronDown, ChevronRight, Info, Link2, Layers, Image, Package, Bookmark, Clock, Pencil, Check, X, Download, PlusCircle } from 'lucide-react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   useBillingCycle,
@@ -909,6 +909,7 @@ const { data: appSettings } = useSettings()
   const { user } = useAuth()
   const isAdmin = user?.role?.name === 'admin'
   const isEngineer = user?.role?.name === 'engineer'
+  const canAddPhoto = user?.role?.name === 'admin' || user?.role?.name === 'mps_team_lead'
   const [photoReadingId, setPhotoReadingId] = useState(null)
 
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -1842,6 +1843,14 @@ const { data: appSettings } = useSettings()
                             >
                               <Image className="h-4 w-4" />
                               <span className="text-xs">{r.photos.length}</span>
+                            </button>
+                          ) : canAddPhoto ? (
+                            <button
+                              onClick={() => setPhotoReadingId(r.id)}
+                              className="flex items-center gap-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400 transition-colors"
+                              title="Add photo"
+                            >
+                              <PlusCircle className="h-4 w-4" />
                             </button>
                           ) : (
                             <span className="text-gray-300 dark:text-gray-600">—</span>

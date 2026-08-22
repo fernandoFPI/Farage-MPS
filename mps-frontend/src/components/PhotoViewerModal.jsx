@@ -303,7 +303,19 @@ export default function PhotoViewerModal({ readingId, onClose }) {
           {loading ? (
             <span className="text-gray-400 text-sm">Loading…</span>
           ) : photos.length === 0 ? (
-            <span className="text-gray-400 text-sm">No photos</span>
+            <div className="flex flex-col items-center gap-3 p-8 text-center">
+              <span className="text-gray-400 text-sm">No photos attached</span>
+              {canDelete && (
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium disabled:opacity-50 transition-colors"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  {uploading ? 'Uploading…' : 'Add photo'}
+                </button>
+              )}
+            </div>
           ) : currentPhoto ? (
             <PhotoImage
               key={currentPhoto.id}
