@@ -425,6 +425,24 @@ export async function deletePhoto(readingId, photoId) {
   return filtered;
 }
 
+export async function addPhoto(readingId, photo) {
+  const { rows } = await pool.query(
+    `SELECT photos FROM meter_readings WHERE id = $1`,
+    [readingId],
+  );
+  if (!rows[0]) return null;
+
+  const photos = rows[0].photos ?? [];
+  const newPhoto = { id: crypto.randomUUID(), ...photo };
+  const updated = [...photos, newPhoto];
+
+  await pool.query(
+    `UPDATE meter_readings SET photos = $1 WHERE id = $2`,
+    [JSON.stringify(updated), readingId],
+  );
+  return newPhoto;
+}
+
 export async function deleteManyByIds(ids) {
   if (!ids.length) return 0;
   const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');

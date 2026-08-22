@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { X, ChevronLeft, ChevronRight, Download, ExternalLink, Trash2 } from 'lucide-react'
+import { X, ChevronLeft, ChevronRight, Download, ExternalLink, Trash2, PlusCircle } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import client from '../api/client'
 import { useAuth } from '../context/AuthContext'
@@ -42,7 +42,9 @@ export default function PhotoViewerModal({ readingId, onClose }) {
   const [photos, setPhotos] = useState([])
   const [loading, setLoading] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [index, setIndex] = useState(0)
+  const fileInputRef = useRef(null)
 
   // Zoom / pan state
   const [zoom, setZoom] = useState(1)
@@ -220,6 +222,36 @@ export default function PhotoViewerModal({ readingId, onClose }) {
     win.document.close()
   }
 
+  const handleAddPhoto = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setUploading(true)
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result.split(',')[1])
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      const { data: newPhoto } = await client.post(`/api/meter-readings/${readingId}/photos`, {
+        data: base64,
+        mimeType: file.type || 'image/jpeg',
+        filename: file.name,
+      })
+      setPhotos(prev => {
+        const next = [...prev, newPhoto]
+        setIndex(next.length - 1)
+        return next
+      })
+    } catch (err) {
+      const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to upload photo'
+      window.alert(msg)
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const handleDeletePhoto = async () => {
     if (!currentPhoto?.id) return
     if (!window.confirm(t('meterReadings.confirmDeletePhoto', 'Delete this photo? This cannot be undone.'))) return
@@ -357,14 +389,31 @@ export default function PhotoViewerModal({ readingId, onClose }) {
               <Download className="h-4 w-4" />
             </button>
             {canDelete && (
-              <button
-                onClick={handleDeletePhoto}
-                disabled={!currentPhoto || deleting}
-                title={t('meterReadings.deletePhoto', 'Delete photo')}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-red-800 text-red-400 hover:bg-red-900/40 disabled:opacity-30 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAddPhoto}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  title="Add photo"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-blue-700 text-blue-400 hover:bg-blue-900/40 disabled:opacity-30 transition-colors"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleDeletePhoto}
+                  disabled={!currentPhoto || deleting}
+                  title={t('meterReadings.deletePhoto', 'Delete photo')}
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-red-800 text-red-400 hover:bg-red-900/40 disabled:opacity-30 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </>
             )}
           </div>
         </div>

@@ -10,6 +10,7 @@ router.delete('/bulk',    verifyToken, blockOdoo,                               
 router.get('/',           verifyToken, blockOdoo,                                           ctrl.list);
 router.post('/',          verifyToken, blockOdoo, requirePermission('can_submit_readings'), ctrl.create);
 router.get('/:id/photos',               verifyToken, blockOdoo, ctrl.getPhotos);
+router.post('/:id/photos',              verifyToken, blockOdoo, ctrl.addPhoto);
 router.delete('/:id/photos/:photoId',   verifyToken, blockOdoo, ctrl.deletePhoto);
 router.get('/:id',        verifyToken, blockOdoo,                                           ctrl.getById);
 router.put('/:id',        verifyToken, blockOdoo, requirePermission('can_submit_readings'), ctrl.update);

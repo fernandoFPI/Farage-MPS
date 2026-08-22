@@ -58,6 +58,26 @@ export async function deletePhoto(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function addPhoto(req, res, next) {
+  try {
+    const roleName = req.user?.role?.name;
+    if (roleName !== 'admin' && roleName !== 'mps_team_lead') {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const { data, mimeType, filename } = req.body;
+    if (!data || !mimeType) {
+      return res.status(400).json({ error: 'data and mimeType are required' });
+    }
+    // Rough size guard: base64 of 15MB ≈ 20MB string
+    if (data.length > 20_000_000) {
+      return res.status(413).json({ error: 'Photo exceeds 15 MB limit' });
+    }
+    const photo = await repo.addPhoto(req.params.id, { data, mimeType, filename: filename ?? null });
+    if (photo === null) return res.status(404).json({ error: 'Reading not found' });
+    res.status(201).json(photo);
+  } catch (err) { next(err); }
+}
+
 export async function bulkDelete(req, res, next) {
   try {
     if (req.user?.role?.name !== 'admin') {
