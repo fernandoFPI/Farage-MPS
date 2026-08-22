@@ -24,3 +24,9 @@ export async function getSummary(req, res, next) {
     res.json(await repo.getSummary());
   } catch (err) { next(err); }
 }
+
+export async function getTvData(req, res, next) {
+  try {
+    res.json(await repo.getTvData());
+  } catch (err) { next(err); }
+}

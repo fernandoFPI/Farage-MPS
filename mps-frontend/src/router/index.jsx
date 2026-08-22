@@ -31,6 +31,7 @@ import SettingsPage from '../pages/settings/SettingsPage'
 import OdooSyncPage from '../pages/settings/OdooSyncPage'
 import ChartsPage from '../pages/charts/ChartsPage'
 import MonitorPage from '../pages/monitor/MonitorPage'
+import TvDashboardPage from '../pages/monitor/TvDashboardPage'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
@@ -95,6 +96,15 @@ export default function RouterConfig() {
           <Route path="charts" element={<ChartsPage />} />
           <Route path="monitor" element={<MonitorPage />} />
         </Route>
+        {/* TV dashboard — full screen, no sidebar */}
+        <Route
+          path="/tv"
+          element={
+            <ProtectedRoute>
+              <TvDashboardPage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

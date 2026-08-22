@@ -38,3 +38,14 @@ export function useOdooMonitorStatus() {
     refetchInterval: STALE,
   });
 }
+
+const TV_INTERVAL = 60 * 1000; // 60 seconds
+
+export function useTvData() {
+  return useQuery({
+    queryKey: ['monitor', 'tv'],
+    queryFn: () => client.get('/api/monitor/tv').then(r => r.data),
+    staleTime: TV_INTERVAL,
+    refetchInterval: TV_INTERVAL,
+  });
+}

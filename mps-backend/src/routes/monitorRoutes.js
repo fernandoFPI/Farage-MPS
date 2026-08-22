@@ -17,5 +17,6 @@ router.get('/summary',       ...guard, ctrl.getSummary);
 router.get('/reading-gaps',  ...guard, ctrl.getReadingGaps);
 router.get('/cycle-gaps',    ...guard, ctrl.getCycleGaps);
 router.get('/odoo-status',   ...guard, ctrl.getOdooStatus);
+router.get('/tv',            ...guard, ctrl.getTvData);
 
 export default router;

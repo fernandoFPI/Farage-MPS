@@ -193,6 +193,113 @@ export async function getOdooStatus() {
 }
 
 /**
+ * All data needed by the TV dashboard in one round-trip.
+ */
+export async function getTvData() {
+  const [summary, readingGaps, cycleGaps, odooIssues, readingsToday, recentActivity] = await Promise.all([
+    getSummary(),
+
+    // Top incomplete cycles (limit 15 for TV)
+    pool.query(`
+      SELECT cu.name AS customer_name,
+             bc.id   AS cycle_id,
+             COALESCE(SUM(cs.submitted_printers), 0)::int AS submitted,
+             COALESCE(SUM(cs.total_printers), 0)::int     AS total,
+             EXTRACT(DAY FROM NOW() - bc.created_at)::int AS days_open
+      FROM billing_cycles bc
+      JOIN contracts co ON bc.contract_id = co.id
+      JOIN customers cu ON co.customer_id = cu.id
+      LEFT JOIN billing_cycle_city_status cs ON cs.billing_cycle_id = bc.id
+      WHERE bc.status = 'open'
+        AND bc.is_cancelled = false
+        AND bc.deleted_at   IS NULL
+        AND bc.is_baseline  = false
+        AND (
+          EXISTS (SELECT 1 FROM billing_cycle_city_status x WHERE x.billing_cycle_id = bc.id AND x.submitted_printers < x.total_printers)
+          OR NOT EXISTS (SELECT 1 FROM billing_cycle_city_status x WHERE x.billing_cycle_id = bc.id)
+        )
+      GROUP BY cu.name, bc.id
+      ORDER BY days_open DESC
+      LIMIT 15
+    `),
+
+    // Top missing cycles (limit 10)
+    pool.query(`
+      SELECT cu.name AS customer_name,
+             co.contract_number,
+             CASE
+               WHEN lc.period_end IS NOT NULL THEN (CURRENT_DATE - lc.period_end::date)
+               ELSE (CURRENT_DATE - co.start_date::date)
+             END AS days_since
+      FROM contracts co
+      JOIN customers cu ON co.customer_id = cu.id
+      LEFT JOIN LATERAL (
+        SELECT bc.period_end FROM billing_cycles bc
+        WHERE bc.contract_id = co.id AND bc.is_cancelled = false AND bc.deleted_at IS NULL
+        ORDER BY bc.period_end DESC LIMIT 1
+      ) lc ON true
+      WHERE co.is_active = true
+        AND co.start_date <= CURRENT_DATE
+        AND (co.end_date IS NULL OR co.end_date >= CURRENT_DATE)
+        AND NOT EXISTS (
+          SELECT 1 FROM billing_cycles bc
+          WHERE bc.contract_id = co.id AND bc.is_cancelled = false AND bc.deleted_at IS NULL
+            AND bc.period_start <= CURRENT_DATE AND bc.period_end >= CURRENT_DATE
+        )
+        AND (
+          (lc.period_end IS NOT NULL AND lc.period_end  < CURRENT_DATE - INTERVAL '5 days')
+          OR (lc.period_end IS NULL  AND co.start_date  < CURRENT_DATE - INTERVAL '5 days')
+        )
+      ORDER BY days_since DESC NULLS LAST
+      LIMIT 10
+    `),
+
+    // Odoo errors/pending (limit 10)
+    pool.query(`
+      SELECT cu.name AS customer_name, bc.odoo_status, bc.period_start, bc.period_end
+      FROM billing_cycles bc
+      JOIN contracts co ON bc.contract_id = co.id
+      JOIN customers cu ON co.customer_id = cu.id
+      WHERE bc.is_cancelled = false
+        AND bc.deleted_at   IS NULL
+        AND bc.status IN ('confirmed', 'invoiced')
+        AND bc.odoo_status IN ('error', 'pending', 'partial')
+      ORDER BY CASE bc.odoo_status WHEN 'error' THEN 0 WHEN 'partial' THEN 1 ELSE 2 END, bc.confirmed_at DESC
+      LIMIT 10
+    `),
+
+    // Readings submitted today
+    pool.query(`
+      SELECT COUNT(*)::int AS count FROM meter_readings
+      WHERE created_at >= CURRENT_DATE AND created_at < CURRENT_DATE + INTERVAL '1 day'
+    `),
+
+    // Last 12 readings
+    pool.query(`
+      SELECT mr.created_at, p.serial_number, p.model, cu.name AS customer_name,
+             u.full_name AS submitted_by
+      FROM meter_readings mr
+      JOIN printers p ON mr.printer_id = p.id
+      JOIN billing_cycles bc ON mr.billing_cycle_id = bc.id
+      JOIN contracts co ON bc.contract_id = co.id
+      JOIN customers cu ON co.customer_id = cu.id
+      LEFT JOIN users u ON mr.submitted_by_user_id = u.id
+      ORDER BY mr.created_at DESC
+      LIMIT 12
+    `),
+  ]);
+
+  return {
+    summary,
+    readingGaps:    readingGaps.rows,
+    cycleGaps:      cycleGaps.rows,
+    odooIssues:     odooIssues.rows,
+    readingsToday:  readingsToday.rows[0].count,
+    recentActivity: recentActivity.rows,
+  };
+}
+
+/**
  * Single-query summary counts for the nav badge / KPI bar.
  */
 export async function getSummary() {
