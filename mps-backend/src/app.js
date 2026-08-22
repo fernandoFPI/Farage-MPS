@@ -23,6 +23,7 @@ import analyticsRoutes from './routes/analyticsRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import odooRoutes from './routes/odooRoutes.js';
 import monitorRoutes from './routes/monitorRoutes.js';
+import agentRoutes, { adminRouter as agentAdminRouter } from './routes/agentRoutes.js';
 
 const app = express();
 
@@ -59,6 +60,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/odoo',    odooRoutes);
 app.use('/api/monitor', monitorRoutes);
+app.use('/api/agent',   agentRoutes);
+app.use('/api/admin/agent-sites', agentAdminRouter);
 
 // Odoo integration audit logger
 app.use((req, res, next) => {
