@@ -78,7 +78,14 @@ export async function listReadings(query) {
     source: query.source,
     customerId: query.customerId,
   });
-  return Promise.all(readings.map(attachUsage));
+  // attachUsage runs 2 extra DB queries per reading (cycle lookup + prev reading).
+  // Only run it when scoped to a specific cycle — the billing cycle detail page
+  // needs billableBw/billableColor and the result set is bounded (one row per printer).
+  // Unfiltered and customer-only lists skip it: the list page shows raw counters only.
+  if (query.billingCycleId) {
+    return Promise.all(readings.map(attachUsage));
+  }
+  return readings;
 }
 
 export async function getReadingById(id) {

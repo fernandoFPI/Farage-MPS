@@ -49,7 +49,8 @@ export async function findAll({ printerId, billingCycleId, source, customerId } 
             p.serial_number, p.model, p.is_bw_only,
             cu.name AS customer_name,
             TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
-            u.full_name AS submitted_by_name
+            u.full_name AS submitted_by_name,
+            c.contract_mode AS contract_type
      FROM meter_readings mr
      JOIN printers p ON mr.printer_id = p.id
      JOIN billing_cycles bc ON mr.billing_cycle_id = bc.id
@@ -68,6 +69,7 @@ export async function findAll({ printerId, billingCycleId, source, customerId } 
     customerName: row.customer_name,
     cycleName: `${row.customer_name.trim()} — ${row.cycle_month.trim()}`,
     submittedByName: row.submitted_by_name ?? null,
+    contractType: row.contract_type ?? null,
   }));
 }
 
