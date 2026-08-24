@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Pencil, Plus } from 'lucide-react'
+import { ArrowLeft, Pencil, Plus, ArrowRightLeft } from 'lucide-react'
 import { useContract } from '../../api/hooks/useContracts'
 import { useDeleteAssignment } from '../../api/hooks/useAssignments'
 import { useDocTitle } from '../../hooks/useDocTitle'
@@ -13,6 +13,7 @@ import EmptyState from '../../components/EmptyState'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import ContractFormModal from './ContractFormModal'
 import AssignPrinterModal from './AssignPrinterModal'
+import TransferPrintersModal from './TransferPrintersModal'
 import { usePermission } from '../../hooks/usePermission'
 import { fmtDate, fmtMoney } from '../../utils/format'
 import { formatAmount } from '../../utils/currency'
@@ -36,6 +37,7 @@ export default function ContractDetail() {
   const [assignOpen, setAssignOpen] = useState(false)
   const [editAssign, setEditAssign] = useState(null)
   const [removingAssign, setRemovingAssign] = useState(null)
+  const [transferOpen, setTransferOpen] = useState(false)
 
   useDocTitle(contract?.contractNumber)
 
@@ -163,10 +165,18 @@ export default function ContractDetail() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">{t('printers.title')}</h2>
           {canManageContracts && (
-            <button onClick={() => { setEditAssign(null); setAssignOpen(true) }}
-              className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">
-              <Plus className="h-3.5 w-3.5" />{t('contracts.assignPrinter')}
-            </button>
+            <div className="flex gap-2">
+              {contract.printers?.length > 0 && (
+                <button onClick={() => setTransferOpen(true)}
+                  className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800">
+                  <ArrowRightLeft className="h-3.5 w-3.5" />Transfer
+                </button>
+              )}
+              <button onClick={() => { setEditAssign(null); setAssignOpen(true) }}
+                className="flex items-center gap-1 rounded-lg bg-brand-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-600">
+                <Plus className="h-3.5 w-3.5" />{t('contracts.assignPrinter')}
+              </button>
+            </div>
           )}
         </div>
         {contract.printers?.length ? (
@@ -249,6 +259,7 @@ export default function ContractDetail() {
 
 
 <ContractFormModal open={editing} onClose={() => setEditing(false)} initial={contract} />
+      <TransferPrintersModal open={transferOpen} onClose={() => setTransferOpen(false)} contract={contract} />
       <AssignPrinterModal open={assignOpen} onClose={() => { setAssignOpen(false); setEditAssign(null) }}
         contractId={id} contract={contract} initial={editAssign} />
       <ConfirmDialog

@@ -195,6 +195,42 @@ export async function update(id, fields) {
   return findById(id);
 }
 
+export async function transferInTransaction({ existing, toContractId, transferDate, closingDate }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    for (const a of existing) {
+      // Close old assignment
+      await client.query(
+        `UPDATE contract_printers SET assigned_until = $1 WHERE id = $2`,
+        [closingDate, a.id],
+      );
+      // Create new assignment on target contract
+      await client.query(
+        `INSERT INTO contract_printers
+           (contract_id, printer_id, assigned_from, assigned_until, contract_type,
+            fixed_charge, bw_price, color_price, override_min_bw_pages, override_min_color_pages)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+        [
+          toContractId, a.printerId, transferDate, null,
+          a.contractType ?? 'osg',
+          a.fixedCharge ?? null, a.bwPrice ?? null, a.colorPrice ?? null,
+          a.overrideMinBwPages ?? null, a.overrideMinColorPages ?? null,
+        ],
+      );
+    }
+
+    await client.query('COMMIT');
+    return { transferred: existing.length };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function deleteById(id) {
   const { rowCount } = await pool.query(
     `DELETE FROM contract_printers WHERE id = $1`,

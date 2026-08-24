@@ -6,9 +6,10 @@ import * as ctrl from '../controllers/contractPrinterController.js';
 const router = Router();
 const edit = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
 
-router.get('/',       verifyToken, blockOdoo,  ctrl.list);
-router.post('/',      ...edit,                 ctrl.create);
-router.put('/:id',    ...edit,                 ctrl.update);
-router.delete('/:id', ...edit,                 ctrl.remove);
+router.get('/',          verifyToken, blockOdoo,  ctrl.list);
+router.post('/transfer', ...edit,                ctrl.transfer);
+router.post('/',         ...edit,                ctrl.create);
+router.put('/:id',       ...edit,                ctrl.update);
+router.delete('/:id',    ...edit,                ctrl.remove);
 
 export default router;

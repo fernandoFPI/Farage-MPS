@@ -67,6 +67,37 @@ export async function updateAssignment(id, { contractId, assignedFrom, assignedU
   return repo.update(id, { contractId, assignedFrom, assignedUntil, fixedCharge, bwPrice, colorPrice, overrideMinBwPages, overrideMinColorPages });
 }
 
+export async function transferPrinters({ toContractId, assignmentIds, transferDate }) {
+  if (!toContractId || !Array.isArray(assignmentIds) || assignmentIds.length === 0 || !transferDate) {
+    const err = new Error('toContractId, assignmentIds, and transferDate are required');
+    err.status = 400;
+    throw err;
+  }
+
+  const targetOk = await repo.contractExists(toContractId);
+  if (!targetOk) {
+    const err = new Error('Target contract not found');
+    err.status = 404;
+    throw err;
+  }
+
+  // Resolve existing assignments
+  const existing = await Promise.all(assignmentIds.map(id => repo.findById(id)));
+  const missing = existing.filter(a => !a);
+  if (missing.length > 0) {
+    const err = new Error('One or more assignments not found');
+    err.status = 404;
+    throw err;
+  }
+
+  // assignedUntil on old = transferDate - 1 day
+  const d = new Date(transferDate);
+  d.setDate(d.getDate() - 1);
+  const closingDate = d.toISOString().slice(0, 10);
+
+  return repo.transferInTransaction({ existing, toContractId, transferDate, closingDate });
+}
+
 export async function removeAssignment(id) {
   const existing = await repo.findById(id);
   if (!existing) {

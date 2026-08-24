@@ -22,6 +22,13 @@ export async function update(req, res, next) {
   } catch (err) { next(err); }
 }
 
+export async function transfer(req, res, next) {
+  try {
+    const { toContractId, assignmentIds, transferDate } = req.body;
+    res.json(await service.transferPrinters({ toContractId, assignmentIds, transferDate }));
+  } catch (err) { next(err); }
+}
+
 export async function remove(req, res, next) {
   try {
     res.json(await service.removeAssignment(req.params.id));

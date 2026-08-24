@@ -31,6 +31,18 @@ export function useUpdateAssignment() {
   })
 }
 
+export function useTransferPrinters() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (data) => client.post('/api/contract-printers/transfer', data).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['assignments'] })
+      qc.invalidateQueries({ queryKey: ['contracts'] })
+      qc.invalidateQueries({ queryKey: ['printers'] })
+    },
+  })
+}
+
 export function useDeleteAssignment() {
   const qc = useQueryClient()
   return useMutation({
