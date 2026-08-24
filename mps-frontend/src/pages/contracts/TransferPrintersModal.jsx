@@ -15,7 +15,9 @@ export default function TransferPrintersModal({ open, onClose, contract }) {
   const [transferDate, setDate]     = useState(today)
   const [error, setError]           = useState('')
 
-  const { data: contracts = [] } = useContracts()
+  const { data: contracts = [] } = useContracts(
+    contract?.customerId ? { customerId: contract.customerId } : {},
+  )
   const transfer = useTransferPrinters()
 
   // Reset when modal opens
@@ -28,9 +30,9 @@ export default function TransferPrintersModal({ open, onClose, contract }) {
     }
   }, [open])
 
-  // Contracts for the same customer, excluding this one
+  // Exclude the current contract from the target list
   const targetOptions = contracts
-    .filter(c => c.customerId === contract?.customerId && c.id !== contract?.id)
+    .filter(c => c.id !== contract?.id)
     .map(c => ({ value: c.id, label: `${c.contractNumber}${c.isActive ? '' : ' (inactive)'}` }))
 
   function toggle(id) {
