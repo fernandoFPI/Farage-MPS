@@ -16,7 +16,7 @@ export default function AssignmentFormModal({ open, onClose, initial }) {
   const create = useCreateAssignment()
   const update = useUpdateAssignment()
   const { data: contracts = [] } = useContracts()
-  const { data: printers = [] } = usePrinters()
+  const { data: printers = [] } = usePrinters({ isActive: true })
   const isEdit = !!initial
 
   useEffect(() => {

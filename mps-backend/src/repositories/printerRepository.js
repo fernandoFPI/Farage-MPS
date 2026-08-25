@@ -16,10 +16,11 @@ function mapRow(row) {
     latitude: row.latitude != null ? parseFloat(row.latitude) : null,
     longitude: row.longitude != null ? parseFloat(row.longitude) : null,
     serviceType: row.service_type ?? null,
+    isActive: row.is_active ?? true,
   };
 }
 
-export async function findAll({ city, xsmEnabled } = {}) {
+export async function findAll({ city, xsmEnabled, isActive } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -31,6 +32,10 @@ export async function findAll({ city, xsmEnabled } = {}) {
   if (xsmEnabled !== undefined) {
     conditions.push(`xsm_enabled = $${idx++}`);
     values.push(xsmEnabled);
+  }
+  if (isActive !== undefined) {
+    conditions.push(`is_active = $${idx++}`);
+    values.push(isActive);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -108,6 +113,7 @@ export async function update(id, fields) {
     latitude: 'latitude',
     longitude: 'longitude',
     serviceType: 'service_type',
+    isActive:    'is_active',
   };
 
   const setClauses = [];

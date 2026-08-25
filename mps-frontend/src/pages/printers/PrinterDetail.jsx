@@ -1,9 +1,9 @@
 import { useState, useMemo } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { ArrowLeft, Pencil, UserPlus, RefreshCw, X, MapPin } from 'lucide-react'
+import { ArrowLeft, Pencil, UserPlus, RefreshCw, X, MapPin, PowerOff, Power } from 'lucide-react'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
-import { usePrinter, useUpdatePrinterCoordinates } from '../../api/hooks/usePrinters'
+import { usePrinter, useUpdatePrinter, useUpdatePrinterCoordinates } from '../../api/hooks/usePrinters'
 import { useAssignments, useUpdateAssignment } from '../../api/hooks/useAssignments'
 import { useContract } from '../../api/hooks/useContracts'
 import { useDocTitle } from '../../hooks/useDocTitle'
@@ -59,6 +59,7 @@ export default function PrinterDetail() {
   const { data: printer, isLoading } = usePrinter(id)
   const { data: assignments = [] } = useAssignments({ printerId: id })
   const updateAssignment = useUpdateAssignment()
+  const updatePrinter = useUpdatePrinter()
 
   const updateCoords = useUpdatePrinterCoordinates()
   const [editing, setEditing] = useState(false)
@@ -99,6 +100,15 @@ export default function PrinterDetail() {
     }
   }
 
+  async function handleToggleActive() {
+    try {
+      await updatePrinter.mutateAsync({ id, isActive: !printer.isActive })
+      showToast({ variant: 'success', title: printer.isActive ? 'Printer marked inactive' : 'Printer reactivated' })
+    } catch (err) {
+      showToast({ variant: 'error', title: err.response?.data?.error || err.message })
+    }
+  }
+
   if (isLoading) return <LoadingSpinner className="py-20" />
   if (!printer) return <p className="text-gray-500 p-6">{t('common.noData')}</p>
 
@@ -115,6 +125,11 @@ export default function PrinterDetail() {
                 {t('printers.bwOnlyBadge')}
               </span>
             )}
+            {printer.isActive === false && (
+              <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700 dark:bg-red-900/30 dark:text-red-400">
+                Inactive
+              </span>
+            )}
           </span>
         }
         actions={
@@ -122,6 +137,20 @@ export default function PrinterDetail() {
             <button onClick={() => navigate(-1)}
               className="flex items-center gap-2 rounded-lg border border-gray-300 px-3 py-2 text-sm dark:border-gray-700 dark:text-gray-300">
               <ArrowLeft className="h-4 w-4" />{t('common.back')}
+            </button>
+            <button
+              onClick={handleToggleActive}
+              disabled={updatePrinter.isPending}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+                printer.isActive === false
+                  ? 'border-emerald-500 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20'
+                  : 'border-red-400 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20'
+              }`}
+            >
+              {printer.isActive === false
+                ? <><Power className="h-4 w-4" />Reactivate</>
+                : <><PowerOff className="h-4 w-4" />Deactivate</>
+              }
             </button>
             <button onClick={() => setEditing(true)}
               className="flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-600">
@@ -147,6 +176,7 @@ export default function PrinterDetail() {
             <InfoRow label={t('printers.xsmEnabled')} value={<StatusBadge status={printer.xsmEnabled} />} />
             <InfoRow label={t('printers.isBwOnly')} value={<StatusBadge status={printer.isBwOnly} />} />
             <InfoRow label={t('printers.lastSeen')} value={fmtDate(printer.lastSeenAt)} />
+            <InfoRow label="Status" value={<StatusBadge status={printer.isActive === false ? 'inactive' : 'active'} />} />
           </div>
 
           {/* Current assignment */}

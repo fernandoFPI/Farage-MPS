@@ -29,10 +29,11 @@ export function billingCycleOptions(cycles) {
   ]
 }
 
-export function printerOptions(printers) {
+export function printerOptions(printers, { includeInactive = false } = {}) {
+  const filtered = includeInactive ? printers : printers.filter(p => p.isActive !== false)
   return [
     { value: null, label: i18n.t('common.allPrinters') },
-    ...printers.map(p => ({
+    ...filtered.map(p => ({
       value: p.id,
       label: `${p.serialNumber} — ${p.model}`,
     })),

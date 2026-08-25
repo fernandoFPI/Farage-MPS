@@ -23,9 +23,9 @@ export async function getById(req, res, next) {
 
 export async function update(req, res, next) {
   try {
-    const { serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, lastSeenAt, latitude, longitude, serviceType } = req.body;
+    const { serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, lastSeenAt, latitude, longitude, serviceType, isActive } = req.body;
     res.json(
-      await service.updatePrinter(req.params.id, { serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, lastSeenAt, latitude, longitude, serviceType }),
+      await service.updatePrinter(req.params.id, { serialNumber, model, city, location, xsmDeviceId, xsmEnabled, isBwOnly, lastSeenAt, latitude, longitude, serviceType, isActive }),
     );
   } catch (err) { next(err); }
 }

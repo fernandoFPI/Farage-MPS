@@ -14,7 +14,7 @@ export default function AssignPrinterModal({ open, onClose, contractId, contract
   const [error, setError] = useState('')
   const create = useCreateAssignment()
   const update = useUpdateAssignment()
-  const { data: printers = [] } = usePrinters()
+  const { data: printers = [] } = usePrinters({ isActive: true })
   const isEdit = !!initial
 
   useEffect(() => {
