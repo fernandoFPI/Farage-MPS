@@ -147,14 +147,6 @@ export async function submitStorage(req, res, next) {
     const cycle = await cycleRepo.findById(req.params.id);
     if (!cycle) return res.status(404).json({ error: 'Billing cycle not found' });
 
-    if (cycle.storageSubmitted) {
-      return res.status(409).json({
-        error: 'Storage already submitted for this cycle',
-        submittedAt: cycle.storageSubmittedAt,
-        submittedByName: cycle.storageSubmittedByName,
-      });
-    }
-
     const customerId = cycle.contract?.customer?.id;
     if (!customerId) return res.status(400).json({ error: 'Cycle has no associated customer' });
 

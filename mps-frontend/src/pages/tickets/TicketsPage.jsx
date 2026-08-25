@@ -596,12 +596,7 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
         onSuccess()
         onClose()
       } catch (err) {
-        const data = err.response?.data
-        if (err.response?.status === 409) {
-          setError(`${t('tickets.storageAlreadySubmitted')} — ${t('tickets.storageSubmittedBy')} ${data?.submittedByName ?? ''}`)
-        } else {
-          setError(data?.error || err.message)
-        }
+        setError(err.response?.data?.error || err.message)
       }
       return
     }
@@ -620,12 +615,7 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
       onSuccess()
       onClose()
     } catch (err) {
-      const data = err.response?.data
-      if (err.response?.status === 409) {
-        setError(`${t('tickets.storageAlreadySubmitted')} — ${t('tickets.storageSubmittedBy')} ${data?.submittedByName ?? ''}`)
-      } else {
-        setError(data?.error || err.message)
-      }
+      setError(err.response?.data?.error || err.message)
     }
   }
 
@@ -1188,7 +1178,7 @@ export default function TicketsPage() {
                 <hr className="flex-1 border-gray-200 dark:border-gray-700" />
               </div>
 
-              {cycle.storageSubmitted ? (
+              {cycle.storageSubmitted && (
                 <div className={`rounded-xl border px-4 py-3 ${cycle.storageUnavailableReason
                   ? 'border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/10'
                   : 'border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-900/10'}`}>
@@ -1210,15 +1200,14 @@ export default function TicketsPage() {
                     </p>
                   )}
                 </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setStorageModalOpen(true)}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:border-brand-400 hover:text-brand-600 dark:hover:border-brand-500 dark:hover:text-brand-400 transition-colors"
-                >
-                  📦 {t('tickets.submitStorage')}
-                </button>
               )}
+              <button
+                type="button"
+                onClick={() => setStorageModalOpen(true)}
+                className="w-full flex items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600 px-4 py-3 text-sm font-semibold text-gray-600 dark:text-gray-400 hover:border-brand-400 hover:text-brand-600 dark:hover:border-brand-500 dark:hover:text-brand-400 transition-colors"
+              >
+                📦 {cycle.storageSubmitted ? t('tickets.submitStorageAnother', 'Submit for another location') : t('tickets.submitStorage')}
+              </button>
             </div>
           )}
         </div>
