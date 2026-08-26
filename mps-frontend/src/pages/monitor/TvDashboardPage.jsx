@@ -142,7 +142,7 @@ export default function TvDashboardPage() {
         <KpiTile label="Readings Today" value={readingsToday}       accent="blue"
                  sub="submitted today" />
         <KpiTile label="Missing Cycles" value={cycleGaps.length}    accent="red"
-                 sub="last 60 days" />
+                 sub="this month" />
         <KpiTile label="Odoo Errors"    value={odooIssues.length}   accent="red"
                  sub="last 2 months" />
       </div>

@@ -248,9 +248,9 @@ export async function getTvData() {
             AND bc.period_start <= CURRENT_DATE AND bc.period_end >= CURRENT_DATE
         )
         AND (
-          (lc.period_end IS NOT NULL AND lc.period_end >= CURRENT_DATE - INTERVAL '60 days'
+          (lc.period_end IS NOT NULL AND lc.period_end >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
                                     AND lc.period_end  <  CURRENT_DATE - INTERVAL '5 days')
-          OR (lc.period_end IS NULL  AND co.start_date >= CURRENT_DATE - INTERVAL '60 days'
+          OR (lc.period_end IS NULL  AND co.start_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
                                     AND co.start_date  <  CURRENT_DATE - INTERVAL '5 days')
         )
       ORDER BY days_since ASC
