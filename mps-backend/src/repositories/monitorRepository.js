@@ -214,7 +214,6 @@ export async function getTvData() {
         AND bc.is_cancelled = false
         AND bc.deleted_at   IS NULL
         AND bc.is_baseline  = false
-        AND bc.period_start >= date_trunc('month', CURRENT_DATE)
         AND (
           EXISTS (SELECT 1 FROM billing_cycle_city_status x WHERE x.billing_cycle_id = bc.id AND x.submitted_printers < x.total_printers)
           OR NOT EXISTS (SELECT 1 FROM billing_cycle_city_status x WHERE x.billing_cycle_id = bc.id)
