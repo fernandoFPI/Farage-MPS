@@ -937,7 +937,7 @@ const { data: appSettings } = useSettings()
   const setManualAmountMutation = useSetManualBillingAmount()
 
   // Parallel fetches — independent loading states
-  const { data: cycle, isLoading: cycleLoading, refetch: refetchCycle } = useBillingCycle(id)
+  const { data: cycle, isLoading: cycleLoading, isError: cycleIsError, error: cycleError, refetch: refetchCycle } = useBillingCycle(id)
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary } = useBillingCycleSummary(id)
   const { data: readings = [], isLoading: readingsLoading } = useMeterReadings({ billingCycleId: id })
   const { data: consumableReadings = [] } = useConsumableReadings({ billingCycleId: id })
@@ -1076,8 +1076,19 @@ const { data: appSettings } = useSettings()
 
   useDocTitle(cycle?.cycleName ?? (cycle ? `${cycle.contract?.contractNumber ?? ''} — ${formatPeriod(cycle.periodStart, cycle.periodEnd)}` : undefined))
 
-  // ── Loading / not found ──────────────────────────────────────────────────
+  // ── Loading / error / not found ──────────────────────────────────────────
   if (cycleLoading) return <LoadingSpinner className="py-20" />
+  if (cycleIsError) return (
+    <div className="p-6 text-center">
+      <p className="text-sm text-red-500">{cycleError?.response?.data?.error || t('common.error')}</p>
+      <button
+        onClick={() => refetchCycle()}
+        className="mt-3 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+      >
+        {t('common.retry')}
+      </button>
+    </div>
+  )
   if (!cycle) return <p className="p-6 text-gray-500">{t('common.noData')}</p>
 
   const { status } = cycle

@@ -10,8 +10,10 @@ const write = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
 // Odoo can only fetch a single customer (for partner_id lookup)
 router.get('/:id',    verifyToken, odooRateLimit, ctrl.getById);
 
-// All other endpoints blocked for Odoo
-router.get('/',       verifyToken, blockOdoo, odooRateLimit, ctrl.list);
+// All other endpoints blocked for Odoo — already unreachable by the Odoo
+// role via blockOdoo, so the Odoo-integration rate limit here only ever
+// throttled regular staff browsing the customer list.
+router.get('/',       verifyToken, blockOdoo, ctrl.list);
 router.post('/',      ...write,                              ctrl.create);
 router.put('/:id',    ...write,                              ctrl.update);
 router.delete('/:id', ...write,                              ctrl.remove);

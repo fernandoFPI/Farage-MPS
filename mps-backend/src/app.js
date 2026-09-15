@@ -27,6 +27,12 @@ import agentRoutes, { adminRouter as agentAdminRouter } from './routes/agentRout
 
 const app = express();
 
+// Running behind the mps-nginx reverse proxy (one hop) — trust its
+// X-Forwarded-For/X-Real-IP so req.ip reflects the real client, not nginx's
+// container IP. Without this, express-rate-limit (and anything else keyed on
+// req.ip) buckets every user in the building together.
+app.set('trust proxy', 1);
+
 app.use(compression());
 app.use(cors({
   origin: process.env.CORS_ORIGIN || 'http://localhost:5173',

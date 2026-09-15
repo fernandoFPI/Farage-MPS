@@ -11,9 +11,13 @@ const confirmBilling = [verifyToken, blockOdoo, requirePermission('can_confirm_b
 const submitReadings = [verifyToken, blockOdoo, requirePermission('can_submit_readings')];
 const requireAdmin   = [verifyToken, blockOdoo, (req, res, next) => req.user?.role?.name === 'admin' ? next() : res.status(403).json({ error: 'Admin only' })];
 
-// Odoo-accessible routes (no blockOdoo, rate-limited)
-router.get('/',                    verifyToken, odooRateLimit, ctrl.list);
-router.get('/:id/summary',         verifyToken, odooRateLimit, ctrl.summary);
+// Odoo-accessible routes (no blockOdoo)
+// NOTE: list/summary/getById below are core UI reads hit on every cycle page
+// view — they are NOT the endpoints Odoo's connector actually polls, so they
+// must not carry the Odoo-integration rate limit (that was throttling every
+// user in the app, not just the Odoo service account).
+router.get('/',                    verifyToken, ctrl.list);
+router.get('/:id/summary',         verifyToken, ctrl.summary);
 router.get('/:id/odoo-export',     verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.getOdooExport);
 router.get('/:id/audit-export',    verifyToken, blockOdoo, requirePermission('can_view_billing'), ctrl.getAuditExport);
 router.post('/:id/mark-invoiced',  verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.markInvoiced);
@@ -27,7 +31,7 @@ router.post('/:id/restore',  ...requireAdmin,   ctrl.restoreCycle);
 
 // Standard routes blocked for Odoo
 router.post('/',             ...manageBilling,  ctrl.create);
-router.get('/:id',           verifyToken, odooRateLimit, ctrl.getById);
+router.get('/:id',           verifyToken, ctrl.getById);
 router.patch('/:id/confirm',   ...confirmBilling, ctrl.confirm);
 router.patch('/:id/dispute',   ...confirmBilling, ctrl.dispute);
 router.patch('/:id/reopen',    ...manageBilling,  ctrl.reopen);
