@@ -11,8 +11,8 @@ export async function create(req, res, next) {
 
 export async function list(req, res, next) {
   try {
-    const { printerId, billingCycleId, customerId } = req.query;
-    const readings = await service.listConsumableReadings({ printerId, billingCycleId, customerId });
+    const { printerId, billingCycleId, customerId, city, location } = req.query;
+    const readings = await service.listConsumableReadings({ printerId, billingCycleId, customerId, city, location });
     res.json(readings);
   } catch (err) {
     next(err);

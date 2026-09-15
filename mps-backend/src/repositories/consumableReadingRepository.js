@@ -23,13 +23,15 @@ function mapRow(row) {
     // joined fields
     printerSerial: row.printer_serial ?? null,
     printerModel: row.printer_model ?? null,
+    printerCity: row.printer_city ?? null,
+    printerLocation: row.printer_location ?? null,
     isBwOnly: row.is_bw_only ?? false,
     customerName: row.customer_name ?? null,
     cycleName: row.cycle_name ?? null,
   };
 }
 
-export async function findAll({ printerId, billingCycleId, customerId } = {}) {
+export async function findAll({ printerId, billingCycleId, customerId, city, location } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -37,6 +39,8 @@ export async function findAll({ printerId, billingCycleId, customerId } = {}) {
   if (printerId)     { conditions.push(`cr.printer_id = $${idx++}`);        values.push(printerId); }
   if (billingCycleId){ conditions.push(`cr.billing_cycle_id = $${idx++}`);  values.push(billingCycleId); }
   if (customerId)    { conditions.push(`cu.id = $${idx++}`);                values.push(customerId); }
+  if (city)          { conditions.push(`p.city ILIKE $${idx++}`);           values.push(city); }
+  if (location)      { conditions.push(`p.location ILIKE $${idx++}`);       values.push(location); }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -45,6 +49,8 @@ export async function findAll({ printerId, billingCycleId, customerId } = {}) {
             u.full_name AS submitted_by_name,
             p.serial_number AS printer_serial,
             p.model AS printer_model,
+            p.city AS printer_city,
+            p.location AS printer_location,
             p.is_bw_only,
             cu.name AS customer_name,
             TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_name
@@ -67,6 +73,8 @@ export async function findById(id) {
             u.full_name AS submitted_by_name,
             p.serial_number AS printer_serial,
             p.model AS printer_model,
+            p.city AS printer_city,
+            p.location AS printer_location,
             p.is_bw_only,
             cu.name AS customer_name,
             TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_name

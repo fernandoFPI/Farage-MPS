@@ -6,6 +6,7 @@ import { useConsumableReadings } from '../../api/hooks/useConsumableReadings'
 import { useCustomerStorage, useCustomerStorageHistory } from '../../api/hooks/useCustomerStorage'
 import { useCustomers } from '../../api/hooks/useCustomers'
 import { useBillingCycles } from '../../api/hooks/useBillingCycles'
+import { usePrinters } from '../../api/hooks/usePrinters'
 import { CONSUMABLE_FIELD_MAP, COLOR_CONSUMABLES, BW_CONSUMABLES } from '../../utils/consumables'
 import { fmtDate, fmtDateTime } from '../../utils/format'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -80,7 +81,7 @@ function StorageHistoryPanel({ customerId, printerModel, isBwOnly, t }) {
 }
 
 // ── Customer storage card ─────────────────────────────────────────────────────
-function CustomerStorageCard({ customer, t }) {
+function CustomerStorageCard({ customer, filterLocation, t }) {
   const { data: storage = [], isLoading } = useCustomerStorage(customer.id)
   const [expanded, setExpanded] = useState(false)
   const [expandedModel, setExpandedModel] = useState(null)
@@ -96,7 +97,19 @@ function CustomerStorageCard({ customer, t }) {
     return groups
   }, [storage])
 
-  const sortedLocations = useMemo(() => Object.keys(byLocation).sort(), [byLocation])
+  const needle = filterLocation?.trim().toLowerCase()
+  const sortedLocations = useMemo(() => {
+    const all = Object.keys(byLocation).sort()
+    if (!needle) return all
+    return all.filter(loc => {
+      const name = (loc || t('consumables.storageMainBranch')).toLowerCase()
+      const city = (byLocation[loc][0]?.city || '').toLowerCase()
+      return name.includes(needle) || city.includes(needle)
+    })
+  }, [byLocation, needle, t])
+
+  // While a location search is active, show matches without requiring a manual expand.
+  const isOpen = expanded || Boolean(needle)
 
   if (isLoading) return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -105,6 +118,7 @@ function CustomerStorageCard({ customer, t }) {
   )
 
   if (storage.length === 0) return null
+  if (needle && sortedLocations.length === 0) return null
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
@@ -114,13 +128,13 @@ function CustomerStorageCard({ customer, t }) {
         className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 text-start"
       >
         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{customer.name}</span>
-        {expanded
+        {isOpen
           ? <ChevronDown className="h-4 w-4 text-gray-400" />
           : <ChevronRight className="h-4 w-4 text-gray-400" />
         }
       </button>
 
-      {expanded && (
+      {isOpen && (
         <div>
           {sortedLocations.map(loc => (
             <div key={loc}>
@@ -130,6 +144,11 @@ function CustomerStorageCard({ customer, t }) {
                   <span className="text-xs font-semibold text-brand-700 dark:text-brand-400">
                     {loc || t('consumables.storageMainBranch')}
                   </span>
+                  {byLocation[loc][0]?.city && (
+                    <span className="ms-2 text-xs font-normal text-brand-500/80 dark:text-brand-400/70">
+                      · {byLocation[loc][0].city}
+                    </span>
+                  )}
                 </div>
               )}
               <div className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -210,11 +229,28 @@ function CustomerStorageCard({ customer, t }) {
 function PrinterLevelsTab({ customers, cycles, t }) {
   const [filterCustomer, setFilterCustomer] = useState(null)
   const [filterCycle, setFilterCycle]       = useState(null)
+  const [filterCity, setFilterCity]         = useState(null)
+  const [filterLocation, setFilterLocation] = useState(null)
+  const [filterPrinter, setFilterPrinter]   = useState(null)
   const [expanded, setExpanded] = useState({})
+
+  const { data: printers = [] } = usePrinters()
+
+  const cityOptions = useMemo(
+    () => [...new Set(printers.map(p => p.city).filter(Boolean))].sort(),
+    [printers],
+  )
+  const locationOptions = useMemo(
+    () => [...new Set(printers.map(p => p.location).filter(Boolean))].sort(),
+    [printers],
+  )
 
   const { data: allReadings = [], isLoading } = useConsumableReadings({
     ...(filterCustomer != null && { customerId: filterCustomer }),
     ...(filterCycle != null && { billingCycleId: filterCycle }),
+    ...(filterCity != null && { city: filterCity }),
+    ...(filterLocation != null && { location: filterLocation }),
+    ...(filterPrinter != null && { printerId: filterPrinter }),
   })
 
   // Group by customer → cycle
@@ -257,6 +293,36 @@ function PrinterLevelsTab({ customers, cycles, t }) {
           options={[
             { value: null, label: t('common.allCycles') },
             ...cycles.map(c => ({ value: c.id, label: c.cycleName ?? c.contractNumber })),
+          ]}
+        />
+        <SearchableSelect
+          className="w-40"
+          value={filterCity}
+          onChange={setFilterCity}
+          placeholder={t('common.allCities')}
+          options={[
+            { value: null, label: t('common.allCities') },
+            ...cityOptions.map(c => ({ value: c, label: c })),
+          ]}
+        />
+        <SearchableSelect
+          className="w-44"
+          value={filterLocation}
+          onChange={setFilterLocation}
+          placeholder={t('common.allLocations')}
+          options={[
+            { value: null, label: t('common.allLocations') },
+            ...locationOptions.map(l => ({ value: l, label: l })),
+          ]}
+        />
+        <SearchableSelect
+          className="w-48"
+          value={filterPrinter}
+          onChange={setFilterPrinter}
+          placeholder={t('common.allPrinters')}
+          options={[
+            { value: null, label: t('common.allPrinters') },
+            ...printers.map(p => ({ value: p.id, label: `${p.serialNumber} — ${p.model}` })),
           ]}
         />
       </div>
@@ -344,13 +410,14 @@ function PrinterLevelsTab({ customers, cycles, t }) {
 
 // ── Tab 2: Customer Storage ───────────────────────────────────────────────────
 function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t }) {
+  const [filterLocation, setFilterLocation] = useState('')
   const filteredCustomers = filterCustomer != null
     ? customers.filter(c => c.id === filterCustomer)
     : customers
 
   return (
     <div className="space-y-4">
-      <div>
+      <div className="flex flex-wrap gap-3">
         <SearchableSelect
           className="w-44"
           value={filterCustomer}
@@ -360,6 +427,13 @@ function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t })
             ...customers.map(c => ({ value: c.id, label: c.name })),
           ]}
         />
+        <input
+          type="text"
+          value={filterLocation}
+          onChange={e => setFilterLocation(e.target.value)}
+          placeholder={t('consumables.searchLocationOrCity')}
+          className="w-52 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
+        />
       </div>
 
       {filteredCustomers.length === 0 && (
@@ -367,7 +441,7 @@ function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t })
       )}
 
       {filteredCustomers.map(customer => (
-        <CustomerStorageCard key={customer.id} customer={customer} t={t} />
+        <CustomerStorageCard key={customer.id} customer={customer} filterLocation={filterLocation} t={t} />
       ))}
     </div>
   )
