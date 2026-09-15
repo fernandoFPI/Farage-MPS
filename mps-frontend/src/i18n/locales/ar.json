@@ -572,7 +572,6 @@
     "viewHistory": "عرض السجل",
     "lastUpdated": "آخر تحديث",
     "storageMainBranch": "المقر الرئيسي",
-    "searchLocationOrCity": "ابحث عن الموقع أو المدينة...",
     "consumableSaveError": "تم حفظ قراءة العداد لكن تعذر حفظ مستويات المستلزمات. يرجى المحاولة مرة أخرى.",
     "storageSaveError": "فشل تحديث المخزن. يرجى المحاولة مرة أخرى.",
     "levelsSaved": "تم حفظ المستلزمات",

@@ -97,19 +97,15 @@ function CustomerStorageCard({ customer, filterLocation, t }) {
     return groups
   }, [storage])
 
-  const needle = filterLocation?.trim().toLowerCase()
+  const hasFilter = filterLocation != null
   const sortedLocations = useMemo(() => {
     const all = Object.keys(byLocation).sort()
-    if (!needle) return all
-    return all.filter(loc => {
-      const name = (loc || t('consumables.storageMainBranch')).toLowerCase()
-      const city = (byLocation[loc][0]?.city || '').toLowerCase()
-      return name.includes(needle) || city.includes(needle)
-    })
-  }, [byLocation, needle, t])
+    if (!hasFilter) return all
+    return all.filter(loc => loc === filterLocation)
+  }, [byLocation, hasFilter, filterLocation])
 
-  // While a location search is active, show matches without requiring a manual expand.
-  const isOpen = expanded || Boolean(needle)
+  // While a location filter is active, show matches without requiring a manual expand.
+  const isOpen = expanded || hasFilter
 
   if (isLoading) return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4">
@@ -118,7 +114,7 @@ function CustomerStorageCard({ customer, filterLocation, t }) {
   )
 
   if (storage.length === 0) return null
-  if (needle && sortedLocations.length === 0) return null
+  if (hasFilter && sortedLocations.length === 0) return null
 
   return (
     <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
@@ -410,7 +406,21 @@ function PrinterLevelsTab({ customers, cycles, t }) {
 
 // ── Tab 2: Customer Storage ───────────────────────────────────────────────────
 function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t }) {
-  const [filterLocation, setFilterLocation] = useState('')
+  const [filterLocation, setFilterLocation] = useState(null)
+  const { data: printers = [] } = usePrinters()
+
+  // One option per distinct branch name, labelled with its city so same-named
+  // branches at different customers (or different cities) are told apart.
+  const locationOptions = useMemo(() => {
+    const cityByLocation = new Map()
+    for (const p of printers) {
+      if (p.location && !cityByLocation.has(p.location)) cityByLocation.set(p.location, p.city || null)
+    }
+    return [...cityByLocation.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([loc, city]) => ({ value: loc, label: city ? `${loc} — ${city}` : loc }))
+  }, [printers])
+
   const filteredCustomers = filterCustomer != null
     ? customers.filter(c => c.id === filterCustomer)
     : customers
@@ -427,12 +437,15 @@ function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t })
             ...customers.map(c => ({ value: c.id, label: c.name })),
           ]}
         />
-        <input
-          type="text"
+        <SearchableSelect
+          className="w-56"
           value={filterLocation}
-          onChange={e => setFilterLocation(e.target.value)}
-          placeholder={t('consumables.searchLocationOrCity')}
-          className="w-52 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400"
+          onChange={setFilterLocation}
+          placeholder={t('common.allLocations')}
+          options={[
+            { value: null, label: t('common.allLocations') },
+            ...locationOptions,
+          ]}
         />
       </div>
 

@@ -572,7 +572,6 @@
     "viewHistory": "View History",
     "lastUpdated": "Last updated",
     "storageMainBranch": "Main Branch",
-    "searchLocationOrCity": "Search location or city...",
     "consumableSaveError": "Meter reading saved but consumable levels could not be saved. Please try again.",
     "storageSaveError": "Storage update failed. Please try again.",
     "levelsSaved": "Consumables saved",
