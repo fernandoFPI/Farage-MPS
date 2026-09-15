@@ -84,7 +84,7 @@ function AddMemberModal({ open, onClose, groupId, existingContractIds }) {
 }
 
 // ── Summary table ─────────────────────────────────────────────────────────────
-function GroupSummaryPanel({ groupId, currency, t }) {
+function GroupSummaryPanel({ groupId, t }) {
   const now = new Date()
   const defaultPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
   const [period, setPeriod] = useState(defaultPeriod)
@@ -162,8 +162,8 @@ function GroupSummaryPanel({ groupId, currency, t }) {
                       </td>
                       <td className="px-4 py-2 text-end text-gray-600 dark:text-gray-400">{formatNumber(c.billableBw)}</td>
                       <td className="px-4 py-2 text-end text-gray-600 dark:text-gray-400">{formatNumber(c.billableColor)}</td>
-                      <td className="px-4 py-2 text-end text-gray-600 dark:text-gray-400">{formatAmount(c.fixedCharge, currency)}</td>
-                      <td className="px-4 py-2 text-end font-semibold text-gray-900 dark:text-gray-100">{formatAmount(c.total, currency)}</td>
+                      <td className="px-4 py-2 text-end text-gray-600 dark:text-gray-400">{formatAmount(c.fixedCharge, c.currency)}</td>
+                      <td className="px-4 py-2 text-end font-semibold text-gray-900 dark:text-gray-100">{formatAmount(c.total, c.currency)}</td>
                       <td className="px-4 py-2 text-end">
                         {c.cycleId && (
                           <Link to={`/billing-cycles/${c.cycleId}`}
@@ -270,7 +270,7 @@ export default function ContractGroupDetail() {
       </div>
 
       {/* Summary panel */}
-      <GroupSummaryPanel groupId={id} currency="IQD" t={t} />
+      <GroupSummaryPanel groupId={id} t={t} />
 
       <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} groupId={id} existingContractIds={existingIds} />
 

@@ -305,6 +305,7 @@ export async function getGroupSummary(groupId, periodStart) {
         customerName: member.customerName,
         cycleId: null,
         cycleName: null,
+        currency: contract?.currency || 'IQD',
         billableBw: 0,
         billableColor: 0,
         fixedCharge: Number(contract?.fixedCharge) || 0,
@@ -322,6 +323,7 @@ export async function getGroupSummary(groupId, periodStart) {
       customerName: member.customerName,
       cycleId: cycle.id,
       cycleName: summary.cycleName,
+      currency: contract?.currency || 'IQD',
       billableBw:    summary.totals?.totalBillableBw    ?? 0,
       billableColor: summary.totals?.totalBillableColor ?? 0,
       fixedCharge:   Number(contract?.fixedCharge)   || 0,
@@ -350,6 +352,7 @@ export async function getGroupSummary(groupId, periodStart) {
       customerName:   contractSummaries[i].customerName,
       cycleId:        contractSummaries[i].cycleId,
       cycleName:      contractSummaries[i].cycleName,
+      currency:       contractSummaries[i].currency,
     })),
   };
 }
