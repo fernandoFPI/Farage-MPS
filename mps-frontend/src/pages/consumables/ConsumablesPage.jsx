@@ -407,10 +407,14 @@ function PrinterLevelsTab({ customers, cycles, t }) {
 // ── Tab 2: Customer Storage ───────────────────────────────────────────────────
 function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t }) {
   const [filterLocation, setFilterLocation] = useState(null)
-  const { data: printers = [] } = usePrinters()
+  // Scoped to the selected customer so the list only ever shows branches that
+  // are actually theirs — otherwise every customer's locations show up mixed
+  // together, which is confusing (e.g. picking "Carrefour" but still seeing
+  // an unrelated customer's buildings in the Location list).
+  const { data: printers = [] } = usePrinters(filterCustomer != null ? { customerId: filterCustomer } : {})
 
   // One option per distinct branch name, labelled with its city so same-named
-  // branches at different customers (or different cities) are told apart.
+  // branches in different cities are told apart.
   const locationOptions = useMemo(() => {
     const cityByLocation = new Map()
     for (const p of printers) {
@@ -420,6 +424,11 @@ function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t })
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([loc, city]) => ({ value: loc, label: city ? `${loc} — ${city}` : loc }))
   }, [printers])
+
+  function handleCustomerChange(customerId) {
+    setFilterCustomer(customerId)
+    setFilterLocation(null) // previous selection may not exist for the new customer
+  }
 
   const filteredCustomers = filterCustomer != null
     ? customers.filter(c => c.id === filterCustomer)
@@ -431,7 +440,7 @@ function CustomerStorageTab({ customers, filterCustomer, setFilterCustomer, t })
         <SearchableSelect
           className="w-44"
           value={filterCustomer}
-          onChange={setFilterCustomer}
+          onChange={handleCustomerChange}
           options={[
             { value: null, label: t('common.allCustomers') },
             ...customers.map(c => ({ value: c.id, label: c.name })),

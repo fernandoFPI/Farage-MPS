@@ -20,7 +20,7 @@ function mapRow(row) {
   };
 }
 
-export async function findAll({ city, xsmEnabled, isActive } = {}) {
+export async function findAll({ city, xsmEnabled, isActive, customerId } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -36,6 +36,14 @@ export async function findAll({ city, xsmEnabled, isActive } = {}) {
   if (isActive !== undefined) {
     conditions.push(`is_active = $${idx++}`);
     values.push(isActive);
+  }
+  if (customerId) {
+    conditions.push(`EXISTS (
+      SELECT 1 FROM contract_printers cp
+      JOIN contracts co ON co.id = cp.contract_id
+      WHERE cp.printer_id = printers.id AND co.customer_id = $${idx++}
+    )`);
+    values.push(customerId);
   }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

@@ -4,6 +4,7 @@ export async function listPrinters(query) {
   const filter = {};
   if (query.city) filter.city = query.city;
   if (query.xsmEnabled !== undefined) filter.xsmEnabled = query.xsmEnabled === 'true';
+  if (query.customerId) filter.customerId = query.customerId;
   return repo.findAll(filter);
 }
 
