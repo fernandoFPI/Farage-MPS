@@ -1510,7 +1510,7 @@ const { data: appSettings } = useSettings()
                                   <span className="rounded-full bg-amber-200 dark:bg-amber-900/50 px-2 py-0.5 text-xs font-semibold text-amber-800 dark:text-amber-300">
                                     {t('billingCycles.quarterEnd', {
                                       number: summary.rulesMeta.quarterNumber,
-                                      period: new Date(summary.periodStart).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+                                      period: new Date(summary.rulesMeta.quarterEndDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
                                     })}
                                   </span>
                                 )}
