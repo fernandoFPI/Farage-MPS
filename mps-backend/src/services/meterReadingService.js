@@ -30,7 +30,7 @@ async function attachUsage(reading) {
 
     let prevReading;
     if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
-      const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodStart);
+      const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodEnd);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
         reading.printerId, cycle.id, targetDate,
       );
@@ -206,7 +206,7 @@ export async function createReading(body, userId) {
   // 7. Previous reading — for quarterly contracts, reference the last cycle of the previous quarter.
   let prevReading;
   if (contract?.invoiceRules?.fixedChargeFrequency === 'quarterly' && contract?.invoiceRules?.contractStartDate) {
-    const targetDate = getPrevQuarterEndDate(contract.invoiceRules.contractStartDate, cycle.periodStart);
+    const targetDate = getPrevQuarterEndDate(contract.invoiceRules.contractStartDate, cycle.periodEnd);
     prevReading = await readingRepo.getPreviousQuarterEndCycleReading(printerId, cycle.id, targetDate);
   } else {
     prevReading = await readingRepo.getPreviousCycleReading(printerId, cycle.id, cycle.periodStart);
@@ -401,7 +401,7 @@ export async function getPreviousReading(printerId, beforeDate, cycleId, cycleSt
     const cycle = await cycleRepo.findById(cycleId);
     const invoiceRules = cycle?.contract?.invoiceRules ?? {};
     if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
-      const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycleStart);
+      const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodEnd);
       return readingRepo.getPreviousQuarterEndCycleReading(printerId, cycleId, targetDate);
     }
     return readingRepo.getPreviousReadingByCycle(printerId, cycleId, cycleStart);

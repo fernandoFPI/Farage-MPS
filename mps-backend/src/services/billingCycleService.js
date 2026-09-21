@@ -249,7 +249,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
     let prevReading;
     if (invoiceRulesForPrev.fixedChargeFrequency === 'quarterly' && invoiceRulesForPrev.contractStartDate) {
-      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodStart);
+      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodEnd);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
         reading.printerId, cycle.id, targetDate,
       );
@@ -1041,7 +1041,7 @@ export async function getAuditExportData(cycleId) {
 
     let prevReading;
     if (isQuarterly) {
-      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodStart);
+      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodEnd);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(reading.printerId, cycleId, targetDate);
     } else {
       prevReading = await readingRepo.getPreviousCycleReading(reading.printerId, cycleId, cycle.periodStart);
@@ -1264,7 +1264,7 @@ export async function getOdooExportData(cycleId) {
 
     let prevReading;
     if (isQuarterly) {
-      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodStart);
+      const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodEnd);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
         reading.printerId, cycleId, targetDate,
       );

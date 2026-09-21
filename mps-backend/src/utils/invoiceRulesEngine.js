@@ -9,10 +9,17 @@ const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 // Returns the period_start date string of the last cycle of the previous quarter.
 // Quarters are measured in 3-month intervals from contractStartDate.
 // Handles Baghdad timezone: PostgreSQL DATE columns arrive as midnight Baghdad (UTC+3).
-export function getPrevQuarterEndDate(contractStartDate, currentPeriodStart) {
+//
+// Takes the CURRENT cycle's periodEnd, not periodStart. Cycles are named and
+// conceptually identified by which month they end in (see cycle_month /
+// cycleName elsewhere, built from period_end) — a cycle can start in one
+// calendar month and end in the next (e.g. Aug 17 - Sep 18) when its period
+// has drifted off a clean calendar-month boundary. Keying off periodStart in
+// that case puts the cycle in the wrong quarter position by one month.
+export function getPrevQuarterEndDate(contractStartDate, currentPeriodEnd) {
   const start = new Date(contractStartDate);
   // Add Baghdad offset so midnight-Baghdad Date objects read the correct local month
-  const rawCurrent = currentPeriodStart instanceof Date ? currentPeriodStart : new Date(currentPeriodStart);
+  const rawCurrent = currentPeriodEnd instanceof Date ? currentPeriodEnd : new Date(currentPeriodEnd);
   const current = new Date(rawCurrent.getTime() + BAGHDAD_OFFSET_MS);
 
   const sY = start.getUTCFullYear();
@@ -65,14 +72,19 @@ export function applyInvoiceRules({ printers, contract, cycle }) {
 // ── Period timing ─────────────────────────────────────────────────────────────
 
 function buildRulesMeta(rules, cycle) {
-  const cycleStart = new Date(cycle.periodStart);
+  // Use periodEnd, not periodStart: cycles are named/identified by the month
+  // they end in (cycleName is built from period_end elsewhere in the app).
+  // A cycle whose period has drifted off a clean calendar-month boundary
+  // (e.g. Aug 17 - Sep 18) starts in one month and ends in the next; keying
+  // off periodStart puts it one month earlier than the app itself calls it.
+  const cycleEnd = new Date(cycle.periodEnd);
 
   let monthsElapsed = 0;
   if (rules.contractStartDate) {
     const start = new Date(rules.contractStartDate);
     const elapsed =
-      (cycleStart.getFullYear() - start.getFullYear()) * 12 +
-      (cycleStart.getMonth() - start.getMonth());
+      (cycleEnd.getFullYear() - start.getFullYear()) * 12 +
+      (cycleEnd.getMonth() - start.getMonth());
     monthsElapsed = Math.max(0, elapsed);
   }
 
