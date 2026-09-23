@@ -408,7 +408,11 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       const baghdad = new Date(d.getTime() + BAGHDAD_OFFSET_MS);
       return `${baghdad.getUTCFullYear()}-${String(baghdad.getUTCMonth() + 1).padStart(2, '0')}-${String(baghdad.getUTCDate()).padStart(2, '0')}`;
     };
-    const currentPeriodStr = toPeriodStr(cycle.periodStart);
+    // Quarter membership (like the due-calculation itself) is keyed on periodEnd,
+    // not periodStart — a cycle is identified by the month it ends in. Using
+    // periodStart here excluded the true first month of the quarter whenever a
+    // cycle's period drifted across a month boundary, and mislabeled the rest.
+    const currentPeriodStr = toPeriodStr(cycle.periodEnd);
     const baseFixedCharge  = Number(cycle.contract.fixedCharge) || 0;
     const bwPrice          = Number(cycle.contract.bwPrice)     || 0;
     const colorPrice       = Number(cycle.contract.colorPrice)  || 0;
@@ -416,13 +420,13 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     // All non-deleted cycles for this contract within the quarter, ordered chronologically
     const { rows: quarterCycleRows } = await pool.query(
       `SELECT bc.id, bc.period_start, bc.period_end,
-              TO_CHAR(bc.period_start, 'Mon YYYY') AS cycle_month
+              TO_CHAR(bc.period_end, 'Mon YYYY') AS cycle_month
        FROM billing_cycles bc
        WHERE bc.contract_id = $1
-         AND bc.period_start >= $2
-         AND bc.period_start <= $3
+         AND bc.period_end >= $2
+         AND bc.period_end <= $3
          AND bc.deleted_at IS NULL
-       ORDER BY bc.period_start ASC`,
+       ORDER BY bc.period_end ASC`,
       [cycle.contractId, rulesMeta.quarterStartDate, currentPeriodStr],
     );
 
