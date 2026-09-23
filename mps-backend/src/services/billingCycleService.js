@@ -434,31 +434,50 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
     const cycleReadingsCache = new Map();
     await Promise.all(quarterCycleRows.map(async qCycle => {
       const readings = await readingRepo.findAllWithPrinterInfo(qCycle.id, cycle.contractId);
-      cycleReadingsCache.set(qCycle.id, { readings, qPeriodStr: toPeriodStr(qCycle.period_start) });
+      cycleReadingsCache.set(qCycle.id, readings);
+    }));
+
+    // Every row's usage must be measured from the SAME quarter-start baseline the
+    // main total uses (getPrevQuarterEndDate) — not from the row immediately
+    // before it. A minimum-volume threshold applies once per quarter to the
+    // CUMULATIVE total, so pricing each row independently (as if it had its own
+    // minimum) silently skipped the minimum on every row and never reconciled
+    // with the already-correct grand total. Instead, price the cumulative
+    // total-to-date at each row and diff consecutive rows — for per_click
+    // contracts (no minimum) this is mathematically identical to the old
+    // per-row math, so only minimum_volume contracts actually change.
+    const quarterBaselineTarget = getPrevQuarterEndDate(cycle.contract.invoiceRules?.contractStartDate, cycle.periodEnd);
+    const printerIds = [...new Set(printers.map(p => p.printerId))];
+    const baselineByPrinter = new Map();
+    await Promise.all(printerIds.map(async printerId => {
+      const baseline = await readingRepo.getPreviousQuarterEndCycleReading(printerId, cycle.id, quarterBaselineTarget);
+      baselineByPrinter.set(printerId, baseline ? { excessBw: baseline.excessBw, excessColor: baseline.excessColor } : null);
     }));
 
     // Main breakdown — aggregate all printers
-    const rawBreakdown = await Promise.all(quarterCycleRows.map(async qCycle => {
-      const { readings, qPeriodStr } = cycleReadingsCache.get(qCycle.id);
+    let prevCumMain = { bwCost: 0, colorCost: 0 };
+    const rawBreakdown = quarterCycleRows.map(qCycle => {
+      const readings = cycleReadingsCache.get(qCycle.id);
 
-      let totalBwCost    = 0;
-      let totalColorCost = 0;
+      let cumBw = 0, cumColor = 0;
       for (const reading of readings) {
-        // Breakdown rows always use the previous month's reading so each row shows
-        // pages printed in that specific month only (not cumulative since quarter start).
-        const prevReading = await readingRepo.getPreviousCycleReading(reading.printerId, qCycle.id, qPeriodStr);
         const billable = calculateBillableUsage(
           { excessBw: reading.excessBw, excessColor: reading.excessColor },
-          prevReading ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor } : null,
+          baselineByPrinter.get(reading.printerId),
         );
-        totalBwCost    += billable.billableBw    * bwPrice;
-        totalColorCost += billable.billableColor * colorPrice;
+        cumBw    += billable.billableBw;
+        cumColor += billable.billableColor;
       }
+      const priced  = calculateOSGBilling({ billableBw: cumBw, billableColor: cumColor }, cycle.contract);
+      const cumCost = { bwCost: priced.bwCost ?? 0, colorCost: priced.colorCost ?? 0 };
+      const totalBwCost    = cumCost.bwCost    - prevCumMain.bwCost;
+      const totalColorCost = cumCost.colorCost - prevCumMain.colorCost;
+      prevCumMain = cumCost;
 
       return {
         cycleId:        qCycle.id,
-        cycleName:      qCycle.cycle_month?.trim() ?? qPeriodStr,
-        periodStart:    qPeriodStr,
+        cycleName:      qCycle.cycle_month?.trim() ?? toPeriodStr(qCycle.period_end),
+        periodStart:    toPeriodStr(qCycle.period_start),
         periodEnd:      toPeriodStr(qCycle.period_end),
         bwCost:         totalBwCost,
         colorCost:      totalColorCost,
@@ -466,7 +485,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
         total:          totalBwCost + totalColorCost + baseFixedCharge,
         isCurrentCycle: qCycle.id === cycle.id,
       };
-    }));
+    });
 
     quarterlyFixedCharge = baseFixedCharge * rulesMeta.fixedChargeMultiplier;
     quarterlyBreakdown   = applyBreakdownStyle(rawBreakdown, quarterlyBreakdownStyle, rulesMeta.quarterNumber, quarterlyFixedCharge);
@@ -480,25 +499,31 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       const oBwPrice    = Number(pe.priceOverride?.bwPrice    ?? cycle.contract.bwPrice    ?? 0);
       const oColorPrice = Number(pe.priceOverride?.colorPrice ?? cycle.contract.colorPrice ?? 0);
       const oFixed      = Number(pe.priceOverride?.fixedCharge ?? cycle.contract.fixedCharge ?? 0);
+      const oMinBw      = Number(pe.priceOverride?.overrideMinBwPages    ?? cycle.contract.minBwPages    ?? 0);
+      const oMinColor   = Number(pe.priceOverride?.overrideMinColorPages ?? cycle.contract.minColorPages ?? 0);
+      const oContract   = { billingType: cycle.contract.billingType, bwPrice: oBwPrice, colorPrice: oColorPrice, minBwPages: oMinBw, minColorPages: oMinColor, fixedCharge: 0 };
 
-      const rawOverride = await Promise.all(quarterCycleRows.map(async qCycle => {
-        const { readings, qPeriodStr } = cycleReadingsCache.get(qCycle.id);
+      let prevCumOverride = { bwCost: 0, colorCost: 0 };
+      const rawOverride = quarterCycleRows.map(qCycle => {
+        const readings = cycleReadingsCache.get(qCycle.id);
         const pr = readings.find(r => r.printerId === inv.printerId);
 
         let bwCost = 0, colorCost = 0;
         if (pr) {
-          const prevReading = await readingRepo.getPreviousCycleReading(pr.printerId, qCycle.id, qPeriodStr);
           const billable = calculateBillableUsage(
             { excessBw: pr.excessBw, excessColor: pr.excessColor },
-            prevReading ? { excessBw: prevReading.excessBw, excessColor: prevReading.excessColor } : null,
+            baselineByPrinter.get(inv.printerId),
           );
-          bwCost    = billable.billableBw    * oBwPrice;
-          colorCost = billable.billableColor * oColorPrice;
+          const priced  = calculateOSGBilling({ billableBw: billable.billableBw, billableColor: billable.billableColor }, oContract);
+          const cumCost = { bwCost: priced.bwCost ?? 0, colorCost: priced.colorCost ?? 0 };
+          bwCost    = cumCost.bwCost    - prevCumOverride.bwCost;
+          colorCost = cumCost.colorCost - prevCumOverride.colorCost;
+          prevCumOverride = cumCost;
         }
         return {
           cycleId:        qCycle.id,
-          cycleName:      qCycle.cycle_month?.trim() ?? qPeriodStr,
-          periodStart:    qPeriodStr,
+          cycleName:      qCycle.cycle_month?.trim() ?? toPeriodStr(qCycle.period_end),
+          periodStart:    toPeriodStr(qCycle.period_start),
           periodEnd:      toPeriodStr(qCycle.period_end),
           bwCost,
           colorCost,
@@ -506,7 +531,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
           total:          bwCost + colorCost + oFixed,
           isCurrentCycle: qCycle.id === cycle.id,
         };
-      }));
+      });
 
       const oQFixedCharge = oFixed * rulesMeta.fixedChargeMultiplier;
       inv.quarterlyBreakdown   = applyBreakdownStyle(rawOverride, quarterlyBreakdownStyle, rulesMeta.quarterNumber, oQFixedCharge);
