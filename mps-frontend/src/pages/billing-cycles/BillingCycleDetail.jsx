@@ -1755,6 +1755,10 @@ const { data: appSettings } = useSettings()
                     {/* Grand total — only shown when multiple invoices */}
                     {summary.invoices.length > 1 && (
                       <div className="rounded-lg border-2 border-brand-200 bg-brand-50 p-4 dark:border-brand-700 dark:bg-brand-900/20">
+                        <div className="flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-gray-400 pb-2 mb-1 border-b border-gray-100 dark:border-gray-800">
+                          <span>{t('billingCycles.billableBw')}: {formatNumber(summary.totals?.totalBillableBw ?? 0)}</span>
+                          <span>{t('billingCycles.billableColor')}: {formatNumber(summary.totals?.totalBillableColor ?? 0)}</span>
+                        </div>
                         <BillingRow label={t('billingCycles.grandTotal')} total={summary.billing.total} isTotal currency={currency} />
                       </div>
                     )}
