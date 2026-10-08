@@ -6,10 +6,11 @@ import * as ctrl from '../controllers/printerController.js';
 const router = Router();
 const write   = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
 const readSub = [verifyToken, blockOdoo, requirePermission('can_submit_readings')];
+const view    = [verifyToken, blockOdoo, requirePermission('can_view_operational_data')];
 
-router.get('/',                    verifyToken, blockOdoo,   ctrl.list);
+router.get('/',                    ...view,                  ctrl.list);
 router.post('/',                   ...write,                 ctrl.create);
-router.get('/:id',                 verifyToken, blockOdoo,   ctrl.getById);
+router.get('/:id',                 ...view,                  ctrl.getById);
 router.put('/:id',                 ...write,                 ctrl.update);
 router.delete('/:id',              ...write,                 ctrl.remove);
 router.patch('/:id/coordinates',   ...readSub,               ctrl.updateCoordinates);

@@ -1,6 +1,9 @@
 import * as service from '../services/billingCycleService.js';
 import * as cycleRepo from '../repositories/billingCycleRepository.js';
 import * as storageService from '../services/customerStorageService.js';
+import { canViewPricing, omitFields, CONTRACT_FINANCIAL_FIELDS, PRINTER_FINANCIAL_FIELDS } from '../utils/financialFields.js';
+
+const PRINTER_SUMMARY_FINANCIAL_FIELDS = [...PRINTER_FINANCIAL_FIELDS, 'effectiveMinBwPages', 'effectiveMinColorPages'];
 
 export async function list(req, res, next) {
   try {
@@ -17,28 +20,32 @@ export async function create(req, res, next) {
 
 export async function getById(req, res, next) {
   try {
-    res.json(await service.getCycleById(req.params.id));
+    const result = await service.getCycleById(req.params.id);
+    if (!canViewPricing(req) && result?.contract) {
+      return res.json({ ...result, contract: omitFields(result.contract, CONTRACT_FINANCIAL_FIELDS) });
+    }
+    res.json(result);
   } catch (err) { next(err); }
 }
 
 export async function summary(req, res, next) {
   try {
     const result = await service.getBillingCycleSummary(req.params.id);
-    const canViewBreakdown = req.user?.role?.can_view_billing_breakdown !== false;
-    const canViewTotals    = req.user?.role?.can_view_billing_totals    !== false;
-    if (!canViewBreakdown || !canViewTotals) {
-      let safe = { ...result };
-      if (!canViewBreakdown) {
-        const { billing, rulesMeta, quarterlyBreakdown, quarterlyFixedCharge, quarterlyBreakdownStyle, ...rest } = safe;
-        safe = rest;
-      }
-      if (!canViewTotals) {
-        const { grandTotal, invoices, ...rest } = safe;
-        safe = rest;
-      }
-      return res.json(safe);
+    const canViewBreakdown = req.user?.role?.can_view_billing_breakdown === true;
+    const canViewTotals    = req.user?.role?.can_view_billing_totals    === true;
+    let safe = result;
+    if (!canViewPricing(req) && Array.isArray(safe.printers)) {
+      safe = { ...safe, printers: safe.printers.map(p => omitFields(p, PRINTER_SUMMARY_FINANCIAL_FIELDS)) };
     }
-    res.json(result);
+    if (!canViewBreakdown) {
+      const { billing, rulesMeta, quarterlyBreakdown, quarterlyFixedCharge, quarterlyBreakdownStyle, ...rest } = safe;
+      safe = rest;
+    }
+    if (!canViewTotals) {
+      const { grandTotal, invoices, ...rest } = safe;
+      safe = rest;
+    }
+    res.json(safe);
   } catch (err) { next(err); }
 }
 

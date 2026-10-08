@@ -5,10 +5,11 @@ import * as ctrl from '../controllers/cycleGroupController.js';
 
 const router = Router();
 const manageBilling = [verifyToken, blockOdoo, requirePermission('can_edit_billing')];
+const view = [verifyToken, blockOdoo, requirePermission('can_view_operational_data')];
 
-router.get('/',       verifyToken, blockOdoo, ctrl.list);
+router.get('/',       ...view,                 ctrl.list);
 router.post('/',      ...manageBilling,        ctrl.create);
-router.get('/:id',    verifyToken, blockOdoo, ctrl.getById);
-router.delete('/:id', verifyToken, blockOdoo, ctrl.remove);
+router.get('/:id',    ...view,                 ctrl.getById);
+router.delete('/:id', ...manageBilling,        ctrl.remove);
 
 export default router;

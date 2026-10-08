@@ -10,15 +10,16 @@ import {
 const router = Router();
 const edit = [verifyToken, blockOdoo, requirePermission('can_edit_contracts')];
 const del  = [verifyToken, blockOdoo, requirePermission('can_delete_contracts')];
+const view = [verifyToken, blockOdoo, requirePermission('can_view_operational_data')];
 
 // Management endpoints — blocked for Odoo
-router.get('/',                              verifyToken, blockOdoo, listGroups);
+router.get('/',                              ...view,                 listGroups);
 router.post('/',                             ...edit,                createGroup);
-router.get('/by-contract/:contractId',       verifyToken, blockOdoo, getGroupByContract);
-router.get('/:id',                           verifyToken, blockOdoo, getGroup);
+router.get('/by-contract/:contractId',       ...view,                 getGroupByContract);
+router.get('/:id',                           ...view,                 getGroup);
 router.put('/:id',                           ...edit,                updateGroup);
 router.delete('/:id',                        ...del,                 deleteGroup);
-router.get('/:id/summary',                   verifyToken, blockOdoo, getGroupSummary);
+router.get('/:id/summary',                   ...view, requirePermission('can_view_billing_totals'), getGroupSummary);
 router.post('/:id/members',                  ...edit,                addMember);
 router.delete('/:id/members/:contractId',    ...edit,                removeMember);
 

@@ -13,7 +13,7 @@ router.get('/:id',    verifyToken, odooRateLimit, ctrl.getById);
 // All other endpoints blocked for Odoo — already unreachable by the Odoo
 // role via blockOdoo, so the Odoo-integration rate limit here only ever
 // throttled regular staff browsing the customer list.
-router.get('/',       verifyToken, blockOdoo, ctrl.list);
+router.get('/',       verifyToken, blockOdoo, requirePermission('can_view_operational_data'), ctrl.list);
 router.post('/',      ...write,                              ctrl.create);
 router.put('/:id',    ...write,                              ctrl.update);
 router.delete('/:id', ...write,                              ctrl.remove);

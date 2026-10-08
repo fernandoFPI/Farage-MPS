@@ -16,10 +16,10 @@ const requireAdmin   = [verifyToken, blockOdoo, (req, res, next) => req.user?.ro
 // view — they are NOT the endpoints Odoo's connector actually polls, so they
 // must not carry the Odoo-integration rate limit (that was throttling every
 // user in the app, not just the Odoo service account).
-router.get('/',                    verifyToken, ctrl.list);
-router.get('/:id/summary',         verifyToken, ctrl.summary);
+router.get('/',                    verifyToken, requirePermission('can_view_billing'), ctrl.list);
+router.get('/:id/summary',         verifyToken, requirePermission('can_view_billing'), ctrl.summary);
 router.get('/:id/odoo-export',     verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.getOdooExport);
-router.get('/:id/audit-export',    verifyToken, blockOdoo, requirePermission('can_view_billing'), ctrl.getAuditExport);
+router.get('/:id/audit-export',    verifyToken, blockOdoo, requirePermission('can_view_billing_breakdown'), ctrl.getAuditExport);
 router.post('/:id/mark-invoiced',  verifyToken, odooRateLimit, requireOdooOrFinance, ctrl.markInvoiced);
 
 // Admin-only routes (must be before /:id)
@@ -31,14 +31,14 @@ router.post('/:id/restore',  ...requireAdmin,   ctrl.restoreCycle);
 
 // Standard routes blocked for Odoo
 router.post('/',             ...manageBilling,  ctrl.create);
-router.get('/:id',           verifyToken, ctrl.getById);
+router.get('/:id',           verifyToken, requirePermission('can_view_billing'), ctrl.getById);
 router.patch('/:id/confirm',   ...confirmBilling, ctrl.confirm);
 router.patch('/:id/dispute',   ...confirmBilling, ctrl.dispute);
 router.patch('/:id/reopen',    ...manageBilling,  ctrl.reopen);
 router.patch('/:id/unconfirm', ...requireAdmin,   ctrl.unconfirm)
 router.patch('/:id/period',    ...requireAdmin,   ctrl.updatePeriod);
 router.delete('/:id',        verifyToken, blockOdoo, ctrl.cancel);
-router.get('/:id/group-summary', verifyToken, blockOdoo, ctrl.groupSummary);
+router.get('/:id/group-summary', verifyToken, blockOdoo, requirePermission('can_view_billing_totals'), ctrl.groupSummary);
 router.patch('/:id/set-baseline',             verifyToken, blockOdoo,       ctrl.setBaseline);
 router.patch('/:id/manual-billing',           ...requireAdmin,               ctrl.setManualBillingAmount);
 router.post('/:id/lock-printer',              ...submitReadings,             ctrl.lockPrinter);

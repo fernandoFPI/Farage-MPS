@@ -1,8 +1,10 @@
 import * as service from '../services/contractPrinterService.js';
+import { canViewPricing, stripPrinterFinancials } from '../utils/financialFields.js';
 
 export async function list(req, res, next) {
   try {
-    res.json(await service.listAssignments(req.query));
+    const result = await service.listAssignments(req.query);
+    res.json(canViewPricing(req) ? result : result.map(stripPrinterFinancials));
   } catch (err) { next(err); }
 }
 
