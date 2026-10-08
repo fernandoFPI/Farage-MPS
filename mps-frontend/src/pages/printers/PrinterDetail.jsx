@@ -8,6 +8,7 @@ import { useAssignments, useUpdateAssignment } from '../../api/hooks/useAssignme
 import { useContract } from '../../api/hooks/useContracts'
 import { useDocTitle } from '../../hooks/useDocTitle'
 import { useToast } from '../../components/Toast'
+import { usePermission } from '../../hooks/usePermission'
 import PageHeader from '../../components/PageHeader'
 import Breadcrumb from '../../components/Breadcrumb'
 import LoadingSpinner from '../../components/LoadingSpinner'
@@ -89,6 +90,7 @@ export default function PrinterDetail() {
     [sortedAssignments])
 
   const { data: contract } = useContract(activeAssignment?.contractId)
+  const canViewPricing = usePermission('can_view_contract_pricing')
 
   async function handleEndAssignment() {
     try {
@@ -239,21 +241,25 @@ export default function PrinterDetail() {
                   }
                 />
                 <InfoRow label={t('assignments.assignedFrom')} value={fmtDate(activeAssignment.assignedFrom)} />
-                <PriceRow
-                  label={t('contracts.fixedCharge')}
-                  override={activeAssignment.fixedCharge}
-                  contractVal={contract?.fixedCharge}
-                />
-                <PriceRow
-                  label={t('contracts.bwPrice')}
-                  override={activeAssignment.bwPrice}
-                  contractVal={contract?.bwPrice}
-                />
-                <PriceRow
-                  label={t('contracts.colorPrice')}
-                  override={activeAssignment.colorPrice}
-                  contractVal={contract?.colorPrice}
-                />
+                {canViewPricing && (
+                  <>
+                    <PriceRow
+                      label={t('contracts.fixedCharge')}
+                      override={activeAssignment.fixedCharge}
+                      contractVal={contract?.fixedCharge}
+                    />
+                    <PriceRow
+                      label={t('contracts.bwPrice')}
+                      override={activeAssignment.bwPrice}
+                      contractVal={contract?.bwPrice}
+                    />
+                    <PriceRow
+                      label={t('contracts.colorPrice')}
+                      override={activeAssignment.colorPrice}
+                      contractVal={contract?.colorPrice}
+                    />
+                  </>
+                )}
               </div>
             ) : (
               <EmptyState title="No active contract assigned" />

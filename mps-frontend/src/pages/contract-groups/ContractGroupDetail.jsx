@@ -20,6 +20,7 @@ import Modal from '../../components/Modal'
 import FormField, { inputCls } from '../../components/FormField'
 import Breadcrumb from '../../components/Breadcrumb'
 import { formatAmount, formatNumber } from '../../utils/currency'
+import { usePermission } from '../../hooks/usePermission'
 // ── Add member modal ──────────────────────────────────────────────────────────
 function AddMemberModal({ open, onClose, groupId, existingContractIds }) {
   const { t } = useTranslation()
@@ -192,6 +193,7 @@ export default function ContractGroupDetail() {
   useDocTitle(group?.name ?? t('contractGroups.title'))
   const removeMember = useRemoveGroupMember()
   const { showToast } = useToast()
+  const canViewTotals = usePermission('can_view_billing_totals')
 
   const [addOpen, setAddOpen] = useState(false)
   const [removeTarget, setRemoveTarget] = useState(null)
@@ -270,7 +272,7 @@ export default function ContractGroupDetail() {
       </div>
 
       {/* Summary panel */}
-      <GroupSummaryPanel groupId={id} t={t} />
+      {canViewTotals && <GroupSummaryPanel groupId={id} t={t} />}
 
       <AddMemberModal open={addOpen} onClose={() => setAddOpen(false)} groupId={id} existingContractIds={existingIds} />
 

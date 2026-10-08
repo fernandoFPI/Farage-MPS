@@ -11,6 +11,7 @@ import ConfirmDialog from '../../components/ConfirmDialog'
 import ErrorAlert from '../../components/ErrorAlert'
 import ContractFormModal from './ContractFormModal'
 import SearchableSelect from '../../components/SearchableSelect'
+import { usePermission } from '../../hooks/usePermission'
 import { fmtDate, fmtMoney } from '../../utils/format'
 
 export default function ContractsPage() {
@@ -45,6 +46,10 @@ export default function ContractsPage() {
   const { data, isLoading } = useContracts(params)
   const { data: customers = [] } = useCustomers()
   const deleteMutation = useDeleteContract()
+  const canViewPricing = usePermission('can_view_contract_pricing')
+  const canCreate = usePermission('can_create_contracts')
+  const canEdit   = usePermission('can_edit_contracts')
+  const canDelete = usePermission('can_delete_contracts')
 
   function openCreate() { setEditing(null); setModalOpen(true) }
   function openEdit(row) { setEditing(row); setModalOpen(true) }
@@ -93,7 +98,7 @@ export default function ContractsPage() {
     },
     { key: 'billingType', label: t('contracts.billingType'), className: 'hidden lg:table-cell',
       render: r => r.contractMode !== 'osg' ? <span className="text-xs text-gray-400">—</span> : <StatusBadge status={r.billingType} /> },
-    { key: 'fixedCharge', label: t('contracts.fixedCharge'), className: 'hidden lg:table-cell',
+    canViewPricing && { key: 'fixedCharge', label: t('contracts.fixedCharge'), className: 'hidden lg:table-cell',
       render: r => r.contractMode !== 'osg' ? <span className="text-xs text-gray-400">—</span> : fmtMoney(r.fixedCharge) },
     { key: 'startDate', label: t('contracts.startDate'), className: 'hidden lg:table-cell',
       render: r => fmtDate(r.startDate) },
@@ -105,12 +110,12 @@ export default function ContractsPage() {
       render: r => (
         <div className="flex items-center gap-2">
           <button onClick={() => navigate(`/contracts/${r.id}`)} className="p-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"><Eye className="h-4 w-4" /></button>
-          <button onClick={() => openEdit(r)} className="p-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"><Pencil className="h-4 w-4" /></button>
-          <button onClick={() => { setDeleteError(''); setDeleting(r) }} className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"><Trash2 className="h-4 w-4" /></button>
+          {canEdit && <button onClick={() => openEdit(r)} className="p-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400"><Pencil className="h-4 w-4" /></button>}
+          {canDelete && <button onClick={() => { setDeleteError(''); setDeleting(r) }} className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400"><Trash2 className="h-4 w-4" /></button>}
         </div>
       ),
     },
-  ]
+  ].filter(Boolean)
 
   return (
     <div>
@@ -157,9 +162,11 @@ export default function ContractsPage() {
                 ...['MPS', 'FSMA', 'LS', 'LO', 'SMA'].map(st => ({ value: st, label: st })),
               ]}
             />
-            <button onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
-              <Plus className="h-4 w-4" />{t('contracts.addContract')}
-            </button>
+            {canCreate && (
+              <button onClick={openCreate} className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600">
+                <Plus className="h-4 w-4" />{t('contracts.addContract')}
+              </button>
+            )}
           </div>
         }
       />

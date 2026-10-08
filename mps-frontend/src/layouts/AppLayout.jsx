@@ -48,6 +48,8 @@ function SidebarContent({ onClose }) {
   const canSubmitReadings  = usePermission('can_submit_readings')
   const canManageBilling   = usePermission('can_view_billing')
   const canManageUsers     = usePermission('can_manage_users')
+  const canViewUsers       = usePermission('can_view_users')
+  const canViewPerformance = usePermission('can_view_performance')
   const isEngineer         = user?.role?.name === 'engineer'
   const isServiceManager   = user?.role?.name === 'service_manager'
   const lang = i18n.language === 'ar' ? 'ar' : 'en'
@@ -110,16 +112,16 @@ function SidebarContent({ onClose }) {
           </>
         )}
 
-        {canManageUsers && (
+        {(canManageUsers || canViewUsers) && (
           <>
             <NavSep />
             <NavItem to="/users"        icon={UserCog}   label={t('nav.users')}       onClick={onClose} />
           </>
         )}
 
-        {(canManageUsers || isServiceManager) && (
+        {canViewPerformance && (
           <>
-            {isServiceManager && !canManageUsers && <NavSep />}
+            {!(canManageUsers || canViewUsers) && <NavSep />}
             <NavItem to="/performance"  icon={BarChart2} label={t('nav.performance')} onClick={onClose} />
           </>
         )}
