@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, Pencil, UserX, AlertTriangle } from 'lucide-react'
+import { Plus, Pencil, UserX, AlertTriangle, ShieldCheck, Trash2 } from 'lucide-react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import {
   useUsers,
@@ -9,7 +9,7 @@ import {
   useUpdateUserPermissions,
   useDeactivateUser,
 } from '../../api/hooks/useUsers'
-import { useRoles } from '../../api/hooks/useRoles'
+import { useRoles, useCreateRole, useUpdateRole, useDeleteRole } from '../../api/hooks/useRoles'
 import { useAuth } from '../../context/AuthContext'
 import { usePermission } from '../../hooks/usePermission'
 import { useDocTitle } from '../../hooks/useDocTitle'
@@ -41,7 +41,12 @@ const PERMISSION_FLAGS = [
   'can_view_billing_totals',
   'can_view_billing_breakdown',
   'can_view_manual_billing',
+  'can_view_operational_data',
+  'can_view_performance',
 ]
+
+const PROTECTED_ROLE_NAMES = ['admin', 'odoo_integration']
+const ROLE_NAME_PATTERN = /^[a-z][a-z0-9_]*$/
 
 function PermissionOverrideRow({ flag, lang, roleValue, overrideValue, onChange, t }) {
   const effective = overrideValue !== undefined ? overrideValue : roleValue
@@ -79,6 +84,195 @@ function PermissionOverrideRow({ flag, lang, roleValue, overrideValue, onChange,
         className={`h-2.5 w-2.5 flex-shrink-0 rounded-full ${effective ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`}
       />
     </div>
+  )
+}
+
+function RoleFormModal({ initial, onClose }) {
+  const { t } = useTranslation()
+  const { showToast } = useToast()
+  const createRole = useCreateRole()
+  const updateRole = useUpdateRole()
+  const isEdit = !!initial
+  const isProtected = isEdit && PROTECTED_ROLE_NAMES.includes(initial.name)
+
+  const [name, setName] = useState(initial?.name ?? '')
+  const [description, setDescription] = useState(initial?.description ?? '')
+  const [flags, setFlags] = useState(() => {
+    const f = {}
+    for (const flag of PERMISSION_FLAGS) f[flag] = !!initial?.[flag]
+    return f
+  })
+  const [error, setError] = useState('')
+
+  const lang = i18n.language === 'ar' ? 'ar' : 'en'
+  const isPending = createRole.isPending || updateRole.isPending
+
+  function toggleFlag(flag) {
+    setFlags(prev => ({ ...prev, [flag]: !prev[flag] }))
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    const cleanName = name.trim().toLowerCase()
+    if (!isEdit && !ROLE_NAME_PATTERN.test(cleanName)) {
+      return setError(t('users.roleNameInvalid'))
+    }
+    try {
+      if (isEdit) {
+        await updateRole.mutateAsync({ id: initial.id, description, ...flags })
+      } else {
+        await createRole.mutateAsync({ name: cleanName, description, ...flags })
+      }
+      showToast({ title: t('common.saved'), variant: 'success' })
+      onClose()
+    } catch (err) {
+      setError(err.response?.data?.error || err.message)
+    }
+  }
+
+  return (
+    <Modal
+      open={true}
+      onClose={onClose}
+      title={isEdit ? initial.name : t('users.newRole')}
+      footer={
+        <>
+          <button type="button" onClick={onClose} disabled={isPending}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-50">
+            {t('common.cancel')}
+          </button>
+          <button type="submit" form="role-form" disabled={isPending}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50">
+            {isPending ? t('common.loading') : t('common.save')}
+          </button>
+        </>
+      }
+    >
+      <form id="role-form" onSubmit={handleSubmit} className="space-y-4">
+        <FormField label={t('users.roleName')} required>
+          <input
+            className={inputCls}
+            value={name}
+            onChange={e => setName(e.target.value)}
+            disabled={isEdit}
+            placeholder="e.g. operations_viewer"
+          />
+        </FormField>
+        <FormField label={t('common.description')}>
+          <input className={inputCls} value={description} onChange={e => setDescription(e.target.value)} />
+        </FormField>
+
+        {isProtected && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+            <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-400">{t('users.protectedRoleWarning')}</p>
+          </div>
+        )}
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+            {t('users.permissions')}
+          </p>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {PERMISSION_FLAGS.map(flag => (
+              <label key={flag} className="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-300 cursor-pointer">
+                <input type="checkbox" checked={flags[flag]} onChange={() => toggleFlag(flag)} />
+                {getPermissionLabel(flag, lang)}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {error && <ErrorAlert message={error} />}
+      </form>
+    </Modal>
+  )
+}
+
+function RolesManagerModal({ onClose }) {
+  const { t } = useTranslation()
+  const { showToast } = useToast()
+  const { data: roles = [], isLoading } = useRoles()
+  const deleteRole = useDeleteRole()
+  const [editingRole, setEditingRole] = useState(undefined) // undefined = closed, null = new, object = edit
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const lang = i18n.language === 'ar' ? 'ar' : 'en'
+
+  async function handleDelete() {
+    try {
+      await deleteRole.mutateAsync(deleteTarget.id)
+      showToast({ title: t('common.deleted'), variant: 'success' })
+      setDeleteTarget(null)
+    } catch (err) {
+      showToast({ title: err.response?.data?.error || err.message, variant: 'error' })
+      setDeleteTarget(null)
+    }
+  }
+
+  return (
+    <>
+      <Modal open={true} onClose={onClose} title={t('users.manageRoles')}
+        footer={
+          <button type="button" onClick={onClose}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800">
+            {t('common.close')}
+          </button>
+        }
+      >
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setEditingRole(null)}
+            className="flex items-center gap-2 rounded-lg bg-brand-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-brand-600"
+          >
+            <Plus className="h-4 w-4" />{t('users.newRole')}
+          </button>
+
+          {isLoading ? (
+            <p className="text-sm text-gray-500">{t('common.loading')}</p>
+          ) : (
+            <div className="divide-y divide-gray-100 dark:divide-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+              {roles.map(role => (
+                <div key={role.id} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {getRoleLabel(role.name, lang)}
+                    </p>
+                    {role.description && (
+                      <p className="truncate text-xs text-gray-400 dark:text-gray-500">{role.description}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => setEditingRole(role)} className="p-1 text-gray-400 hover:text-brand-600 dark:hover:text-brand-400" title={t('common.edit')}>
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    {!PROTECTED_ROLE_NAMES.includes(role.name) && (
+                      <button onClick={() => setDeleteTarget(role)} className="p-1 text-gray-400 hover:text-red-600 dark:hover:text-red-400" title={t('common.delete')}>
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </Modal>
+
+      {editingRole !== undefined && (
+        <RoleFormModal initial={editingRole} onClose={() => setEditingRole(undefined)} />
+      )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDelete}
+        title={t('common.delete') + ' ' + (deleteTarget?.name ?? '')}
+        description={t('users.deleteRoleConfirm')}
+        loading={deleteRole.isPending}
+      />
+    </>
   )
 }
 
@@ -254,6 +448,7 @@ export default function UsersPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [deactivating, setDeactivating] = useState(null)
+  const [rolesManagerOpen, setRolesManagerOpen] = useState(false)
 
   async function handleDeactivate() {
     try {
@@ -348,12 +543,20 @@ export default function UsersPage() {
         title={t('users.title')}
         actions={
           canManage && (
-            <button
-              onClick={() => { setEditing(null); setFormOpen(true) }}
-              className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
-            >
-              <Plus className="h-4 w-4" />{t('users.addUser')}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setRolesManagerOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800"
+              >
+                <ShieldCheck className="h-4 w-4" />{t('users.manageRoles')}
+              </button>
+              <button
+                onClick={() => { setEditing(null); setFormOpen(true) }}
+                className="flex items-center gap-2 rounded-lg bg-brand-500 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-600"
+              >
+                <Plus className="h-4 w-4" />{t('users.addUser')}
+              </button>
+            </div>
           )
         }
       />
@@ -372,6 +575,10 @@ export default function UsersPage() {
           initial={editing}
           onClose={() => { setFormOpen(false); setEditing(null) }}
         />
+      )}
+
+      {rolesManagerOpen && (
+        <RolesManagerModal onClose={() => setRolesManagerOpen(false)} />
       )}
 
       <ConfirmDialog

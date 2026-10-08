@@ -5,6 +5,7 @@ export const roleLabels = {
   service_manager:   { en: 'Service Manager',  ar: 'مدير الخدمة' },
   engineer:          { en: 'Engineer',         ar: 'مهندس' },
   finance:           { en: 'Finance',          ar: 'المالية' },
+  operations_viewer: { en: 'Operations Viewer', ar: 'مشاهد العمليات' },
   odoo_integration:  { en: 'Odoo Integration', ar: 'تكامل Odoo' },
 }
 
@@ -28,6 +29,8 @@ export const PERMISSION_LABELS = {
   can_view_billing_totals:     { en: 'View Billing Totals',       ar: 'عرض إجماليات الفوترة' },
   can_view_billing_breakdown:  { en: 'View Billing Breakdown',    ar: 'عرض تفاصيل الفوترة' },
   can_view_manual_billing:     { en: 'View Manual Billing',       ar: 'عرض الفوترة اليدوية' },
+  can_view_operational_data:   { en: 'View Printers/Contracts/Customers', ar: 'عرض الطابعات والعقود والعملاء' },
+  can_view_performance:        { en: 'View Engineer Performance', ar: 'عرض أداء المهندسين' },
 }
 
 export function getPermissionLabel(flag, lang = 'en') {

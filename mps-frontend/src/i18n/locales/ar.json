@@ -68,7 +68,9 @@
     "allCycles": "كل الدورات",
     "allPrinters": "كل الطابعات",
     "allCities": "كل المدن",
-    "allLocations": "كل المواقع"
+    "allLocations": "كل المواقع",
+    "close": "إغلاق",
+    "description": "الوصف"
   },
   "dashboard": {
     "greeting_morning": "صباح الخير",
@@ -385,7 +387,13 @@
     "overrideFollowRole": "اتبع الدور",
     "overrideAllow": "سماح دائم",
     "overrideBlock": "حظر دائم",
-    "effectivePermission": "الفعلي"
+    "effectivePermission": "الفعلي",
+    "manageRoles": "إدارة الأدوار",
+    "newRole": "دور جديد",
+    "roleName": "اسم الدور",
+    "roleNameInvalid": "يجب أن يبدأ اسم الدور بحرف ويحتوي فقط على أحرف إنجليزية صغيرة وأرقام وشرطات سفلية.",
+    "protectedRoleWarning": "لا يمكن تغيير اسم هذا الدور أو حذفه — أجزاء أخرى من النظام تعتمد عليه بهذا الاسم.",
+    "deleteRoleConfirm": "يجب إعادة تعيين المستخدمين الذين ما زالوا على هذا الدور أولاً. لا يمكن التراجع عن هذا الإجراء."
   },
   "importLogs": {
     "title": "سجلات الاستيراد",

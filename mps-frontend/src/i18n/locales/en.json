@@ -68,7 +68,9 @@
     "allCycles": "All Cycles",
     "allPrinters": "All Printers",
     "allCities": "All Cities",
-    "allLocations": "All Locations"
+    "allLocations": "All Locations",
+    "close": "Close",
+    "description": "Description"
   },
   "dashboard": {
     "greeting_morning": "Good morning",
@@ -385,7 +387,13 @@
     "overrideFollowRole": "Follow role",
     "overrideAllow": "Force allow",
     "overrideBlock": "Force block",
-    "effectivePermission": "Effective"
+    "effectivePermission": "Effective",
+    "manageRoles": "Manage Roles",
+    "newRole": "New Role",
+    "roleName": "Role Name",
+    "roleNameInvalid": "Role name must start with a letter and contain only lowercase letters, numbers and underscores.",
+    "protectedRoleWarning": "This role's name cannot be changed and it cannot be deleted — other parts of the system depend on it by name.",
+    "deleteRoleConfirm": "Users still assigned to this role must be reassigned first. This cannot be undone."
   },
   "importLogs": {
     "title": "Import Logs",

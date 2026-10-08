@@ -6,10 +6,11 @@ import * as userController from '../controllers/userController.js';
 const router = Router();
 
 const guard = [verifyToken, blockOdoo, requirePermission('can_manage_users')];
+const view  = [verifyToken, blockOdoo, requirePermission('can_view_users')];
 
-router.get('/', ...guard, userController.list);
+router.get('/', ...view, userController.list);
 router.post('/', ...guard, userController.create);
-router.get('/:id', ...guard, userController.getById);
+router.get('/:id', ...view, userController.getById);
 router.put('/:id', ...guard, userController.update);
 router.delete('/:id', ...guard, userController.deactivate);
 router.patch('/:id/permissions', ...guard, userController.patchPermissionOverrides);
