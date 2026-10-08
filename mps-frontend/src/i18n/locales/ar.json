@@ -70,7 +70,10 @@
     "allCities": "كل المدن",
     "allLocations": "كل المواقع",
     "close": "إغلاق",
-    "description": "الوصف"
+    "description": "الوصف",
+    "from": "من",
+    "to": "إلى",
+    "clear": "مسح"
   },
   "dashboard": {
     "greeting_morning": "صباح الخير",

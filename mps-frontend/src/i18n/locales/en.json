@@ -70,7 +70,10 @@
     "allCities": "All Cities",
     "allLocations": "All Locations",
     "close": "Close",
-    "description": "Description"
+    "description": "Description",
+    "from": "From",
+    "to": "To",
+    "clear": "Clear"
   },
   "dashboard": {
     "greeting_morning": "Good morning",

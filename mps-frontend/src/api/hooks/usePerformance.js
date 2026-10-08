@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import client from '../client'
 
-export function useEngineersPerformance() {
+export function useEngineersPerformance(params = {}) {
   return useQuery({
-    queryKey: ['performance', 'engineers'],
-    queryFn: () => client.get('/api/performance/engineers').then(r => r.data),
+    queryKey: ['performance', 'engineers', params],
+    queryFn: () => client.get('/api/performance/engineers', { params }).then(r => r.data),
   })
 }
 

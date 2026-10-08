@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Users, Clock, Image, AlertTriangle } from 'lucide-react'
@@ -101,7 +101,15 @@ export default function PerformancePage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { isDark } = useDarkMode()
-  const { data: engineers = [], isLoading } = useEngineersPerformance()
+  const [from, setFrom] = useState('')
+  const [to, setTo]     = useState('')
+  const periodParams = useMemo(() => {
+    const p = {}
+    if (from) p.from = from
+    if (to)   p.to   = to
+    return p
+  }, [from, to])
+  const { data: engineers = [], isLoading } = useEngineersPerformance(periodParams)
   const currentYear = new Date().getFullYear()
   const { data: analytics, isLoading: analyticsLoading } = useAnalytics({ year: currentYear })
 
@@ -120,7 +128,34 @@ export default function PerformancePage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('performance.title')} />
+      <PageHeader
+        title={t('performance.title')}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            />
+            <span className="text-xs text-gray-400">{t('common.to')}</span>
+            <input
+              type="date"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              className="rounded-lg border border-gray-300 px-2 py-1.5 text-xs dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+            />
+            {(from || to) && (
+              <button
+                onClick={() => { setFrom(''); setTo('') }}
+                className="text-xs text-gray-400 hover:text-red-500 dark:hover:text-red-400"
+              >
+                ✕ {t('common.clear')}
+              </button>
+            )}
+          </div>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

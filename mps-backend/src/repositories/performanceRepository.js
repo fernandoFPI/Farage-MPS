@@ -1,6 +1,6 @@
 import pool from '../config/db.js';
 
-export async function getEngineersSummary() {
+export async function getEngineersSummary({ from, to } = {}) {
   const { rows } = await pool.query(
     `SELECT
        u.id AS user_id,
@@ -16,11 +16,15 @@ export async function getEngineersSummary() {
        COUNT(CASE WHEN mr.flagged = true THEN 1 END)::int AS flagged_readings,
        MAX(mr.submitted_at) AS last_submission_at
      FROM users u
-     LEFT JOIN meter_readings mr ON mr.submitted_by_user_id = u.id
+     LEFT JOIN meter_readings mr
+       ON mr.submitted_by_user_id = u.id
+       AND ($1::date IS NULL OR mr.submitted_at >= $1::date)
+       AND ($2::date IS NULL OR mr.submitted_at < ($2::date + INTERVAL '1 day'))
      JOIN roles r ON u.role_id = r.id
      WHERE r.name = 'engineer'
      GROUP BY u.id, u.full_name, u.email
      ORDER BY u.full_name ASC`,
+    [from || null, to || null],
   );
 
   return rows.map(row => ({
@@ -68,7 +72,8 @@ export async function getEngineersByCycle(billingCycleId) {
 }
 
 export async function getEngineerDetail(userId, { cycleId, from, to } = {}) {
-  // Summary
+  // Summary — filtered to the same from/to period as the readings list below,
+  // so the stat cards match what's actually shown (previously always all-time).
   const summaryResult = await pool.query(
     `SELECT
        u.id AS user_id,
@@ -84,11 +89,15 @@ export async function getEngineerDetail(userId, { cycleId, from, to } = {}) {
        COUNT(CASE WHEN mr.flagged = true THEN 1 END)::int AS flagged_readings,
        MAX(mr.submitted_at) AS last_submission_at
      FROM users u
-     LEFT JOIN meter_readings mr ON mr.submitted_by_user_id = u.id
+     LEFT JOIN meter_readings mr
+       ON mr.submitted_by_user_id = u.id
+       AND ($2::uuid IS NULL OR mr.billing_cycle_id = $2::uuid)
+       AND ($3::date IS NULL OR mr.submitted_at >= $3::date)
+       AND ($4::date IS NULL OR mr.submitted_at < ($4::date + INTERVAL '1 day'))
      JOIN roles r ON u.role_id = r.id
      WHERE r.name = 'engineer' AND u.id = $1
      GROUP BY u.id, u.full_name, u.email`,
-    [userId],
+    [userId, cycleId || null, from || null, to || null],
   );
 
   if (!summaryResult.rows[0]) return null;
@@ -108,7 +117,7 @@ export async function getEngineerDetail(userId, { cycleId, from, to } = {}) {
     values.push(from);
   }
   if (to) {
-    conditions.push(`mr.submitted_at <= $${idx++}`);
+    conditions.push(`mr.submitted_at < ($${idx++}::date + INTERVAL '1 day')`);
     values.push(to);
   }
 

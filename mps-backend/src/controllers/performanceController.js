@@ -2,7 +2,8 @@ import * as repo from '../repositories/performanceRepository.js';
 
 export async function listEngineers(req, res, next) {
   try {
-    res.json(await repo.getEngineersSummary());
+    const { from, to } = req.query;
+    res.json(await repo.getEngineersSummary({ from, to }));
   } catch (err) { next(err); }
 }
 
