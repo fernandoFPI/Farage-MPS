@@ -14,6 +14,8 @@ export const ALL_PERMISSION_FLAGS = [
   'can_view_billing_totals',
   'can_view_billing_breakdown',
   'can_view_manual_billing',
+  'can_view_operational_data',
+  'can_view_performance',
 ];
 
 // Returns role unchanged when overrides is empty — no extra object allocation per request.
