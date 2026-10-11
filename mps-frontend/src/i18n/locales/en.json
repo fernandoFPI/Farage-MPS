@@ -449,6 +449,8 @@
     "bwCost": "BW Cost",
     "colorCost": "Color Cost",
     "fixedCharge": "Fixed Charge",
+    "billableBw": "Billable BW",
+    "billableColor": "Billable Color",
     "excessBw": "Excess BW",
     "excessColor": "Excess Color",
     "excessA4Bw": "Excess A4 Black",
