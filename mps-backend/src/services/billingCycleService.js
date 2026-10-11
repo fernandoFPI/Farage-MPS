@@ -35,6 +35,10 @@ function applyBreakdownStyle(breakdown, style, quarterNumber, quarterlyFixedChar
     cycleName:        label,
     periodStart:      breakdown[0].periodStart,
     periodEnd:        breakdown[breakdown.length - 1].periodEnd,
+    billableBw:       breakdown.reduce((s, m) => s + (m.billableBw    ?? 0), 0),
+    billableColor:    breakdown.reduce((s, m) => s + (m.billableColor ?? 0), 0),
+    excessBw:         breakdown.reduce((s, m) => s + (m.excessBw      ?? 0), 0),
+    excessColor:      breakdown.reduce((s, m) => s + (m.excessColor   ?? 0), 0),
     bwCost:           breakdown.reduce((s, m) => s + m.bwCost, 0),
     colorCost:        breakdown.reduce((s, m) => s + m.colorCost, 0),
     fixedCharge:      quarterlyFixedCharge,
@@ -456,6 +460,7 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
 
     // Main breakdown — aggregate all printers
     let prevCumMain = { bwCost: 0, colorCost: 0 };
+    let prevCumMainQty = { bw: 0, color: 0, excessBw: 0, excessColor: 0 };
     const rawBreakdown = quarterCycleRows.map(qCycle => {
       const readings = cycleReadingsCache.get(qCycle.id);
 
@@ -474,11 +479,24 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       const totalColorCost = cumCost.colorCost - prevCumMain.colorCost;
       prevCumMain = cumCost;
 
+      // per_click has no minimum, so every billable page is already "excess"
+      const cumExcessBw    = priced.bwExcess    ?? cumBw;
+      const cumExcessColor = priced.colorExcess ?? cumColor;
+      const rowBillableBw    = cumBw         - prevCumMainQty.bw;
+      const rowBillableColor = cumColor      - prevCumMainQty.color;
+      const rowExcessBw      = cumExcessBw   - prevCumMainQty.excessBw;
+      const rowExcessColor   = cumExcessColor - prevCumMainQty.excessColor;
+      prevCumMainQty = { bw: cumBw, color: cumColor, excessBw: cumExcessBw, excessColor: cumExcessColor };
+
       return {
         cycleId:        qCycle.id,
         cycleName:      qCycle.cycle_month?.trim() ?? toPeriodStr(qCycle.period_end),
         periodStart:    toPeriodStr(qCycle.period_start),
         periodEnd:      toPeriodStr(qCycle.period_end),
+        billableBw:     rowBillableBw,
+        billableColor:  rowBillableColor,
+        excessBw:       rowExcessBw,
+        excessColor:    rowExcessColor,
         bwCost:         totalBwCost,
         colorCost:      totalColorCost,
         fixedCharge:    baseFixedCharge,
@@ -504,11 +522,13 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
       const oContract   = { billingType: cycle.contract.billingType, bwPrice: oBwPrice, colorPrice: oColorPrice, minBwPages: oMinBw, minColorPages: oMinColor, fixedCharge: 0 };
 
       let prevCumOverride = { bwCost: 0, colorCost: 0 };
+      let prevCumOverrideQty = { bw: 0, color: 0, excessBw: 0, excessColor: 0 };
       const rawOverride = quarterCycleRows.map(qCycle => {
         const readings = cycleReadingsCache.get(qCycle.id);
         const pr = readings.find(r => r.printerId === inv.printerId);
 
         let bwCost = 0, colorCost = 0;
+        let billableBw = 0, billableColor = 0, excessBw = 0, excessColor = 0;
         if (pr) {
           const billable = calculateBillableUsage(
             { excessBw: pr.excessBw, excessColor: pr.excessColor },
@@ -519,12 +539,24 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}
           bwCost    = cumCost.bwCost    - prevCumOverride.bwCost;
           colorCost = cumCost.colorCost - prevCumOverride.colorCost;
           prevCumOverride = cumCost;
+
+          const cumExcessBw    = priced.bwExcess    ?? billable.billableBw;
+          const cumExcessColor = priced.colorExcess ?? billable.billableColor;
+          billableBw    = billable.billableBw    - prevCumOverrideQty.bw;
+          billableColor = billable.billableColor - prevCumOverrideQty.color;
+          excessBw      = cumExcessBw    - prevCumOverrideQty.excessBw;
+          excessColor   = cumExcessColor - prevCumOverrideQty.excessColor;
+          prevCumOverrideQty = { bw: billable.billableBw, color: billable.billableColor, excessBw: cumExcessBw, excessColor: cumExcessColor };
         }
         return {
           cycleId:        qCycle.id,
           cycleName:      qCycle.cycle_month?.trim() ?? toPeriodStr(qCycle.period_end),
           periodStart:    toPeriodStr(qCycle.period_start),
           periodEnd:      toPeriodStr(qCycle.period_end),
+          billableBw,
+          billableColor,
+          excessBw,
+          excessColor,
           bwCost,
           colorCost,
           fixedCharge:    oFixed,

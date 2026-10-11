@@ -1109,6 +1109,10 @@ const { data: appSettings } = useSettings()
   const qTotalColor  = qb.reduce((s, m) => s + (m.colorCost ?? 0), 0)
   const qTotalFixed  = summary?.quarterlyFixedCharge ?? 0
   const qGrandTotal  = qb.reduce((s, m) => s + (m.total     ?? 0), 0)
+  const qTotalBillableBw    = qb.reduce((s, m) => s + (m.billableBw    ?? 0), 0)
+  const qTotalBillableColor = qb.reduce((s, m) => s + (m.billableColor ?? 0), 0)
+  const qTotalExcessBw      = qb.reduce((s, m) => s + (m.excessBw      ?? 0), 0)
+  const qTotalExcessColor   = qb.reduce((s, m) => s + (m.excessColor   ?? 0), 0)
 
   const quarterlyBreakdownStyle = summary?.rulesMeta?.quarterlyBreakdownStyle ?? summary?.quarterlyBreakdownStyle ?? 'monthly'
   const isQuarterlyTotal  = quarterlyBreakdownStyle === 'quarterly_total'
@@ -1541,7 +1545,11 @@ const { data: appSettings } = useSettings()
                                   <thead>
                                     <tr className="bg-amber-100/60 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                                       <th className="px-3 py-1.5 text-start font-semibold">{t('billingCycles.period')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.billableBw')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.excessBw')}</th>
                                       <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.bwCost')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.billableColor')}</th>
+                                      <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.excessColor')}</th>
                                       <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.colorCost')}</th>
                                       <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.fixedCharge')}</th>
                                       <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.total')}</th>
@@ -1562,7 +1570,11 @@ const { data: appSettings } = useSettings()
                                             <span className="ms-1.5 text-brand-500 dark:text-brand-400 font-normal">← {t('billingCycles.currentMonth')}</span>
                                           )}
                                         </td>
+                                        <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.billableBw ?? 0)}</td>
+                                        <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.excessBw ?? 0)}</td>
                                         <td className="px-3 py-2 text-end">{formatAmount(month.bwCost, currency)}</td>
+                                        <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.billableColor ?? 0)}</td>
+                                        <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.excessColor ?? 0)}</td>
                                         <td className="px-3 py-2 text-end">{formatAmount(month.colorCost, currency)}</td>
                                         <td className="px-3 py-2 text-end">{formatAmount(month.fixedCharge, currency)}</td>
                                         <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{formatAmount(month.total, currency)}</td>
@@ -1576,7 +1588,11 @@ const { data: appSettings } = useSettings()
                                           ? `Q${summary.rulesMeta.quarterNumber} ${t('billingCycles.quarterTotal')}`
                                           : t('billingCycles.quarterTotal')}
                                       </td>
+                                      <td className="px-3 py-2 text-end">{formatNumber(qTotalBillableBw)}</td>
+                                      <td className="px-3 py-2 text-end">{formatNumber(qTotalExcessBw)}</td>
                                       <td className="px-3 py-2 text-end">{formatAmount(qTotalBw, currency)}</td>
+                                      <td className="px-3 py-2 text-end">{formatNumber(qTotalBillableColor)}</td>
+                                      <td className="px-3 py-2 text-end">{formatNumber(qTotalExcessColor)}</td>
                                       <td className="px-3 py-2 text-end">{formatAmount(qTotalColor, currency)}</td>
                                       <td className="px-3 py-2 text-end text-amber-600 dark:text-amber-400">{formatAmount(qTotalFixed, currency)}</td>
                                       <td className="px-3 py-2 text-end text-brand-700 dark:text-brand-300 text-sm">{formatAmount(summary?.grandTotal ?? qGrandTotal, currency)}</td>
@@ -1643,6 +1659,10 @@ const { data: appSettings } = useSettings()
                       const invQTotalColor = invQb.reduce((s, m) => s + (m.colorCost ?? 0), 0)
                       const invQTotalFixed = inv.quarterlyFixedCharge ?? 0
                       const invQGrandTotal = invQb.reduce((s, m) => s + (m.total     ?? 0), 0)
+                      const invQTotalBillableBw    = invQb.reduce((s, m) => s + (m.billableBw    ?? 0), 0)
+                      const invQTotalBillableColor = invQb.reduce((s, m) => s + (m.billableColor ?? 0), 0)
+                      const invQTotalExcessBw      = invQb.reduce((s, m) => s + (m.excessBw      ?? 0), 0)
+                      const invQTotalExcessColor   = invQb.reduce((s, m) => s + (m.excessColor   ?? 0), 0)
                       const invExpanded    = !!overrideExpanded[i]
                       return (
                       <div key={i} className="rounded-lg border border-gray-100 p-4 dark:border-gray-800">
@@ -1704,7 +1724,11 @@ const { data: appSettings } = useSettings()
                                     <thead>
                                       <tr className="bg-amber-100/60 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400">
                                         <th className="px-3 py-1.5 text-start font-semibold">{t('billingCycles.period')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.billableBw')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.excessBw')}</th>
                                         <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.bwCost')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.billableColor')}</th>
+                                        <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.excessColor')}</th>
                                         <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.colorCost')}</th>
                                         <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.fixedCharge')}</th>
                                         <th className="px-3 py-1.5 text-end font-semibold">{t('billingCycles.total')}</th>
@@ -1725,7 +1749,11 @@ const { data: appSettings } = useSettings()
                                               <span className="ms-1.5 text-brand-500 dark:text-brand-400 font-normal">← {t('billingCycles.currentMonth')}</span>
                                             )}
                                           </td>
+                                          <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.billableBw ?? 0)}</td>
+                                          <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.excessBw ?? 0)}</td>
                                           <td className="px-3 py-2 text-end">{formatAmount(month.bwCost, currency)}</td>
+                                          <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.billableColor ?? 0)}</td>
+                                          <td className="px-3 py-2 text-end text-gray-500 dark:text-gray-400">{formatNumber(month.excessColor ?? 0)}</td>
                                           <td className="px-3 py-2 text-end">{formatAmount(month.colorCost, currency)}</td>
                                           <td className="px-3 py-2 text-end">{formatAmount(month.fixedCharge, currency)}</td>
                                           <td className="px-3 py-2 text-end font-semibold text-brand-600 dark:text-brand-400">{formatAmount(month.total, currency)}</td>
@@ -1737,7 +1765,11 @@ const { data: appSettings } = useSettings()
                                         <td className="px-3 py-2">
                                           {summary.rulesMeta.quarterNumber ? `Q${summary.rulesMeta.quarterNumber} ${t('billingCycles.quarterTotal')}` : t('billingCycles.quarterTotal')}
                                         </td>
+                                        <td className="px-3 py-2 text-end">{formatNumber(invQTotalBillableBw)}</td>
+                                        <td className="px-3 py-2 text-end">{formatNumber(invQTotalExcessBw)}</td>
                                         <td className="px-3 py-2 text-end">{formatAmount(invQTotalBw, currency)}</td>
+                                        <td className="px-3 py-2 text-end">{formatNumber(invQTotalBillableColor)}</td>
+                                        <td className="px-3 py-2 text-end">{formatNumber(invQTotalExcessColor)}</td>
                                         <td className="px-3 py-2 text-end">{formatAmount(invQTotalColor, currency)}</td>
                                         <td className="px-3 py-2 text-end text-amber-600 dark:text-amber-400">{formatAmount(invQTotalFixed, currency)}</td>
                                         <td className="px-3 py-2 text-end text-brand-700 dark:text-brand-300 text-sm">{formatAmount(invQGrandTotal, currency)}</td>
