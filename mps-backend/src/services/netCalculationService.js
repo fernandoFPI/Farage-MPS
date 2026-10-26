@@ -157,64 +157,36 @@ export function calculateGroupedMinVolumeBilling(contractSummaries, group) {
   }));
   const pooledBwExcess = contractExcesses.reduce((s, c) => s + c.bwExcess, 0);
   const pooledColorExcess = contractExcesses.reduce((s, c) => s + c.colorExcess, 0);
-  // Group exceeded must compare the real pooled total against the group
-  // minimum — not pooledBwExcess/pooledColorExcess, which already has each
-  // contract's OWN minimum netted out and so is nowhere near comparable to
-  // the group minimum (a contract sitting under its own minimum silently
-  // drops its headroom instead of pooling it, hiding real group overage).
+  // A metric's pooled total vs. the group minimum is a per-metric on/off
+  // switch, not a charge amount. While the pooled total stays under the
+  // group minimum, that metric is fully protected — no member is charged
+  // excess for it even if it individually tops its own minimum. Once the
+  // pooled total breaches the group minimum, protection for that metric is
+  // lost and every member reverts to being billed on its own excess over
+  // its own minimum (standard non-grouped billing), independently per
+  // contract — the group minimum does not size a single lump charge pinned
+  // on one "breaching" contract.
   const groupBwExceeded = totalBw > groupMinBw;
   const groupColorExceeded = totalColor > groupMinColor;
+  const groupBwExcess = groupBwExceeded ? totalBw - groupMinBw : 0;
+  const groupColorExcess = groupColorExceeded ? totalColor - groupMinColor : 0;
 
-  const results = contractSummaries.map((c, i) => ({
-    contractId: c.contractId,
-    billableBw: c.billableBw,
-    billableColor: c.billableColor,
-    fixedCharge: c.fixedCharge,
-    bwExcess: contractExcesses[i].bwExcess,
-    colorExcess: contractExcesses[i].colorExcess,
-    bwCost: 0,
-    colorCost: 0,
-    total: c.fixedCharge,
-    isBreachingContract: false,
-  }));
-
-  if (!groupBwExceeded && !groupColorExceeded) {
+  const results = contractSummaries.map((c, i) => {
+    const bwCost = groupBwExceeded ? contractExcesses[i].bwExcess * c.bwPrice : 0;
+    const colorCost = groupColorExceeded ? contractExcesses[i].colorExcess * c.colorPrice : 0;
     return {
-      groupBwExceeded: false,
-      groupColorExceeded: false,
-      totalBw,
-      totalColor,
-      groupMinBw,
-      groupMinColor,
-      pooledBwExcess,
-      pooledColorExcess,
-      contracts: results,
+      contractId: c.contractId,
+      billableBw: c.billableBw,
+      billableColor: c.billableColor,
+      fixedCharge: c.fixedCharge,
+      bwExcess: contractExcesses[i].bwExcess,
+      colorExcess: contractExcesses[i].colorExcess,
+      bwCost,
+      colorCost,
+      total: c.fixedCharge + bwCost + colorCost,
+      isBreachingContract: bwCost > 0 || colorCost > 0,
     };
-  }
-
-  // Find the contract with the highest combined individual excess.
-  let breachIdx = 0;
-  let highestExcess = -Infinity;
-  for (let i = 0; i < contractExcesses.length; i++) {
-    const totalExcess = contractExcesses[i].bwExcess + contractExcesses[i].colorExcess;
-    if (totalExcess > highestExcess) {
-      highestExcess = totalExcess;
-      breachIdx = i;
-    }
-  }
-
-  const groupBwExcess = groupBwExceeded ? Math.max(0, totalBw - groupMinBw) : 0;
-  const groupColorExcess = groupColorExceeded ? Math.max(0, totalColor - groupMinColor) : 0;
-  const breachingContract = contractSummaries[breachIdx];
-  const breachBwCost = groupBwExcess * breachingContract.bwPrice;
-  const breachColorCost = groupColorExcess * breachingContract.colorPrice;
-
-  results[breachIdx].bwCost = breachBwCost;
-  results[breachIdx].colorCost = breachColorCost;
-  results[breachIdx].total = breachingContract.fixedCharge + breachBwCost + breachColorCost;
-  results[breachIdx].isBreachingContract = true;
-  results[breachIdx].groupBwExcess = groupBwExcess;
-  results[breachIdx].groupColorExcess = groupColorExcess;
+  });
 
   return {
     groupBwExceeded,
