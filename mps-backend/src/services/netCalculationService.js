@@ -157,8 +157,13 @@ export function calculateGroupedMinVolumeBilling(contractSummaries, group) {
   }));
   const pooledBwExcess = contractExcesses.reduce((s, c) => s + c.bwExcess, 0);
   const pooledColorExcess = contractExcesses.reduce((s, c) => s + c.colorExcess, 0);
-  const groupBwExceeded = pooledBwExcess > groupMinBw;
-  const groupColorExceeded = pooledColorExcess > groupMinColor;
+  // Group exceeded must compare the real pooled total against the group
+  // minimum — not pooledBwExcess/pooledColorExcess, which already has each
+  // contract's OWN minimum netted out and so is nowhere near comparable to
+  // the group minimum (a contract sitting under its own minimum silently
+  // drops its headroom instead of pooling it, hiding real group overage).
+  const groupBwExceeded = totalBw > groupMinBw;
+  const groupColorExceeded = totalColor > groupMinColor;
 
   const results = contractSummaries.map((c, i) => ({
     contractId: c.contractId,
@@ -198,8 +203,8 @@ export function calculateGroupedMinVolumeBilling(contractSummaries, group) {
     }
   }
 
-  const groupBwExcess = groupBwExceeded ? Math.max(0, pooledBwExcess - groupMinBw) : 0;
-  const groupColorExcess = groupColorExceeded ? Math.max(0, pooledColorExcess - groupMinColor) : 0;
+  const groupBwExcess = groupBwExceeded ? Math.max(0, totalBw - groupMinBw) : 0;
+  const groupColorExcess = groupColorExceeded ? Math.max(0, totalColor - groupMinColor) : 0;
   const breachingContract = contractSummaries[breachIdx];
   const breachBwCost = groupBwExcess * breachingContract.bwPrice;
   const breachColorCost = groupColorExcess * breachingContract.colorPrice;
