@@ -237,7 +237,7 @@ export async function submitTicket(body, user) {
         for (const k of QTY_KEYS) qty[k] = u[k];
         return updateCustomerStorage(customerId, u.printerModel, { ...qty, location, billingCycleId }, user.id);
       }));
-      await cycleRepo.markStorageSubmitted(billingCycleId, user.id, null);
+      await cycleRepo.markStorageSubmitted(billingCycleId, user.id);
     }
   } catch (err) {
     // Roll the reading back (consumable_readings cascades) so a half-saved ticket never exists.

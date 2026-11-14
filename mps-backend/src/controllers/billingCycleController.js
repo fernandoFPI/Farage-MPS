@@ -157,14 +157,16 @@ export async function submitStorage(req, res, next) {
     const customerId = cycle.contract?.customer?.id;
     if (!customerId) return res.status(400).json({ error: 'Cycle has no associated customer' });
 
-    // Process storage updates (one entry per model, non-blocking per model)
-    const { storageUpdates = [], storageUnavailableReason } = req.body;
-
-    if (storageUnavailableReason) {
-      const updated = await cycleRepo.markStorageSubmitted(cycle.id, req.user.id, storageUnavailableReason.trim());
-      return res.json(updated);
+    // Real stock quantities are mandatory. A "storage unavailable" reason (or an empty
+    // request) must never mark storage as submitted: that ticket is held as a draft instead.
+    const { storageUpdates } = req.body ?? {};
+    if (!Array.isArray(storageUpdates) || storageUpdates.length === 0) {
+      return res.status(422).json({
+        error: 'Stock quantities are required. If stock is not available yet, hold the ticket as a draft and submit it once the stock is entered',
+      });
     }
 
+    // Process storage updates (one entry per model, non-blocking per model)
     await Promise.all(
       storageUpdates.map(({ printerModel, location = '', ...quantities }) =>
         storageService.updateCustomerStorage(

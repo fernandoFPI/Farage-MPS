@@ -339,7 +339,6 @@
     "storageBranchPlaceholder": "— Select a location —",
     "storageBranchRequired": "Please select a branch / location",
     "selectLocationFirst": "Select a location above to see the printers and consumables",
-    "storageUnavailable": "Storage info not available",
     "storageUnavailableReason": "Reason",
     "storageUnavailableReasonPlaceholder": "Explain why storage information could not be submitted...",
     "storageUnavailableReasonRequired": "Please provide a reason",

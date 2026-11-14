@@ -389,13 +389,14 @@ export async function setBaseline(id, isBaseline, userId) {
   return findById(id);
 }
 
-export async function markStorageSubmitted(id, userId, unavailableReason = null) {
+// Marks that stock quantities were submitted. Any storage_unavailable_reason already on the
+// cycle (recorded before reasons stopped counting as stock) is left untouched.
+export async function markStorageSubmitted(id, userId) {
   await pool.query(
     `UPDATE billing_cycles
-     SET storage_submitted = true, storage_submitted_at = NOW(), storage_submitted_by = $2,
-         storage_unavailable_reason = COALESCE($3, storage_unavailable_reason)
+     SET storage_submitted = true, storage_submitted_at = NOW(), storage_submitted_by = $2
      WHERE id = $1`,
-    [id, userId, unavailableReason ?? null],
+    [id, userId],
   );
   return findById(id);
 }

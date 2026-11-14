@@ -706,8 +706,6 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
   const [fields, setFields] = useState({})
   const [location, setLocation] = useState(null) // null = not selected yet
   const [error, setError] = useState('')
-  const [storageUnavailable, setStorageUnavailable] = useState(false)
-  const [unavailableReason, setUnavailableReason] = useState('')
 
   // Group contract printers by their location field
   const printersByLocation = useMemo(() => {
@@ -747,7 +745,7 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
 
   // Reset when modal opens / closes; auto-select if only one location
   useEffect(() => {
-    if (!open) { setLocation(null); setFields({}); setError(''); setStorageUnavailable(false); setUnavailableReason(''); return }
+    if (!open) { setLocation(null); setFields({}); setError(''); return }
     if (locationOptions.length === 1) setLocation(locationOptions[0])
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -773,17 +771,6 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
 
   async function handleSubmit() {
     setError('')
-    if (storageUnavailable) {
-      if (!unavailableReason.trim()) { setError(t('tickets.storageUnavailableReasonRequired')); return }
-      try {
-        await submitStorageMutation.mutateAsync({ id: cycle.id, storageUnavailableReason: unavailableReason.trim() })
-        onSuccess()
-        onClose()
-      } catch (err) {
-        setError(err.response?.data?.error || err.message)
-      }
-      return
-    }
     if (location === null) { setError(t('tickets.storageBranchRequired')); return }
     const storageUpdates = Object.entries(fields).map(([printerModel, f]) => ({
       printerModel,
@@ -835,28 +822,6 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
           <p className="text-sm text-gray-500 dark:text-gray-400">{t('tickets.storageSubmitNote')}</p>
 
-          {/* Storage unavailable toggle */}
-          <label className="flex items-center gap-3 cursor-pointer select-none rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/60 dark:bg-amber-900/10">
-            <input
-              type="checkbox"
-              checked={storageUnavailable}
-              onChange={e => setStorageUnavailable(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
-            />
-            <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('tickets.storageUnavailable')}</span>
-          </label>
-
-          {storageUnavailable ? (
-            <FormField label={t('tickets.storageUnavailableReason')} required>
-              <textarea
-                className={inputCls + ' min-h-[90px] resize-none'}
-                value={unavailableReason}
-                onChange={e => setUnavailableReason(e.target.value)}
-                placeholder={t('tickets.storageUnavailableReasonPlaceholder')}
-              />
-            </FormField>
-          ) : (
-            <>
           {/* Branch / Location dropdown */}
           <FormField label={t('tickets.storageBranch')} required>
             <select
@@ -910,8 +875,6 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
               )
             })
           )}
-            </>
-          )}
 
           {error && <ErrorAlert message={error} />}
         </div>
@@ -928,7 +891,7 @@ function StorageSubmitModal({ open, onClose, cycle, contractPrinters, printerMap
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={submitStorageMutation.isPending || (!storageUnavailable && (location === null || modelsAtLocation.length === 0))}
+            disabled={submitStorageMutation.isPending || location === null || modelsAtLocation.length === 0}
             className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-50"
           >
             {submitStorageMutation.isPending ? t('common.loading') : t('tickets.submitStorage')}
