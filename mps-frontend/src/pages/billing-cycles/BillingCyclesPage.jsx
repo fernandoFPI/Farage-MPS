@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw } from 'lucide-react'
+import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw, Package } from 'lucide-react'
 import SearchableSelect from '../../components/SearchableSelect'
 import { contractOptions } from '../../utils/filterOptions'
 import AccordionGroup from '../../components/AccordionGroup'
@@ -35,6 +35,18 @@ function BaselineBadge({ label }) {
   return (
     <span className="inline-flex items-center rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
       <span className="me-1">📌</span>
+      {label}
+    </span>
+  )
+}
+
+function StorageUnavailableBadge({ label, reason }) {
+  return (
+    <span
+      title={`${label}: ${reason}`}
+      className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+    >
+      <Package className="h-3 w-3" />
       {label}
     </span>
   )
@@ -298,6 +310,7 @@ export default function BillingCyclesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={r.status} />
           {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
+          {r.storageUnavailableReason && <StorageUnavailableBadge label={t('tickets.storageUnavailableNote')} reason={r.storageUnavailableReason} />}
           <CityDots cityStatuses={r.cityStatuses} />
         </div>
       ),
@@ -478,6 +491,7 @@ export default function BillingCyclesPage() {
                   {r.cycleName ?? `${r.customerName ?? '—'} — ${formatPeriod(r.periodStart, r.periodEnd)}`}
                 </span>
                 {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
+                {r.storageUnavailableReason && <StorageUnavailableBadge label={t('tickets.storageUnavailableNote')} reason={r.storageUnavailableReason} />}
                 {r.status === 'pending_quarterly' && r.cycleGroupId && (
                   <Link
                     to={`/cycle-groups/${r.cycleGroupId}`}
