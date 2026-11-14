@@ -240,6 +240,18 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onSaveDraft, onCance
     }
   }
 
+  // Stock isn't available yet → the ticket can only be held as a draft until quantities are entered
+  const holdForStock = !stock?.covered && stockUnavailable
+
+  function handleSaveDraftClick() {
+    setLocalError('')
+    if (holdForStock && !stockReason.trim()) {
+      setLocalError(t('tickets.storageUnavailableReasonRequired'))
+      return
+    }
+    onSaveDraft(buildDraftPayload())
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     setLocalError('')
@@ -256,22 +268,19 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onSaveDraft, onCance
       return
     }
 
-    // Stock: quantities for this location, or a reason — unless it was already submitted for this cycle
+    // Stock quantities for this location are required unless already submitted for this cycle.
+    // "Stock unavailable" never submits — it only holds the ticket as a draft (Save as draft).
     let storage
     if (!stock?.covered) {
-      if (stockUnavailable) {
-        if (!stockReason.trim()) { setLocalError(t('tickets.storageUnavailableReasonRequired')); return }
-        storage = { unavailableReason: stockReason.trim() }
-      } else {
-        if (!stock?.models?.length) { setLocalError(t('tickets.stockRequired')); return }
-        storage = {
-          updates: stock.models.map(m => {
-            const f = stockFields[m.model] ?? emptyStock(m.isBwOnly)
-            const qty = {}
-            for (const item of STOCK_ITEMS) qty[item.key] = Number(f[item.key]) || 0
-            return { printerModel: m.model, ...qty }
-          }),
-        }
+      if (stockUnavailable) { setLocalError(t('tickets.stockHoldBlocked')); return }
+      if (!stock?.models?.length) { setLocalError(t('tickets.stockRequired')); return }
+      storage = {
+        updates: stock.models.map(m => {
+          const f = stockFields[m.model] ?? emptyStock(m.isBwOnly)
+          const qty = {}
+          for (const item of STOCK_ITEMS) qty[item.key] = Number(f[item.key]) || 0
+          return { printerModel: m.model, ...qty }
+        }),
       }
     }
 
@@ -441,18 +450,21 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onSaveDraft, onCance
                       onChange={e => setStockUnavailable(e.target.checked)}
                       className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
                     />
-                    <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('tickets.storageUnavailable')}</span>
+                    <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('tickets.stockHoldLabel')}</span>
                   </label>
 
                   {stockUnavailable ? (
-                    <FormField label={t('tickets.storageUnavailableReason')} required>
-                      <textarea
-                        className={inputCls + ' min-h-[80px] resize-none'}
-                        value={stockReason}
-                        onChange={e => setStockReason(e.target.value)}
-                        placeholder={t('tickets.storageUnavailableReasonPlaceholder')}
-                      />
-                    </FormField>
+                    <>
+                      <FormField label={t('tickets.storageUnavailableReason')} required>
+                        <textarea
+                          className={inputCls + ' min-h-[80px] resize-none'}
+                          value={stockReason}
+                          onChange={e => setStockReason(e.target.value)}
+                          placeholder={t('tickets.storageUnavailableReasonPlaceholder')}
+                        />
+                      </FormField>
+                      <p className="text-xs text-purple-700 dark:text-purple-300">📝 {t('tickets.stockHoldNote')}</p>
+                    </>
                   ) : (stock?.models ?? []).length === 0 ? (
                     <p className="text-sm text-gray-400 dark:text-gray-500">{t('tickets.stockRequired')}</p>
                   ) : (
@@ -661,16 +673,21 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onSaveDraft, onCance
             </button>
             <button
               type="button"
-              onClick={() => onSaveDraft(buildDraftPayload())}
+              onClick={handleSaveDraftClick}
               disabled={isPending || isSavingDraft}
-              className="flex-1 rounded-lg border border-purple-300 bg-purple-50 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-60 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+              className={`flex-1 rounded-lg border py-2.5 text-sm font-semibold disabled:opacity-60 ${
+                holdForStock
+                  ? 'border-purple-600 bg-purple-600 text-white hover:bg-purple-700'
+                  : 'border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-300'
+              }`}
             >
               📝 {isSavingDraft ? t('common.loading') : t('tickets.saveDraft')}
             </button>
             <button
               type="submit"
-              disabled={isPending || isSavingDraft}
-              className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
+              disabled={isPending || isSavingDraft || holdForStock}
+              title={holdForStock ? t('tickets.stockHoldBlocked') : undefined}
+              className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isPending ? t('common.loading') : t('meterReadings.submit')}
             </button>
@@ -1028,7 +1045,7 @@ export default function TicketsPage() {
     : null
 
   // Stock is entered once per location per cycle: the models at the selected printer's location,
-  // and whether stock for that location (or a cycle-wide "unavailable" reason) already exists.
+  // and whether stock quantities for that location were already submitted this cycle.
   const stockInfo = useMemo(() => {
     if (!selectedPrinter) return null
     const location = (selectedPrinter.location ?? '').trim()
@@ -1039,9 +1056,9 @@ export default function TicketsPage() {
       if (!models[p.model]) models[p.model] = { model: p.model, isBwOnly: p.isBwOnly ?? false, serials: [] }
       if (p.serialNumber) models[p.model].serials.push(p.serialNumber)
     }
-    const covered = (ticketCtx?.stockLocations ?? []).includes(location) || !!ticketCtx?.storageUnavailableReason
+    const covered = (ticketCtx?.stockLocations ?? []).includes(location)
     return { location, models: Object.values(models), covered }
-  }, [selectedPrinter, contractPrinters, printerMap, ticketCtx?.stockLocations, ticketCtx?.storageUnavailableReason])
+  }, [selectedPrinter, contractPrinters, printerMap, ticketCtx?.stockLocations])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   function handleCycleChange(id) {
@@ -1334,6 +1351,11 @@ export default function TicketsPage() {
                               )}
                               {isMultiCity && printer.location && (
                                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{printer.location}</p>
+                              )}
+                              {(status.type === 'draft_mine' || status.type === 'draft_other') && status.draft.stockReason && (
+                                <p className="text-xs text-purple-700 dark:text-purple-300 mt-0.5">
+                                  ⏸ {t('tickets.waitingForStock')}: {status.draft.stockReason}
+                                </p>
                               )}
                               {submittedReading && (
                                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 flex items-center gap-1.5">

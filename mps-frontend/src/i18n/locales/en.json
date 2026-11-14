@@ -347,13 +347,17 @@
     "locationRequired": "Location is required for this printer. Please capture your location or drop a pin before submitting.",
     "stockSection": "Stock",
     "stockCovered": "Stock for this location was already submitted for this cycle — nothing more to enter.",
-    "stockRequired": "Stock is required: enter the stock quantities, or tick \"stock unavailable\" and give a reason.",
+    "stockRequired": "Stock quantities are required to submit this ticket.",
+    "stockHoldLabel": "Stock isn't available right now — hold this ticket as a draft",
+    "stockHoldNote": "A reason doesn't submit the ticket. Save it as a draft, come back when the stock is available, enter the quantities and submit everything at once.",
+    "stockHoldBlocked": "Stock quantities are required to submit. Save this ticket as a draft and finish it when the stock is available.",
+    "waitingForStock": "Waiting for stock",
     "saveDraft": "Save as draft",
     "draftSaved": "Draft saved — finish it and submit everything later",
     "draftResume": "Draft — tap to continue",
     "draftBy": "Draft by",
     "draftOwnedBy": "This ticket is a draft saved by {{name}}. Only they (or an admin) can finish it.",
-    "draftNote": "Missing stock or consumable levels? Save a draft — nothing is submitted until everything is complete."
+    "draftNote": "Missing stock quantities or consumable levels? Save a draft — nothing is submitted until everything is entered."
   },
   "xsmImport": {
     "title": "XSM Import",

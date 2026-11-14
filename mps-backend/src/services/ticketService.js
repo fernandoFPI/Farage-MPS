@@ -75,11 +75,7 @@ export async function getContext(billingCycleId) {
     draftRepo.findSummariesByCycle(billingCycleId),
     customerId ? draftRepo.findStockLocationsForCycle(billingCycleId, customerId) : [],
   ]);
-  return {
-    drafts,
-    stockLocations,
-    storageUnavailableReason: cycle.storageUnavailableReason ?? null,
-  };
+  return { drafts, stockLocations };
 }
 
 // ── Drafts ────────────────────────────────────────────────────────────────────
@@ -188,16 +184,15 @@ export async function submitTicket(body, user) {
 
   const customerId = cycle.contract?.customer?.id;
   const location = locationOf(printer);
-  const reason = (storage?.unavailableReason ?? '').trim();
   const updates = Array.isArray(storage?.updates) ? storage.updates : [];
 
+  // Only real stock quantities count. A "stock unavailable" reason never satisfies this:
+  // that ticket is held as a draft until the quantities are entered.
   const stockLocations = customerId ? await draftRepo.findStockLocationsForCycle(billingCycleId, customerId) : [];
-  const alreadyCovered = stockLocations.includes(location) || !!cycle.storageUnavailableReason;
+  const alreadyCovered = stockLocations.includes(location);
 
   let storageMode;
-  if (reason) {
-    storageMode = 'reason';
-  } else if (updates.length > 0) {
+  if (updates.length > 0) {
     storageMode = 'stock';
     // Stock must cover every printer model at this location, so it is complete.
     const here = (await activeAssignments(cycle)).filter(a => locationOf(a.printer ?? {}) === location);
@@ -210,7 +205,7 @@ export async function submitTicket(body, user) {
   } else if (alreadyCovered) {
     storageMode = 'covered';
   } else {
-    throw httpError(422, 'Stock is required: enter the stock quantities for this location, or give a reason why stock is unavailable');
+    throw httpError(422, 'Stock quantities are required to submit this ticket. If stock is not available yet, save the ticket as a draft and submit it once the stock is entered');
   }
 
   // ── Write: reading first (it validates counters and the lock), then the rest ──
@@ -236,9 +231,7 @@ export async function submitTicket(body, user) {
       ...pctData,
     }, user.id);
 
-    if (storageMode === 'reason') {
-      await cycleRepo.markStorageSubmitted(billingCycleId, user.id, reason);
-    } else if (storageMode === 'stock') {
+    if (storageMode === 'stock') {
       await Promise.all(updates.map(u => {
         const qty = {};
         for (const k of QTY_KEYS) qty[k] = u[k];

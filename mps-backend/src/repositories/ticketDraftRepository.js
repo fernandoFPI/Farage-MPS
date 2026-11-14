@@ -5,7 +5,9 @@ export async function findSummariesByCycle(billingCycleId) {
   const { rows } = await pool.query(
     `SELECT d.id, d.printer_id, d.saved_by_user_id, u.full_name AS saved_by_name,
             d.created_at, d.updated_at,
-            COALESCE(jsonb_array_length(d.payload->'photos'), 0) AS photo_count
+            COALESCE(jsonb_array_length(d.payload->'photos'), 0) AS photo_count,
+            CASE WHEN d.payload->'stock'->>'unavailable' = 'true'
+                 THEN NULLIF(btrim(d.payload->'stock'->>'reason'), '') END AS stock_reason
      FROM ticket_drafts d
      JOIN users u ON u.id = d.saved_by_user_id
      WHERE d.billing_cycle_id = $1
@@ -20,6 +22,7 @@ export async function findSummariesByCycle(billingCycleId) {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     photoCount: Number(r.photo_count),
+    stockReason: r.stock_reason ?? null,
   }));
 }
 
