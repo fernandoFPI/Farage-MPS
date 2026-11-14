@@ -1989,6 +1989,27 @@ const { data: appSettings } = useSettings()
           </div>
         )}
 
+        {/* ── Storage unavailable (reason entered by the engineer) ── */}
+        {cycle.storageUnavailableReason && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 shadow-sm dark:border-amber-700/50 dark:bg-amber-900/10">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">{t('tickets.storageUnavailableNote')}</p>
+                <p className="mt-1 break-words whitespace-pre-wrap text-sm text-amber-700 dark:text-amber-400">
+                  <span className="font-medium">{t('tickets.storageUnavailableReason')}:</span> {cycle.storageUnavailableReason}
+                </p>
+                {(cycle.storageSubmittedByName || cycle.storageSubmittedAt) && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-500">
+                    {cycle.storageSubmittedByName && <>{t('tickets.storageSubmittedBy')} {cycle.storageSubmittedByName}</>}
+                    {cycle.storageSubmittedAt && <> · {fmtDateTime(cycle.storageSubmittedAt)}</>}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Consumable Readings ── */}
         {(consumableReadings.length > 0 || storageSnapshot.length > 0) && (
           <div className="rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900 overflow-hidden">
