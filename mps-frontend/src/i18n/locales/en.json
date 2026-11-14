@@ -344,7 +344,16 @@
     "storageUnavailableReasonPlaceholder": "Explain why storage information could not be submitted...",
     "storageUnavailableReasonRequired": "Please provide a reason",
     "storageUnavailableNote": "Storage unavailable",
-    "locationRequired": "Location is required for this printer. Please capture your location or drop a pin before submitting."
+    "locationRequired": "Location is required for this printer. Please capture your location or drop a pin before submitting.",
+    "stockSection": "Stock",
+    "stockCovered": "Stock for this location was already submitted for this cycle — nothing more to enter.",
+    "stockRequired": "Stock is required: enter the stock quantities, or tick \"stock unavailable\" and give a reason.",
+    "saveDraft": "Save as draft",
+    "draftSaved": "Draft saved — finish it and submit everything later",
+    "draftResume": "Draft — tap to continue",
+    "draftBy": "Draft by",
+    "draftOwnedBy": "This ticket is a draft saved by {{name}}. Only they (or an admin) can finish it.",
+    "draftNote": "Missing stock or consumable levels? Save a draft — nothing is submitted until everything is complete."
   },
   "xsmImport": {
     "title": "XSM Import",

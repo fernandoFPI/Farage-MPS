@@ -9,6 +9,7 @@ import { useToast } from '../../components/Toast'
 import FormField, { inputCls } from '../../components/FormField'
 import ErrorAlert from '../../components/ErrorAlert'
 import { fmtDate } from '../../utils/format'
+import { compressImageFile } from '../../utils/imageCompress'
 
 const mobileInputCls = [
   'w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-base text-gray-900',
@@ -92,17 +93,13 @@ export default function SubmitReadingPage() {
     )
   }
 
-  function handlePhotoFiles(files) {
+  async function handlePhotoFiles(files) {
+    let added = 0
     for (const file of files) {
-      if (photos.length >= 5) break
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const dataUrl = ev.target.result
-        const mimeType = file.type || 'image/jpeg'
-        const data = dataUrl.replace(/^data:[^;]+;base64,/, '')
-        setPhotos(prev => prev.length < 5 ? [...prev, { mimeType, data, preview: dataUrl }] : prev)
-      }
-      reader.readAsDataURL(file)
+      if (photos.length + added >= 5) break
+      added++
+      const compressed = await compressImageFile(file)
+      setPhotos(prev => prev.length < 5 ? [...prev, compressed] : prev)
     }
   }
 

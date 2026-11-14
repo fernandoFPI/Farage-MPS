@@ -4,10 +4,11 @@ import { Search, CheckCircle, Clock, Circle, AlertTriangle, X, Camera, Image, Ch
 import SearchableSelect from '../../components/SearchableSelect'
 import { MapContainer, TileLayer, Marker } from 'react-leaflet'
 import { useBillingCycles, useBillingCycle, useLockPrinter, useUnlockPrinter, useSubmitStorage } from '../../api/hooks/useBillingCycles'
-import { useMeterReadings, useSubmitReading } from '../../api/hooks/useMeterReadings'
-import { useSubmitConsumableReading } from '../../api/hooks/useConsumableReadings'
+import { useMeterReadings } from '../../api/hooks/useMeterReadings'
+import { useTicketContext, useSubmitTicket, useSaveTicketDraft, fetchTicketDraft } from '../../api/hooks/useTickets'
 import { useAssignments } from '../../api/hooks/useAssignments'
-import { usePrinters, useUpdatePrinterCoordinates } from '../../api/hooks/usePrinters'
+import { usePrinters } from '../../api/hooks/usePrinters'
+import { compressImageFile } from '../../utils/imageCompress'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
 import FormField, { inputCls } from '../../components/FormField'
@@ -20,16 +21,38 @@ const today = new Date().toISOString().slice(0, 10)
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-function getPrinterStatus(printerId, submittedIds, locks, currentUserId) {
+function getPrinterStatus(printerId, submittedIds, locks, currentUserId, draftsByPrinter = {}) {
   if (submittedIds.has(printerId)) return { type: 'submitted' }
   const now = new Date()
   const lock = locks.find(l => l.printerId === printerId && new Date(l.expiresAt) > now)
-  if (!lock) return { type: 'not_submitted' }
-  if (lock.lockedBy === currentUserId) return { type: 'you_in_progress', lock }
-  return { type: 'in_progress', lock }
+  if (lock) {
+    return lock.lockedBy === currentUserId ? { type: 'you_in_progress', lock } : { type: 'in_progress', lock }
+  }
+  const draft = draftsByPrinter[printerId]
+  if (draft) {
+    return draft.savedByUserId === currentUserId ? { type: 'draft_mine', draft } : { type: 'draft_other', draft }
+  }
+  return { type: 'not_submitted' }
 }
 
-const STATUS_ORDER = { not_submitted: 0, you_in_progress: 1, in_progress: 2, submitted: 3 }
+const STATUS_ORDER = { not_submitted: 0, draft_mine: 1, you_in_progress: 2, draft_other: 3, in_progress: 4, submitted: 5 }
+
+// Stock quantity fields for the inline stock section (same items as the storage modal)
+const STOCK_ITEMS = [
+  { key: 'cQty',        label: 'Cyan (C)',    colorOnly: true },
+  { key: 'mQty',        label: 'Magenta (M)', colorOnly: true },
+  { key: 'yQty',        label: 'Yellow (Y)',  colorOnly: true },
+  { key: 'kQty',        label: 'Black (K)',   colorOnly: false },
+  { key: 'r1Qty',       label: 'Drum R1',     colorOnly: false },
+  { key: 'r2Qty',       label: 'Drum R2',     colorOnly: false },
+  { key: 'r3Qty',       label: 'Drum R3',     colorOnly: false },
+  { key: 'r4Qty',       label: 'Drum R4',     colorOnly: false },
+  { key: 'wasteTonQty', label: 'Waste Toner', colorOnly: false },
+]
+
+function emptyStock(isBwOnly) {
+  return { cQty: 0, mQty: 0, yQty: 0, kQty: 0, r1Qty: 0, r2Qty: 0, r3Qty: 0, r4Qty: 0, wasteTonQty: 0, isBwOnly: !!isBwOnly }
+}
 
 function formatCountdown(secs) {
   const m = Math.floor(secs / 60)
@@ -64,6 +87,16 @@ function PrinterStatusBadge({ status, t }) {
       </span>
     )
   }
+  if (status.type === 'draft_mine' || status.type === 'draft_other') {
+    return (
+      <span className="flex items-center gap-1 text-xs font-medium text-purple-600 dark:text-purple-400">
+        <span aria-hidden>📝</span>
+        {status.type === 'draft_mine'
+          ? t('tickets.draftResume')
+          : `${t('tickets.draftBy')} ${status.draft.savedByName}`}
+      </span>
+    )
+  }
   return (
     <span className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500">
       <Circle className="h-3.5 w-3.5" />
@@ -74,19 +107,39 @@ function PrinterStatusBadge({ status, t }) {
 
 // ── Submit Form ───────────────────────────────────────────────────────────────
 
-function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending, error, lockExpiry, isBwOnly, t }) {
-  const [form, setForm] = useState({ a4Bw: '', a3Bw: '', a4Color: '', a3Color: '', xls: '' })
-  const [photos, setPhotos] = useState([])
+function SubmitForm({ printer, cycle, assignment, onSubmit, onSaveDraft, onCancel, isPending, isSavingDraft, error, lockExpiry, isBwOnly, initialDraft, stock, t }) {
+  // A resumed draft pre-fills everything the engineer already entered.
+  const draft = initialDraft ?? {}
+  const [form, setForm] = useState({ a4Bw: '', a3Bw: '', a4Color: '', a3Color: '', xls: '', ...(draft.form ?? {}) })
+  const [photos, setPhotos] = useState(
+    (draft.photos ?? []).map(p => ({ mimeType: p.mimeType, data: p.data, preview: `data:${p.mimeType};base64,${p.data}` })),
+  )
   const [timeLeft, setTimeLeft] = useState(null)
   const [expired, setExpired] = useState(false)
-  const [consumables, setConsumables] = useState({})
+  const [consumables, setConsumables] = useState(draft.consumables ?? {})
+  // Visit time of a resumed draft — kept so the reading isn't re-dated to the day it was finally submitted.
+  const visitedAt = draft.readAt ?? null
   const isPsg = cycle?.contract?.contractMode === 'psg'
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
+  // ── Stock (customer storage) for this printer's location ──────────────────
+  const [stockUnavailable, setStockUnavailable] = useState(draft.stock?.unavailable ?? false)
+  const [stockReason, setStockReason] = useState(draft.stock?.reason ?? '')
+  const [stockFields, setStockFields] = useState(() => {
+    const init = {}
+    for (const m of stock?.models ?? []) {
+      init[m.model] = { ...emptyStock(m.isBwOnly), ...(draft.stock?.fields?.[m.model] ?? {}) }
+    }
+    return init
+  })
+  function setStockField(model, key, val) {
+    setStockFields(prev => ({ ...prev, [model]: { ...prev[model], [key]: val === '' ? '' : Number(val) } }))
+  }
+
   // ── GPS / location state ──────────────────────────────────────────────────
-  const [gpsState, setGpsState] = useState('idle') // idle | loading | captured | denied
-  const [capturedCoords, setCapturedCoords] = useState(null)
-  const [saveLocation, setSaveLocation] = useState(true)
+  const [gpsState, setGpsState] = useState(draft.coords ? 'captured' : 'idle') // idle | loading | captured | denied
+  const [capturedCoords, setCapturedCoords] = useState(draft.coords ?? null)
+  const [saveLocation, setSaveLocation] = useState(draft.saveLocation ?? true)
   const [pinModalOpen, setPinModalOpen] = useState(false)
   const printerHasCoords = printer.latitude != null && printer.longitude != null
 
@@ -116,19 +169,14 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
     return () => clearInterval(interval)
   }, [lockExpiry])
 
-  function handlePhotoFiles(files) {
-    const newPhotos = []
+  async function handlePhotoFiles(files) {
+    let added = 0
     for (const file of files) {
-      if (photos.length + newPhotos.length >= 5) break
-      const reader = new FileReader()
-      reader.onload = (ev) => {
-        const dataUrl = ev.target.result
-        const mimeType = file.type || 'image/jpeg'
-        const data = dataUrl.replace(/^data:[^;]+;base64,/, '')
-        setPhotos(prev => prev.length < 5 ? [...prev, { mimeType, data, preview: dataUrl }] : prev)
-      }
-      reader.readAsDataURL(file)
-      newPhotos.push(file)
+      if (photos.length + added >= 5) break
+      added++
+      // Resized + re-encoded so a 5 MB camera photo becomes a few hundred KB
+      const compressed = await compressImageFile(file)
+      setPhotos(prev => prev.length < 5 ? [...prev, compressed] : prev)
     }
   }
 
@@ -169,18 +217,28 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
   }
 
   function buildConsumablePayload() {
-    const keys = Object.keys(consumables).filter(k => consumables[k] !== '' && consumables[k] !== undefined)
-    if (keys.length === 0) return null
     const payload = {}
     for (const c of getConsumablesForPrinter(isBwOnly)) {
       const { pctKey } = CONSUMABLE_FIELD_MAP[c]
-      const val = consumables[c]
-      if (val !== '' && val !== undefined) payload[pctKey] = Number(val)
+      payload[pctKey] = Number(consumables[c])
     }
-    return Object.keys(payload).length > 0 ? payload : null
+    return payload
   }
 
   const [localError, setLocalError] = useState('')
+
+  // Everything entered so far, so it can be finished and submitted later.
+  function buildDraftPayload() {
+    return {
+      form,
+      photos: photos.map(p => ({ mimeType: p.mimeType, data: p.data })),
+      consumables,
+      coords: capturedCoords,
+      saveLocation,
+      stock: { unavailable: stockUnavailable, reason: stockReason, fields: stockFields },
+      readAt: visitedAt ?? new Date().toISOString(),
+    }
+  }
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -198,23 +256,40 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
       return
     }
 
-    const meterPayload = {
+    // Stock: quantities for this location, or a reason — unless it was already submitted for this cycle
+    let storage
+    if (!stock?.covered) {
+      if (stockUnavailable) {
+        if (!stockReason.trim()) { setLocalError(t('tickets.storageUnavailableReasonRequired')); return }
+        storage = { unavailableReason: stockReason.trim() }
+      } else {
+        if (!stock?.models?.length) { setLocalError(t('tickets.stockRequired')); return }
+        storage = {
+          updates: stock.models.map(m => {
+            const f = stockFields[m.model] ?? emptyStock(m.isBwOnly)
+            const qty = {}
+            for (const item of STOCK_ITEMS) qty[item.key] = Number(f[item.key]) || 0
+            return { printerModel: m.model, ...qty }
+          }),
+        }
+      }
+    }
+
+    onSubmit({
       printerId: printer.id,
       billingCycleId: cycle.id,
-      source: 'manual',
       a4Bw: Number(form.a4Bw) || 0,
       a3Bw: Number(form.a3Bw) || 0,
       a4Color: isBwOnly ? 0 : (Number(form.a4Color) || 0),
       a3Color: isBwOnly ? 0 : (Number(form.a3Color) || 0),
       xls: (isPsg && !isBwOnly) ? (Number(form.xls) || 0) : 0,
       photos: photos.map(p => ({ mimeType: p.mimeType, data: p.data })),
-    }
-
-    const locationPayload = (gpsState === 'captured' || capturedCoords) && saveLocation
-      ? { printerId: printer.id, ...capturedCoords }
-      : null
-
-    onSubmit(meterPayload, buildConsumablePayload(), locationPayload)
+      consumables: buildConsumablePayload(),
+      storage,
+      coordinates: capturedCoords ?? undefined,
+      saveCoordinates: saveLocation,
+      readAt: visitedAt ?? undefined,
+    })
   }
 
   const consumableKeys = getConsumablesForPrinter(isBwOnly)
@@ -247,8 +322,18 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
       )}
 
       {expired && (
-        <div className="px-4 py-3">
+        <div className="px-4 py-3 space-y-3">
           <ErrorAlert message={t('tickets.lockExpired')} />
+          {error && <ErrorAlert message={error} />}
+          {/* Everything typed is still here — keep it as a draft instead of losing it */}
+          <button
+            type="button"
+            onClick={() => onSaveDraft(buildDraftPayload())}
+            disabled={isSavingDraft}
+            className="w-full rounded-lg border border-purple-300 bg-purple-50 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-60 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+          >
+            📝 {isSavingDraft ? t('common.loading') : t('tickets.saveDraft')}
+          </button>
         </div>
       )}
 
@@ -329,6 +414,78 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
                   </FormField>
                 )
               })}
+            </div>
+          </div>
+
+          {/* ── Stock at this printer's location ─────────────────────────── */}
+          <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="px-3 py-2.5 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                {t('tickets.stockSection')}
+                {stock?.location ? ` — ${stock.location}` : ` — ${t('consumables.storageMainBranch')}`}
+                {!stock?.covered && <span className="font-normal normal-case text-red-500"> *</span>}
+              </p>
+            </div>
+            <div className="px-3 py-3 space-y-3">
+              {stock?.covered ? (
+                <p className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400">
+                  <CheckCircle className="h-4 w-4 flex-shrink-0" />
+                  {t('tickets.stockCovered')}
+                </p>
+              ) : (
+                <>
+                  <label className="flex items-center gap-3 cursor-pointer select-none rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-700/60 dark:bg-amber-900/10">
+                    <input
+                      type="checkbox"
+                      checked={stockUnavailable}
+                      onChange={e => setStockUnavailable(e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <span className="text-sm font-medium text-amber-700 dark:text-amber-400">{t('tickets.storageUnavailable')}</span>
+                  </label>
+
+                  {stockUnavailable ? (
+                    <FormField label={t('tickets.storageUnavailableReason')} required>
+                      <textarea
+                        className={inputCls + ' min-h-[80px] resize-none'}
+                        value={stockReason}
+                        onChange={e => setStockReason(e.target.value)}
+                        placeholder={t('tickets.storageUnavailableReasonPlaceholder')}
+                      />
+                    </FormField>
+                  ) : (stock?.models ?? []).length === 0 ? (
+                    <p className="text-sm text-gray-400 dark:text-gray-500">{t('tickets.stockRequired')}</p>
+                  ) : (
+                    (stock.models).map(m => {
+                      const f = stockFields[m.model] ?? emptyStock(m.isBwOnly)
+                      return (
+                        <div key={m.model} className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
+                          <div className="px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800">
+                            <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">{m.model}</p>
+                            {m.serials.length > 0 && (
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{m.serials.join(' · ')}</p>
+                            )}
+                          </div>
+                          <div className="px-3 py-3 grid grid-cols-2 gap-2">
+                            {STOCK_ITEMS.filter(i => !i.colorOnly || !m.isBwOnly).map(i => (
+                              <FormField key={i.key} label={i.label}>
+                                <input
+                                  type="number"
+                                  inputMode="numeric"
+                                  min="0"
+                                  className={inputCls}
+                                  value={f[i.key] ?? 0}
+                                  onChange={e => setStockField(m.model, i.key, e.target.value)}
+                                />
+                              </FormField>
+                            ))}
+                          </div>
+                        </div>
+                      )
+                    })
+                  )}
+                </>
+              )}
             </div>
           </div>
 
@@ -492,7 +649,9 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
 
           {(localError || error) && <ErrorAlert message={localError || error} />}
 
-          <div className="flex gap-2 pt-1">
+          <p className="text-xs text-gray-400 dark:text-gray-500">{t('tickets.draftNote')}</p>
+
+          <div className="flex flex-wrap gap-2 pt-1">
             <button
               type="button"
               onClick={onCancel}
@@ -501,8 +660,16 @@ function SubmitForm({ printer, cycle, assignment, onSubmit, onCancel, isPending,
               {t('tickets.cancelLock')}
             </button>
             <button
+              type="button"
+              onClick={() => onSaveDraft(buildDraftPayload())}
+              disabled={isPending || isSavingDraft}
+              className="flex-1 rounded-lg border border-purple-300 bg-purple-50 py-2.5 text-sm font-semibold text-purple-700 hover:bg-purple-100 disabled:opacity-60 dark:border-purple-700 dark:bg-purple-900/20 dark:text-purple-300"
+            >
+              📝 {isSavingDraft ? t('common.loading') : t('tickets.saveDraft')}
+            </button>
+            <button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isSavingDraft}
               className="flex-1 rounded-lg bg-brand-500 py-2.5 text-sm font-semibold text-white hover:bg-brand-600 disabled:opacity-60"
             >
               {isPending ? t('common.loading') : t('meterReadings.submit')}
@@ -772,10 +939,13 @@ export default function TicketsPage() {
   const [lockError, setLockError] = useState('')
   const [submitError, setSubmitError] = useState('')
   const [storageModalOpen, setStorageModalOpen] = useState(false)
+  const [activeDraft, setActiveDraft] = useState(null) // payload of the draft being resumed
+  const isAdmin = user?.role?.name === 'admin'
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: openCycles = [] } = useBillingCycles({ status: 'open' })
   const { data: cycle } = useBillingCycle(selectedCycleId, { refetchInterval: selectedCycleId ? 30000 : false })
+  const { data: ticketCtx } = useTicketContext(selectedCycleId, { refetchInterval: selectedCycleId ? 30000 : false })
   const { data: allAssignments = [] } = useAssignments()
   const { data: allPrinters = [] } = usePrinters()
   const { data: cycleReadings = [] } = useMeterReadings(
@@ -785,10 +955,8 @@ export default function TicketsPage() {
 
   const lockMutation        = useLockPrinter()
   const unlockMutation      = useUnlockPrinter()
-  const submitMutation      = useSubmitReading()
-  const consumablesMutation = useSubmitConsumableReading()
-  const coordsMutation      = useUpdatePrinterCoordinates()
-  const storageSubmitMutation = useSubmitStorage()
+  const submitTicketMutation = useSubmitTicket()
+  const saveDraftMutation   = useSaveTicketDraft()
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const printerMap = useMemo(
@@ -823,6 +991,11 @@ export default function TicketsPage() {
     [cycle?.lockedPrinters],
   )
 
+  const draftsByPrinter = useMemo(
+    () => Object.fromEntries((ticketCtx?.drafts ?? []).map(d => [d.printerId, d])),
+    [ticketCtx?.drafts],
+  )
+
   const printerRows = useMemo(() => {
     const q = printerFilter.toLowerCase()
     return contractPrinters
@@ -830,12 +1003,12 @@ export default function TicketsPage() {
         const printer = printerMap[a.printerId]
         if (!printer) return null
         if (q && !printer.serialNumber.toLowerCase().includes(q) && !printer.model.toLowerCase().includes(q)) return null
-        const status = getPrinterStatus(printer.id, submittedIds, activeLocks, user?.id)
+        const status = getPrinterStatus(printer.id, submittedIds, activeLocks, user?.id, draftsByPrinter)
         return { printer, assignment: a, status }
       })
       .filter(Boolean)
       .sort((a, b) => STATUS_ORDER[a.status.type] - STATUS_ORDER[b.status.type])
-  }, [contractPrinters, printerMap, submittedIds, activeLocks, printerFilter, user?.id])
+  }, [contractPrinters, printerMap, submittedIds, activeLocks, printerFilter, user?.id, draftsByPrinter])
 
   const cityGroups = useMemo(() => {
     const groups = {}
@@ -854,9 +1027,26 @@ export default function TicketsPage() {
     ? contractPrinters.find(a => a.printerId === selectedPrinterId)
     : null
 
+  // Stock is entered once per location per cycle: the models at the selected printer's location,
+  // and whether stock for that location (or a cycle-wide "unavailable" reason) already exists.
+  const stockInfo = useMemo(() => {
+    if (!selectedPrinter) return null
+    const location = (selectedPrinter.location ?? '').trim()
+    const models = {}
+    for (const a of contractPrinters) {
+      const p = printerMap[a.printerId]
+      if (!p || (p.location ?? '').trim() !== location) continue
+      if (!models[p.model]) models[p.model] = { model: p.model, isBwOnly: p.isBwOnly ?? false, serials: [] }
+      if (p.serialNumber) models[p.model].serials.push(p.serialNumber)
+    }
+    const covered = (ticketCtx?.stockLocations ?? []).includes(location) || !!ticketCtx?.storageUnavailableReason
+    return { location, models: Object.values(models), covered }
+  }, [selectedPrinter, contractPrinters, printerMap, ticketCtx?.stockLocations, ticketCtx?.storageUnavailableReason])
+
   // ── Handlers ──────────────────────────────────────────────────────────────
   function handleCycleChange(id) {
     setSelectedCycleId(id)
+    setActiveDraft(null)
     setSelectedPrinterId(null)
     setLockExpiry(null)
     setLockError('')
@@ -867,13 +1057,16 @@ export default function TicketsPage() {
 
   async function handleSelectPrinterCard(printer, status) {
     if (status.type === 'submitted' || status.type === 'in_progress') return
+    // Someone else's draft: only its owner (or an admin) can finish it
+    if (status.type === 'draft_other' && !isAdmin) {
+      setLockError(t('tickets.draftOwnedBy', { name: status.draft.savedByName }))
+      return
+    }
     setLockError('')
     setSubmitError('')
+    let result
     try {
-      const result = await lockMutation.mutateAsync({ cycleId: selectedCycleId, printerId: printer.id })
-      setSelectedPrinterId(printer.id)
-      setLockExpiry(result.expiresAt)
-      setLockAcquiredAt(result.lockedAt ?? new Date().toISOString())
+      result = await lockMutation.mutateAsync({ cycleId: selectedCycleId, printerId: printer.id })
     } catch (err) {
       const data = err.response?.data
       if (err.response?.status === 423) {
@@ -881,7 +1074,33 @@ export default function TicketsPage() {
       } else {
         setLockError(data?.error || err.message)
       }
+      return
     }
+
+    // Resuming a draft: load everything that was saved before opening the form
+    let draftPayload = null
+    const draftSummary = draftsByPrinter[printer.id]
+    if (draftSummary) {
+      try {
+        draftPayload = (await fetchTicketDraft(selectedCycleId, printer.id)).payload
+      } catch (err) {
+        try { await unlockMutation.mutateAsync({ cycleId: selectedCycleId, printerId: printer.id }) } catch { /* lock expires on its own */ }
+        setLockError(err.response?.data?.error || err.message)
+        return
+      }
+    }
+
+    setActiveDraft(draftPayload)
+    setSelectedPrinterId(printer.id)
+    setLockExpiry(result.expiresAt)
+    setLockAcquiredAt(result.lockedAt ?? new Date().toISOString())
+  }
+
+  function closeForm() {
+    setSelectedPrinterId(null)
+    setLockExpiry(null)
+    setLockAcquiredAt(null)
+    setActiveDraft(null)
   }
 
   async function handleCancel() {
@@ -890,17 +1109,27 @@ export default function TicketsPage() {
         await unlockMutation.mutateAsync({ cycleId: selectedCycleId, printerId: selectedPrinterId })
       } catch {} // silent — lock expires naturally
     }
-    setSelectedPrinterId(null)
-    setLockExpiry(null)
-    setLockAcquiredAt(null)
+    closeForm()
     setSubmitError('')
   }
 
-  async function handleSubmit(meterPayload, consumablePayload, locationPayload) {
+  // Everything (reading, consumable levels, stock/reason, location) is saved in one request,
+  // so a ticket is either fully submitted or not submitted at all.
+  async function handleSubmit(ticketPayload) {
     setSubmitError('')
-    let meterReading
     try {
-      meterReading = await submitMutation.mutateAsync({ ...meterPayload, lockAcquiredAt })
+      const res = await submitTicketMutation.mutateAsync({ ...ticketPayload, lockAcquiredAt })
+      showToast({
+        title: `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber} · ${t('consumables.levelsSaved')}`,
+        variant: 'success',
+      })
+      if (ticketPayload.coordinates && ticketPayload.saveCoordinates) {
+        showToast({
+          title: res.locationSaved ? t('map.locationSaved') : t('map.locationSaveError'),
+          variant: res.locationSaved ? 'success' : 'warning',
+        })
+      }
+      closeForm()
     } catch (err) {
       const data = err.response?.data
       if (err.response?.status === 423) {
@@ -908,48 +1137,22 @@ export default function TicketsPage() {
       } else {
         setSubmitError(data?.error || err.message)
       }
-      return
     }
+  }
 
-    // Consumable reading — saved separately, non-blocking but errors are surfaced
-    let consumablesSaved = false
-    if (consumablePayload && meterReading?.id) {
-      try {
-        await consumablesMutation.mutateAsync({
-          meterReadingId: meterReading.id,
-          printerId: meterPayload.printerId,
-          billingCycleId: meterPayload.billingCycleId,
-          ...consumablePayload,
-        })
-        consumablesSaved = true
-      } catch (err) {
-        const msg = err.response?.data?.error || t('consumables.consumableSaveError')
-        showToast({ title: msg, variant: 'warning' })
-      }
+  async function handleSaveDraft(payload) {
+    setSubmitError('')
+    try {
+      await saveDraftMutation.mutateAsync({
+        billingCycleId: selectedCycleId,
+        printerId: selectedPrinterId,
+        payload,
+      })
+      showToast({ title: t('tickets.draftSaved'), variant: 'success' })
+      closeForm()
+    } catch (err) {
+      setSubmitError(err.response?.data?.error || err.message)
     }
-
-    const successMsg = consumablePayload
-      ? `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}${consumablesSaved ? ` · ${t('consumables.levelsSaved')}` : ''}`
-      : `${t('tickets.submitSuccess')} ${selectedPrinter?.serialNumber}`
-    showToast({ title: successMsg, variant: 'success' })
-
-    // Save printer coordinates if captured
-    if (locationPayload) {
-      try {
-        await coordsMutation.mutateAsync({
-          id: locationPayload.printerId,
-          latitude: locationPayload.latitude,
-          longitude: locationPayload.longitude,
-        })
-        showToast({ title: t('map.locationSaved'), variant: 'success' })
-      } catch {
-        showToast({ title: t('map.locationSaveError'), variant: 'warning' })
-      }
-    }
-
-    setSelectedPrinterId(null)
-    setLockExpiry(null)
-    setLockAcquiredAt(null)
   }
 
   async function handleSerialSearch() {
@@ -976,6 +1179,8 @@ export default function TicketsPage() {
     if (status.type === 'submitted') return `${base} border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-800/20 opacity-60 cursor-default`
     if (status.type === 'in_progress') return `${base} border-amber-200 bg-amber-50/50 dark:border-amber-800/50 dark:bg-amber-900/10 cursor-default`
     if (status.type === 'you_in_progress') return `${base} border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/20 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30`
+    if (status.type === 'draft_mine') return `${base} border-purple-300 bg-purple-50/60 dark:border-purple-700 dark:bg-purple-900/10 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/20`
+    if (status.type === 'draft_other') return `${base} border-purple-200 bg-purple-50/30 dark:border-purple-800/50 dark:bg-purple-900/5 ${isAdmin ? 'cursor-pointer' : 'cursor-default'}`
     return `${base} border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900 cursor-pointer hover:border-brand-300 hover:bg-brand-50/30 dark:hover:border-brand-600 dark:hover:bg-brand-900/10`
   }
 
@@ -1107,8 +1312,8 @@ export default function TicketsPage() {
                           <div
                             className={cardCls(status)}
                             onClick={() => handleSelectPrinterCard(printer, status)}
-                            role={status.type === 'not_submitted' || status.type === 'you_in_progress' ? 'button' : undefined}
-                            tabIndex={status.type === 'not_submitted' || status.type === 'you_in_progress' ? 0 : undefined}
+                            role={['not_submitted', 'you_in_progress', 'draft_mine'].includes(status.type) ? 'button' : undefined}
+                            tabIndex={['not_submitted', 'you_in_progress', 'draft_mine'].includes(status.type) ? 0 : undefined}
                             onKeyDown={e => e.key === 'Enter' && handleSelectPrinterCard(printer, status)}
                           >
                             <div className="flex-shrink-0 w-5 text-center">
@@ -1145,15 +1350,20 @@ export default function TicketsPage() {
                           {isSelected && selectedPrinter && cycle && (
                             <div className="mt-2">
                               <SubmitForm
+                                key={`${selectedPrinter.id}-${activeDraft ? 'draft' : 'new'}`}
                                 printer={selectedPrinter}
                                 cycle={cycle}
                                 assignment={selectedAssignment}
                                 onSubmit={handleSubmit}
+                                onSaveDraft={handleSaveDraft}
                                 onCancel={handleCancel}
-                                isPending={submitMutation.isPending}
+                                isPending={submitTicketMutation.isPending}
+                                isSavingDraft={saveDraftMutation.isPending}
                                 error={submitError}
                                 lockExpiry={lockExpiry}
                                 isBwOnly={selectedPrinter?.isBwOnly ?? false}
+                                initialDraft={activeDraft}
+                                stock={stockInfo}
                                 t={t}
                               />
                             </div>
