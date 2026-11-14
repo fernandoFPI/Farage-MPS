@@ -393,7 +393,7 @@ export async function markStorageSubmitted(id, userId, unavailableReason = null)
   await pool.query(
     `UPDATE billing_cycles
      SET storage_submitted = true, storage_submitted_at = NOW(), storage_submitted_by = $2,
-         storage_unavailable_reason = $3
+         storage_unavailable_reason = COALESCE($3, storage_unavailable_reason)
      WHERE id = $1`,
     [id, userId, unavailableReason ?? null],
   );

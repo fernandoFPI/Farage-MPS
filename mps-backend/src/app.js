@@ -24,6 +24,7 @@ import adminRoutes from './routes/adminRoutes.js';
 import odooRoutes from './routes/odooRoutes.js';
 import monitorRoutes from './routes/monitorRoutes.js';
 import agentRoutes, { adminRouter as agentAdminRouter } from './routes/agentRoutes.js';
+import ticketRoutes from './routes/ticketRoutes.js';
 
 const app = express();
 
@@ -55,6 +56,7 @@ app.use('/api/contract-printers', contractPrinterRoutes);
 app.use('/api/meter-readings/import', readingImportRoutes);
 app.use('/api/meter-readings', meterReadingRoutes);
 app.use('/api/billing-cycles', billingCycleRoutes);
+app.use('/api/tickets', ticketRoutes);
 app.use('/api/cycle-groups', cycleGroupRoutes);
 app.use('/api/xsm', xsmRoutes);
 app.use('/api/performance', performanceRoutes);
