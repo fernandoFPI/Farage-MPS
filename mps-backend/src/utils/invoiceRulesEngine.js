@@ -43,17 +43,24 @@ export function getPrevQuarterEndDate(contractStartDate, currentPeriodEnd) {
 // Which previous reading is a cycle's excess measured from?
 //
 // The quarter-boundary reading (getPrevQuarterEndDate) is only right when the excess itself is
-// accumulated over the quarter: excess billed quarterly, or the invoice covering the whole quarter
-// (quarterly_total). A contract whose fixed charge is quarterly but whose excess is MONTHLY bills
-// each month's usage on its own, so it must be measured from the previous month's reading —
-// measuring from the quarter boundary re-bills the earlier months of the quarter.
+// accumulated over the quarter: excess billed quarterly (whatever the fixed-charge frequency is),
+// or a quarterly fixed charge whose invoice covers the whole quarter (quarterly_total).
+// A contract whose fixed charge is quarterly but whose excess is MONTHLY bills each month's usage
+// on its own, so it must be measured from the previous month's reading — measuring from the
+// quarter boundary re-bills the earlier months of the quarter.
+// Conversely a quarterly EXCESS is only billed in the quarter's last month (see isExcessDue), so it
+// has to cover the whole quarter even when the fixed charge is monthly; measuring it from the
+// previous month would under-bill it.
 //
 // Rules are read the same way applyInvoiceRules reads them: a missing excessFrequency is 'monthly'.
 export function usesQuarterEndBaseline(invoiceRules) {
   const rules = invoiceRules ?? {};
-  if (rules.fixedChargeFrequency !== 'quarterly' || !rules.contractStartDate) return false;
+  if (!rules.contractStartDate) return false;
   const excessFrequency = rules.excessFrequency ?? 'monthly';
-  return excessFrequency !== 'monthly' || rules.quarterlyBreakdownStyle === 'quarterly_total';
+  if (rules.fixedChargeFrequency === 'quarterly') {
+    return excessFrequency !== 'monthly' || rules.quarterlyBreakdownStyle === 'quarterly_total';
+  }
+  return excessFrequency === 'quarterly';
 }
 
 export function getDefaultRules() {
