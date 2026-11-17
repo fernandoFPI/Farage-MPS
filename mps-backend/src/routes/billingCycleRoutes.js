@@ -29,6 +29,16 @@ router.get('/latest',        ...manageBilling,  ctrl.getLatestCycle);
 router.delete('/:id/purge',  ...requireAdmin,   ctrl.hardDelete);
 router.post('/:id/restore',  ...requireAdmin,   ctrl.restoreCycle);
 
+// Cycle locks — admin only. A locked cycle serves a frozen snapshot of its figures; unlocking
+// and recalculating are the only ways it changes. Bulk routes first (they are not /:id routes).
+router.get('/locks/candidates',       ...requireAdmin, ctrl.countLockCandidates);
+router.post('/locks/bulk',            ...requireAdmin, ctrl.lockCyclesBulk);
+router.post('/:id/lock',              ...requireAdmin, ctrl.lockCycle);
+router.post('/:id/unlock',            ...requireAdmin, ctrl.unlockCycle);
+router.get('/:id/recalculate-preview', ...requireAdmin, ctrl.previewRecalculation);
+router.post('/:id/recalculate',       ...requireAdmin, ctrl.recalculateCycle);
+router.get('/:id/lock-history',       ...requireAdmin, ctrl.getLockHistory);
+
 // Standard routes blocked for Odoo
 router.post('/',             ...manageBilling,  ctrl.create);
 router.get('/:id',           verifyToken, requirePermission('can_view_billing'), ctrl.getById);

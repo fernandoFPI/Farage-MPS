@@ -1,6 +1,7 @@
 import * as service from '../services/billingCycleService.js';
 import * as cycleRepo from '../repositories/billingCycleRepository.js';
 import * as storageService from '../services/customerStorageService.js';
+import * as lockService from '../services/cycleLockService.js';
 import { canViewPricing, omitFields, CONTRACT_FINANCIAL_FIELDS, PRINTER_FINANCIAL_FIELDS } from '../utils/financialFields.js';
 
 const PRINTER_SUMMARY_FINANCIAL_FIELDS = [...PRINTER_FINANCIAL_FIELDS, 'effectiveMinBwPages', 'effectiveMinColorPages'];
@@ -228,5 +229,50 @@ export async function getOdooExport(req, res, next) {
 export async function getAuditExport(req, res, next) {
   try {
     res.json(await service.getAuditExportData(req.params.id));
+  } catch (err) { next(err); }
+}
+
+// ── Cycle locks (admin only — enforced in the routes) ─────────────────────────
+
+export async function lockCycle(req, res, next) {
+  try {
+    res.json(await lockService.lockCycle(req.params.id, req.user.id));
+  } catch (err) { next(err); }
+}
+
+export async function unlockCycle(req, res, next) {
+  try {
+    res.json(await lockService.unlockCycle(req.params.id, req.user.id));
+  } catch (err) { next(err); }
+}
+
+export async function previewRecalculation(req, res, next) {
+  try {
+    res.json(await lockService.previewRecalculation(req.params.id));
+  } catch (err) { next(err); }
+}
+
+export async function recalculateCycle(req, res, next) {
+  try {
+    res.json(await lockService.recalculateCycle(req.params.id, req.user.id));
+  } catch (err) { next(err); }
+}
+
+export async function getLockHistory(req, res, next) {
+  try {
+    res.json(await lockService.getLockHistory(req.params.id));
+  } catch (err) { next(err); }
+}
+
+export async function lockCyclesBulk(req, res, next) {
+  try {
+    const { contractId, limit } = req.body ?? {};
+    res.json(await lockService.lockCyclesBulk(req.user.id, { contractId, limit }));
+  } catch (err) { next(err); }
+}
+
+export async function countLockCandidates(req, res, next) {
+  try {
+    res.json(await lockService.countLockCandidates({ contractId: req.query.contractId }));
   } catch (err) { next(err); }
 }

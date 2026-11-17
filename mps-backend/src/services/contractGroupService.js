@@ -2,6 +2,7 @@ import * as repo from '../repositories/contractGroupRepository.js';
 import * as billingCycleRepoRaw from '../repositories/billingCycleRepository.js';
 import * as contractRepo from '../repositories/contractRepository.js';
 import { getBillingCycleSummary } from './billingCycleService.js';
+import { autoLockCycle } from './cycleLockService.js';
 import { calculateGroupedMinVolumeBilling } from './netCalculationService.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -264,6 +265,15 @@ export async function markGroupInvoiced(groupId, { periodStart, invoices }) {
   }));
 
   const invoiced = await repo.markCyclesInvoiced(enriched);
+
+  // Issued invoices must not move: freeze every member cycle. Best-effort, like markInvoiced.
+  for (const { cycleId } of invoiced) {
+    try {
+      await autoLockCycle(cycleId);
+    } catch (e) {
+      console.error(`Could not auto-lock invoiced cycle ${cycleId}:`, e.message);
+    }
+  }
 
   return {
     message:   'All group cycles marked as invoiced',

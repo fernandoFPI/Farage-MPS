@@ -15,6 +15,7 @@ import {
 } from './netCalculationService.js';
 import { canConfirmCycle } from './cityCycleStatusService.js';
 import { applyInvoiceRules, getPrevQuarterEndDate } from '../utils/invoiceRulesEngine.js';
+import { assertCycleNotLocked } from '../utils/cycleLockGuard.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -52,6 +53,7 @@ export async function listCycles(query, user) {
   const params = {
     contractId: query.contractId,
     status:     query.status,
+    locked:     query.locked === 'true' ? true : query.locked === 'false' ? false : undefined,
   };
   if (user?.role?.name === 'odoo_integration') {
     params.status = 'confirmed';
@@ -118,6 +120,7 @@ export async function updateCyclePeriod(id, { periodStart, periodEnd }) {
     err.status = 409;
     throw err;
   }
+  await assertCycleNotLocked(cycle);
 
   const taken = await cycleRepo.periodStartTaken(cycle.contractId, periodStart, id);
   if (taken) {
@@ -192,12 +195,18 @@ export async function unlockPrinter(id, printerId, userId) {
   return { message: 'Lock released' };
 }
 
-async function buildBillingCycleSummary(id, { applyGroupAdjustment = true } = {}) {
+// A locked cycle serves its frozen snapshot instead of recomputing (ignoreLock is only for taking
+// that snapshot). The status is the one thing refreshed: confirmed → invoiced must still show.
+async function buildBillingCycleSummary(id, { applyGroupAdjustment = true, ignoreLock = false } = {}) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {
     const err = new Error('Billing cycle not found');
     err.status = 404;
     throw err;
+  }
+  if (cycle.isLocked && !ignoreLock) {
+    const snap = await cycleRepo.getLockedSnapshot(id);
+    if (snap?.raw) return { ...snap.raw, status: cycle.status };
   }
 
   // One row per printer — most recent reading — with printer details
@@ -745,16 +754,47 @@ async function applyContractGroupBilling(summary, cycle) {
   };
 }
 
-export async function getBillingCycleSummary(id) {
-  const summary = await buildBillingCycleSummary(id, { applyGroupAdjustment: false });
-  if (summary.isBaseline) return summary;
+export async function getBillingCycleSummary(id, { ignoreLock = false } = {}) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {
     const err = new Error('Billing cycle not found');
     err.status = 404;
     throw err;
   }
+  if (cycle.isLocked && !ignoreLock) {
+    const snap = await cycleRepo.getLockedSnapshot(id);
+    // `final` is only stored when contract-group billing changed the raw summary
+    if (snap?.raw) return { ...(snap.final ?? snap.raw), status: cycle.status };
+  }
+  const summary = await buildBillingCycleSummary(id, { applyGroupAdjustment: false, ignoreLock });
+  if (summary.isBaseline) return summary;
   return applyContractGroupBilling(summary, cycle);
+}
+
+// Everything a locked cycle must keep serving: the summary (raw + group-adjusted), the audit
+// export and the Odoo export. Built with ignoreLock so a re-snapshot sees live figures, and with
+// readOnly so taking a snapshot never triggers the Odoo export's "mark orders pending" write.
+export async function buildCycleSnapshot(id) {
+  const cycle = await cycleRepo.findById(id);
+  if (!cycle) {
+    const err = new Error('Billing cycle not found');
+    err.status = 404;
+    throw err;
+  }
+  const raw   = await buildBillingCycleSummary(id, { applyGroupAdjustment: false, ignoreLock: true });
+  const final = raw.isBaseline ? raw : await applyContractGroupBilling(raw, cycle);
+  const [audit, odoo] = await Promise.all([
+    getAuditExportData(id, { ignoreLock: true }),
+    getOdooExportData(id, { ignoreLock: true, readOnly: true }),
+  ]);
+  return {
+    version: 1,
+    takenAt: new Date().toISOString(),
+    raw,
+    final: final === raw ? null : final,
+    audit,
+    odoo,
+  };
 }
 
 // ── Status transitions ──────────────────────────────────────────────────────
@@ -834,6 +874,8 @@ export async function unconfirmCycle(id) {
     err.status = 400;
     throw err;
   }
+  // Unconfirming reopens the cycle for edits, which a locked cycle must not allow
+  await assertCycleNotLocked(cycle);
   if (cycle.status !== 'confirmed') {
     const err = new Error(`Cycle is not confirmed — current status is "${cycle.status}"`);
     err.status = 400;
@@ -854,6 +896,7 @@ export async function setManualBillingAmount(id, amount) {
     err.status = 400;
     throw err;
   }
+  await assertCycleNotLocked(cycle);
   return cycleRepo.updateManualBillingAmount(id, amount);
 }
 
@@ -921,6 +964,7 @@ export async function softDeleteCycle(id, userId) {
     err.status = 400;
     throw err;
   }
+  await assertCycleNotLocked(cycle);
   if (cycle.cycleGroupId) {
     const err = new Error('Cannot delete a cycle that is part of a quarterly group');
     err.status = 400;
@@ -966,6 +1010,7 @@ export async function cancelCycle(id, userId) {
     err.status = 400;
     throw err;
   }
+  await assertCycleNotLocked(cycle);
   await cycleRepo.cancelById(id, userId);
   return { message: 'Billing cycle cancelled' };
 }
@@ -1037,6 +1082,15 @@ export async function markInvoiced(id, body) {
     console.error('Could not update odoo sync status:', e.message);
   }
 
+  // An issued invoice's figures must never move on their own: freeze them now.
+  // Best-effort — the cycle is already invoiced, so a snapshot failure must not fail the call.
+  try {
+    const { autoLockCycle } = await import('./cycleLockService.js');
+    await autoLockCycle(id);
+  } catch (e) {
+    console.error('Could not auto-lock invoiced cycle:', e.message);
+  }
+
   return {
     message: 'Billing cycle marked as invoiced',
     cycleId: id,
@@ -1063,12 +1117,13 @@ export async function setBaseline(id, { isBaseline }, userId) {
     err.status = 400;
     throw err;
   }
+  await assertCycleNotLocked(cycle);
   return cycleRepo.setBaseline(id, isBaseline, userId);
 }
 
 // ── Audit export ─────────────────────────────────────────────────────────────
 
-export async function getAuditExportData(cycleId) {
+export async function getAuditExportData(cycleId, { ignoreLock = false } = {}) {
   const cycle = await cycleRepo.findById(cycleId);
   if (!cycle) {
     const err = new Error('Billing cycle not found');
@@ -1076,8 +1131,19 @@ export async function getAuditExportData(cycleId) {
     throw err;
   }
 
+  if (cycle.isLocked && !ignoreLock) {
+    const snap = await cycleRepo.getLockedSnapshot(cycleId);
+    if (snap?.audit) {
+      return {
+        ...snap.audit,
+        exportedAt: new Date().toISOString(),
+        header: { ...snap.audit.header, status: cycle.status },
+      };
+    }
+  }
+
   const [summary, rawReadings, consumables] = await Promise.all([
-    getBillingCycleSummary(cycleId),
+    getBillingCycleSummary(cycleId, { ignoreLock }),
     readingRepo.findAllWithEngineerForOdoo(cycleId, cycle.contractId),
     consumableReadingRepo.findAll({ billingCycleId: cycleId }),
   ]);
@@ -1294,7 +1360,25 @@ function groupIntoOrders(allLines, splitMode, periodLabel) {
 
 // ── Odoo export ─────────────────────────────────────────────────────────────
 
-export async function getOdooExportData(cycleId) {
+// Exporting a confirmed cycle's orders marks them 'pending' on the cycle (Odoo then reports back).
+async function markOdooOrdersPending(cycleId, orders) {
+  const pendingEntries = orders.map(o => ({
+    orderType:    o.orderType,
+    status:       'pending',
+    odooRef:      null,
+    errorCode:    null,
+    errorMessage: null,
+    syncedAt:     null,
+  }));
+  await pool.query(
+    `UPDATE billing_cycles SET odoo_orders = $1, odoo_status = 'pending' WHERE id = $2`,
+    [JSON.stringify(pendingEntries), cycleId],
+  );
+}
+
+// ignoreLock: build from live data even if the cycle is locked (used to take a snapshot).
+// readOnly:   skip the 'mark orders pending' write (a snapshot must not have side effects).
+export async function getOdooExportData(cycleId, { ignoreLock = false, readOnly = false } = {}) {
   const cycle = await cycleRepo.findById(cycleId);
   if (!cycle) {
     const err = new Error('Billing cycle not found');
@@ -1302,7 +1386,22 @@ export async function getOdooExportData(cycleId) {
     throw err;
   }
 
-  const summary = await getBillingCycleSummary(cycleId);
+  if (cycle.isLocked && !ignoreLock) {
+    const snap = await cycleRepo.getLockedSnapshot(cycleId);
+    if (snap?.odoo) {
+      const orders = snap.odoo.billing?.orders ?? [];
+      if (!readOnly && orders.length > 0 && cycle.status === 'confirmed') {
+        await markOdooOrdersPending(cycleId, orders);
+      }
+      return {
+        ...snap.odoo,
+        exportedAt: new Date().toISOString(),
+        cycle: { ...snap.odoo.cycle, status: cycle.status },
+      };
+    }
+  }
+
+  const summary = await getBillingCycleSummary(cycleId, { ignoreLock });
 
   const rawReadings = await readingRepo.findAllWithEngineerForOdoo(cycleId, cycle.contractId);
 
@@ -1412,19 +1511,8 @@ export async function getOdooExportData(cycleId) {
         const allLines     = (summary.invoices ?? []).flatMap(inv => buildInvoiceOrderLines(inv, periodLabel, customerName));
         const orders       = groupIntoOrders(allLines, splitMode, periodLabel);
 
-        if (orders.length > 0 && cycle.status === 'confirmed') {
-          const pendingEntries = orders.map(o => ({
-            orderType:    o.orderType,
-            status:       'pending',
-            odooRef:      null,
-            errorCode:    null,
-            errorMessage: null,
-            syncedAt:     null,
-          }));
-          await pool.query(
-            `UPDATE billing_cycles SET odoo_orders = $1, odoo_status = 'pending' WHERE id = $2`,
-            [JSON.stringify(pendingEntries), cycleId],
-          );
+        if (!readOnly && orders.length > 0 && cycle.status === 'confirmed') {
+          await markOdooOrdersPending(cycleId, orders);
         }
 
         return orders;

@@ -9,6 +9,7 @@ import {
   validateUsage,
 } from './netCalculationService.js';
 import { syncCityStatus } from './cityCycleStatusService.js';
+import { cycleLockedError } from '../utils/cycleLockGuard.js';
 import { getPrevQuarterEndDate } from '../utils/invoiceRulesEngine.js';
 
 const VALID_SOURCES = ['odoo', 'xsm', 'manual'];
@@ -168,6 +169,7 @@ export async function createReading(body, userId) {
   }
 
   // 4. Validate cycle is writable
+  if (cycle.isLocked) throw cycleLockedError();
   if (!['open', 'pending_confirmation'].includes(cycle.status)) {
     const err = new Error('Billing cycle is closed');
     err.status = 400;
@@ -317,6 +319,7 @@ export async function deleteReading(id) {
   }
 
   const cycle = await cycleRepo.findById(reading.billingCycleId);
+  if (cycle?.isLocked) throw cycleLockedError();
   if (!cycle || cycle.status !== 'open') {
     const err = new Error('Cannot delete reading from a closed billing cycle');
     err.status = 400;
@@ -343,6 +346,7 @@ export async function updateReading(id, body) {
   }
 
   const cycle = await cycleRepo.findById(reading.billingCycleId);
+  if (cycle?.isLocked) throw cycleLockedError();
   if (!cycle || !['open', 'pending_confirmation'].includes(cycle.status)) {
     const err = new Error('Billing cycle is not editable');
     err.status = 400;
@@ -429,6 +433,8 @@ export async function bulkDeleteReadings(ids, confirmDelete) {
     err.status = 404;
     throw err;
   }
+
+  if (rows.some(r => r.cycle_is_locked)) throw cycleLockedError();
 
   const invoicedIds = rows.filter(r => r.cycle_status === 'invoiced').map(r => r.id);
   if (invoicedIds.length > 0) {
