@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw, Package } from 'lucide-react'
+import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw, Package, Lock } from 'lucide-react'
+import { LockBadge, BulkLockModal } from './CycleLockUi'
 import SearchableSelect from '../../components/SearchableSelect'
 import { contractOptions } from '../../utils/filterOptions'
 import AccordionGroup from '../../components/AccordionGroup'
@@ -194,6 +195,7 @@ export default function BillingCyclesPage() {
   const [view, setView] = useState(() => localStorage.getItem(VIEW_KEY) ?? 'list')
   const contractId = searchParams.get('contractId') || null
   const status     = searchParams.get('status')     || null
+  const locked     = searchParams.get('locked')     || null   // 'true' | 'false' | null
 
   function setFilter(key, val) {
     setSearchParams(prev => {
@@ -209,12 +211,14 @@ export default function BillingCyclesPage() {
     localStorage.setItem(VIEW_KEY, v)
   }
   const [createOpen, setCreateOpen] = useState(false)
+  const [bulkLockOpen, setBulkLockOpen] = useState(false)
   const [confirmingCycle, setConfirmingCycle] = useState(null)
   const [confirmError, setConfirmError] = useState('')
 
   const params = {}
   if (contractId) params.contractId = contractId
   if (status) params.status = status
+  if (locked) params.locked = locked
 
   const { data: cycles = [], isLoading } = useBillingCycles(params)
   const { data: allContracts = [] } = useContracts()
@@ -310,6 +314,7 @@ export default function BillingCyclesPage() {
         <div className="flex flex-wrap items-center gap-2">
           <StatusBadge status={r.status} />
           {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
+          {r.isLocked && <LockBadge label={t('billingCycles.lockedBadge')} title={t('billingCycles.lockedBadgeTitle')} />}
           {r.storageUnavailableReason && <StorageUnavailableBadge label={t('tickets.storageUnavailableNote')} reason={r.storageUnavailableReason} />}
           <CityDots cityStatuses={r.cityStatuses} />
         </div>
@@ -424,7 +429,25 @@ export default function BillingCyclesPage() {
                 ...STATUSES.map(s => ({ value: s, label: t(`billingCycles.status.${s}`) })),
               ]}
             />
+            <SearchableSelect
+              className="w-40"
+              value={locked}
+              onChange={v => setFilter('locked', v)}
+              options={[
+                { value: null, label: t('billingCycles.lockFilterAll') },
+                { value: 'true', label: t('billingCycles.lockFilterLocked') },
+                { value: 'false', label: t('billingCycles.lockFilterUnlocked') },
+              ]}
+            />
             <ViewToggle view={view} onChange={changeView} t={t} />
+            {isAdmin && (
+              <button
+                onClick={() => setBulkLockOpen(true)}
+                className="flex items-center gap-2 rounded-lg border border-slate-300 bg-slate-50 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+              >
+                <Lock className="h-4 w-4" />{t('billingCycles.bulkLockButton')}
+              </button>
+            )}
             {canManage && (
               <button
                 onClick={() => setCreateOpen(true)}
@@ -491,6 +514,7 @@ export default function BillingCyclesPage() {
                   {r.cycleName ?? `${r.customerName ?? '—'} — ${formatPeriod(r.periodStart, r.periodEnd)}`}
                 </span>
                 {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
+                {r.isLocked && <LockBadge label={t('billingCycles.lockedBadge')} title={t('billingCycles.lockedBadgeTitle')} />}
                 {r.storageUnavailableReason && <StorageUnavailableBadge label={t('tickets.storageUnavailableNote')} reason={r.storageUnavailableReason} />}
                 {r.status === 'pending_quarterly' && r.cycleGroupId && (
                   <Link
@@ -535,6 +559,15 @@ export default function BillingCyclesPage() {
       )}
 
       {createOpen && <CreateCycleModal onClose={() => setCreateOpen(false)} />}
+
+      {isAdmin && (
+        <BulkLockModal
+          open={bulkLockOpen}
+          onClose={() => setBulkLockOpen(false)}
+          contractId={contractId}
+          contractLabel={contractId ? (allContracts.find(c => c.id === contractId)?.contractNumber ?? null) : null}
+        />
+      )}
 
       <ConfirmDialog
         open={!!confirmingCycle}

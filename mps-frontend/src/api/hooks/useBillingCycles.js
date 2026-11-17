@@ -57,6 +57,70 @@ export function useUnconfirmCycle() {
   })
 }
 
+// ── Cycle locks (admin) ──────────────────────────────────────────────────────
+// A locked cycle serves a frozen snapshot of its figures; unlocking / recalculating are the only
+// ways it changes. Every mutation refreshes cycles, summaries and lock queries (all share the
+// 'billing-cycles' key prefix).
+
+export function useLockCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => client.post(`/api/billing-cycles/${id}/lock`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
+  })
+}
+
+export function useUnlockCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => client.post(`/api/billing-cycles/${id}/unlock`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
+  })
+}
+
+export function useRecalculateCycle() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id) => client.post(`/api/billing-cycles/${id}/recalculate`).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['billing-cycles'] }),
+  })
+}
+
+// Frozen vs fresh figures for a locked cycle. Never cached: it must reflect the data right now.
+export function useRecalculationPreview(id, enabled) {
+  return useQuery({
+    queryKey: ['billing-cycles', id, 'recalculate-preview'],
+    queryFn: () => client.get(`/api/billing-cycles/${id}/recalculate-preview`).then(r => r.data),
+    enabled: !!id && !!enabled,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+export function useLockHistory(id, enabled) {
+  return useQuery({
+    queryKey: ['billing-cycles', id, 'lock-history'],
+    queryFn: () => client.get(`/api/billing-cycles/${id}/lock-history`).then(r => r.data),
+    enabled: !!id && !!enabled,
+  })
+}
+
+// How many confirmed/invoiced cycles a bulk lock would cover (optionally for one contract).
+export function useLockCandidates(contractId, enabled) {
+  return useQuery({
+    queryKey: ['billing-cycles', 'lock-candidates', contractId ?? 'all'],
+    queryFn: () => client.get('/api/billing-cycles/locks/candidates', { params: contractId ? { contractId } : {} }).then(r => r.data),
+    enabled: !!enabled,
+    staleTime: 0,
+    gcTime: 0,
+  })
+}
+
+// One chunk of the bulk lock; the caller repeats until `remaining` is 0 or a chunk locks nothing.
+export function lockCyclesBulkChunk(body) {
+  return client.post('/api/billing-cycles/locks/bulk', body).then(r => r.data)
+}
+
 export function useUpdateCyclePeriod() {
   const qc = useQueryClient()
   return useMutation({

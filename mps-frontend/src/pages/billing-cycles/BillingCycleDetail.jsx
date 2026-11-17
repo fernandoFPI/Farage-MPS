@@ -28,6 +28,7 @@ import { useContractGroups } from '../../api/hooks/useContractGroups'
 import { CONSUMABLE_FIELD_MAP, COLOR_CONSUMABLES, BW_CONSUMABLES } from '../../utils/consumables'
 import PhotoViewerModal from '../../components/PhotoViewerModal'
 import GroupCyclesModal from './GroupCyclesModal'
+import { CycleLockPanel } from './CycleLockUi'
 import { usePermission } from '../../hooks/usePermission'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
@@ -1198,6 +1199,9 @@ const { data: appSettings } = useSettings()
           }
         />
 
+        {/* ── Lock: frozen-figures banner (everyone) + lock / unlock / recalculate (admin) ── */}
+        <CycleLockPanel cycle={cycle} isAdmin={isAdmin} />
+
         {/* ── Cycle info card ── */}
         <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900">
           <div className="grid grid-cols-1 gap-x-8 md:grid-cols-2">
@@ -1240,7 +1244,7 @@ const { data: appSettings } = useSettings()
                 ) : (
                   <span className="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-gray-100">
                     {formatPeriod(cycle.periodStart, cycle.periodEnd)}
-                    {isAdmin && cycle.status !== 'invoiced' && (
+                    {isAdmin && cycle.status !== 'invoiced' && !cycle.isLocked && (
                       <button onClick={openEditPeriod} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
                         <Pencil size={13} />
                       </button>
@@ -1358,7 +1362,7 @@ const { data: appSettings } = useSettings()
                       ? formatAmount(cycle.manualBillingAmount, currency)
                       : <span className="text-gray-400 dark:text-gray-500 text-base font-normal">Not set</span>}
                   </span>
-                  {isAdmin && status !== 'invoiced' && (
+                  {isAdmin && status !== 'invoiced' && !cycle.isLocked && (
                     <button
                       onClick={() => { setManualAmountDraft(cycle.manualBillingAmount != null ? String(cycle.manualBillingAmount) : ''); setEditManualAmount(true) }}
                       className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -2233,8 +2237,8 @@ const { data: appSettings } = useSettings()
               </button>
             )}
 
-            {/* Unconfirm — admin only */}
-            {isAdmin && status === 'confirmed' && (
+            {/* Unconfirm — admin only; a locked cycle must be unlocked first */}
+            {isAdmin && status === 'confirmed' && !cycle.isLocked && (
               <button
                 onClick={() => { setActionError(''); setUnconfirmOpen(true) }}
                 className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-amber-700 bg-amber-50 border border-amber-300 rounded-lg hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-700 dark:hover:bg-amber-900/30 transition-colors"
@@ -2278,7 +2282,7 @@ const { data: appSettings } = useSettings()
               cycle.isBaseline ? (
                 <button
                   onClick={() => { setActionError(''); setRemoveBaselineOpen(true) }}
-                  disabled={status === 'invoiced'}
+                  disabled={status === 'invoiced' || cycle.isLocked}
                   className="flex items-center gap-2 rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Bookmark className="h-4 w-4" />{t('billingCycles.removeBaseline')}
@@ -2286,7 +2290,7 @@ const { data: appSettings } = useSettings()
               ) : (
                 <button
                   onClick={() => { setActionError(''); setBaselineOpen(true) }}
-                  disabled={status === 'invoiced'}
+                  disabled={status === 'invoiced' || cycle.isLocked}
                   className="flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <Bookmark className="h-4 w-4" />{t('billingCycles.markAsBaseline')}
@@ -2301,7 +2305,7 @@ const { data: appSettings } = useSettings()
                   <span>
                     <button
                       onClick={() => { setActionError(''); setDeleteOpen(true) }}
-                      disabled={status === 'invoiced'}
+                      disabled={status === 'invoiced' || cycle.isLocked}
                       className="flex items-center gap-2 rounded-lg border border-red-200 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-950/20 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="h-4 w-4" />{t('billingCycles.deleteCycleButton')}
