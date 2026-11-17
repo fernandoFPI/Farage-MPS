@@ -397,7 +397,7 @@ export async function findManyByIds(ids) {
   if (!ids.length) return [];
   const placeholders = ids.map((_, i) => `$${i + 1}`).join(', ');
   const { rows } = await pool.query(
-    `SELECT mr.id, mr.billing_cycle_id, bc.status AS cycle_status
+    `SELECT mr.id, mr.billing_cycle_id, bc.status AS cycle_status, bc.is_locked AS cycle_is_locked
      FROM meter_readings mr
      JOIN billing_cycles bc ON mr.billing_cycle_id = bc.id
      WHERE mr.id IN (${placeholders})`,

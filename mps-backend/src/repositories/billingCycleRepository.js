@@ -40,10 +40,15 @@ function mapRow(row) {
     deletedAt:            row.deleted_at              ?? null,
     deletedByUserId:      row.deleted_by_user_id      ?? null,
     manualBillingAmount:  row.manual_billing_amount != null ? Number(row.manual_billing_amount) : null,
+    // A locked cycle serves a frozen snapshot of its figures (see billing_cycle_snapshots)
+    isLocked:             row.is_locked ?? false,
+    lockedAt:             row.locked_at ?? null,
+    lockedByUserId:       row.locked_by_user_id ?? null,
+    lockedByName:         row.locked_by_name ?? null,
   };
 }
 
-export async function findAll({ contractId, status, excludeInvoiced } = {}) {
+export async function findAll({ contractId, status, excludeInvoiced, locked } = {}) {
   const conditions = [];
   const values = [];
   let idx = 1;
@@ -51,6 +56,7 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
   if (contractId)      { conditions.push(`bc.contract_id = $${idx++}`);   values.push(contractId); }
   if (status)          { conditions.push(`bc.status = $${idx++}`);         values.push(status); }
   if (excludeInvoiced) { conditions.push('bc.odoo_invoice_id IS NULL'); }
+  if (locked === true || locked === false) { conditions.push(`bc.is_locked = $${idx++}`); values.push(locked); }
 
   conditions.push('bc.is_cancelled = false');
   conditions.push('bc.deleted_at IS NULL');
@@ -60,6 +66,7 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
     `SELECT bc.*, co.contract_number, co.contract_mode, co.official_contract_number, co.service_type, cu.name AS customer_name,
             bu.full_name AS baseline_set_by_name,
             su.full_name AS storage_submitted_by_name,
+            lu.full_name AS locked_by_name,
             TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
             cg.id   AS contract_group_id,
             cg.name AS contract_group_name,
@@ -73,6 +80,7 @@ export async function findAll({ contractId, status, excludeInvoiced } = {}) {
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      LEFT JOIN users su ON bc.storage_submitted_by = su.id
+     LEFT JOIN users lu ON bc.locked_by_user_id = lu.id
      LEFT JOIN contract_groups cg ON cg.id = (
        SELECT cgm.group_id FROM contract_group_members cgm
        WHERE cgm.contract_id = bc.contract_id LIMIT 1
@@ -101,6 +109,7 @@ export async function findById(id) {
     `SELECT bc.*,
        bu.full_name AS baseline_set_by_name,
        su.full_name AS storage_submitted_by_name,
+       lu.full_name AS locked_by_name,
        TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
        cg.id   AS contract_group_id,
        cg.name AS contract_group_name,
@@ -135,6 +144,7 @@ export async function findById(id) {
      JOIN customers cu ON co.customer_id = cu.id
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      LEFT JOIN users su ON bc.storage_submitted_by = su.id
+     LEFT JOIN users lu ON bc.locked_by_user_id = lu.id
      LEFT JOIN contract_groups cg ON cg.id = (
        SELECT cgm.group_id FROM contract_group_members cgm
        WHERE cgm.contract_id = bc.contract_id LIMIT 1
@@ -471,4 +481,122 @@ export async function findLatestCycle(contractId) {
     [contractId],
   );
   return rows[0] ?? null;
+}
+
+// ── Locks & snapshots ────────────────────────────────────────────────────────
+// A locked cycle serves a frozen snapshot of its figures. The snapshot lives in its own table
+// (billing_cycle_snapshots) so the `SELECT bc.*` cycle queries stay small.
+
+// Snapshot of a LOCKED cycle, or null. Callers use it on hot read paths, so it also checks the flag.
+export async function getLockedSnapshot(id) {
+  const { rows } = await pool.query(
+    `SELECT s.snapshot
+     FROM billing_cycle_snapshots s
+     JOIN billing_cycles bc ON bc.id = s.billing_cycle_id
+     WHERE s.billing_cycle_id = $1 AND bc.is_locked = true`,
+    [id],
+  );
+  return rows[0]?.snapshot ?? null;
+}
+
+// Writes the snapshot and flips the lock flag in one transaction, with its audit event.
+// `action` is 'lock' | 'auto_lock' (new lock) or 'recalculate' (cycle stays locked, snapshot replaced).
+export async function saveSnapshot(id, userId, snapshot, { action, oldTotal = null, newTotal = null }) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(
+      `INSERT INTO billing_cycle_snapshots (billing_cycle_id, snapshot, taken_at, taken_by_user_id)
+       VALUES ($1, $2::jsonb, NOW(), $3)
+       ON CONFLICT (billing_cycle_id)
+       DO UPDATE SET snapshot = EXCLUDED.snapshot, taken_at = NOW(), taken_by_user_id = EXCLUDED.taken_by_user_id`,
+      [id, JSON.stringify(snapshot), userId],
+    );
+    if (action === 'recalculate') {
+      // already locked — keep who/when it was originally locked
+      await client.query(`UPDATE billing_cycles SET is_locked = true WHERE id = $1`, [id]);
+    } else {
+      await client.query(
+        `UPDATE billing_cycles SET is_locked = true, locked_at = NOW(), locked_by_user_id = $2 WHERE id = $1`,
+        [id, userId],
+      );
+    }
+    await client.query(
+      `INSERT INTO billing_cycle_lock_events (billing_cycle_id, action, user_id, old_total, new_total)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [id, action, userId, oldTotal, newTotal],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+// Drops the snapshot and the lock; the cycle goes back to live calculation.
+export async function clearLock(id, userId, { oldTotal = null } = {}) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`DELETE FROM billing_cycle_snapshots WHERE billing_cycle_id = $1`, [id]);
+    await client.query(
+      `UPDATE billing_cycles SET is_locked = false, locked_at = NULL, locked_by_user_id = NULL WHERE id = $1`,
+      [id],
+    );
+    await client.query(
+      `INSERT INTO billing_cycle_lock_events (billing_cycle_id, action, user_id, old_total)
+       VALUES ($1, 'unlock', $2, $3)`,
+      [id, userId, oldTotal],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+export async function findLockEvents(id) {
+  const { rows } = await pool.query(
+    `SELECT e.id, e.action, e.user_id, u.full_name AS user_name,
+            e.old_total::float8 AS old_total, e.new_total::float8 AS new_total, e.created_at
+     FROM billing_cycle_lock_events e
+     LEFT JOIN users u ON u.id = e.user_id
+     WHERE e.billing_cycle_id = $1
+     ORDER BY e.created_at DESC`,
+    [id],
+  );
+  return rows.map(r => ({
+    id: r.id,
+    action: r.action,
+    userId: r.user_id,
+    userName: r.user_name ?? null,
+    oldTotal: r.old_total,
+    newTotal: r.new_total,
+    createdAt: r.created_at,
+  }));
+}
+
+// Cycles that can be locked in bulk: confirmed or invoiced, not already locked, real (non-baseline,
+// non-cancelled, non-deleted) cycles. Oldest first so a partially finished bulk run is predictable.
+export async function findLockCandidates({ contractId, limit } = {}) {
+  const values = [];
+  let where = `bc.status IN ('confirmed', 'invoiced')
+               AND bc.is_locked = false
+               AND bc.is_baseline = false
+               AND bc.is_cancelled = false
+               AND bc.deleted_at IS NULL`;
+  if (contractId) { values.push(contractId); where += ` AND bc.contract_id = $${values.length}`; }
+
+  const { rows: [{ total }] } = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM billing_cycles bc WHERE ${where}`, values,
+  );
+  const limitSql = limit ? `LIMIT ${Number(limit) | 0}` : '';
+  const { rows } = await pool.query(
+    `SELECT bc.id FROM billing_cycles bc WHERE ${where} ORDER BY bc.period_start ASC, bc.id ${limitSql}`, values,
+  );
+  return { total, ids: rows.map(r => r.id) };
 }
