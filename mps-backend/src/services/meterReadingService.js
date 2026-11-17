@@ -10,7 +10,7 @@ import {
 } from './netCalculationService.js';
 import { syncCityStatus } from './cityCycleStatusService.js';
 import { cycleLockedError } from '../utils/cycleLockGuard.js';
-import { getPrevQuarterEndDate } from '../utils/invoiceRulesEngine.js';
+import { getPrevQuarterEndDate, usesQuarterEndBaseline } from '../utils/invoiceRulesEngine.js';
 
 const VALID_SOURCES = ['odoo', 'xsm', 'manual'];
 
@@ -30,7 +30,7 @@ async function attachUsage(reading) {
     const invoiceRules = cycle.contract?.invoiceRules ?? {};
 
     let prevReading;
-    if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
+    if (usesQuarterEndBaseline(invoiceRules)) {
       const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodEnd);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
         reading.printerId, cycle.id, targetDate,
@@ -205,9 +205,10 @@ export async function createReading(body, userId) {
   const a3ColorFinal = isBwOnly ? 0 : (a3Color ?? 0);
   const xls = isBwOnly ? 0 : (body.xls ?? 0);
 
-  // 7. Previous reading — for quarterly contracts, reference the last cycle of the previous quarter.
+  // 7. Previous reading — when the excess accumulates over the quarter, reference the last cycle of
+  // the previous quarter; otherwise (incl. quarterly fixed charge + monthly excess) the previous cycle.
   let prevReading;
-  if (contract?.invoiceRules?.fixedChargeFrequency === 'quarterly' && contract?.invoiceRules?.contractStartDate) {
+  if (usesQuarterEndBaseline(contract?.invoiceRules)) {
     const targetDate = getPrevQuarterEndDate(contract.invoiceRules.contractStartDate, cycle.periodEnd);
     prevReading = await readingRepo.getPreviousQuarterEndCycleReading(printerId, cycle.id, targetDate);
   } else {
@@ -404,7 +405,7 @@ export async function getPreviousReading(printerId, beforeDate, cycleId, cycleSt
   if (cycleId && cycleStart) {
     const cycle = await cycleRepo.findById(cycleId);
     const invoiceRules = cycle?.contract?.invoiceRules ?? {};
-    if (invoiceRules.fixedChargeFrequency === 'quarterly' && invoiceRules.contractStartDate) {
+    if (usesQuarterEndBaseline(invoiceRules)) {
       const targetDate = getPrevQuarterEndDate(invoiceRules.contractStartDate, cycle.periodEnd);
       return readingRepo.getPreviousQuarterEndCycleReading(printerId, cycleId, targetDate);
     }

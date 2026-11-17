@@ -40,6 +40,22 @@ export function getPrevQuarterEndDate(contractStartDate, currentPeriodEnd) {
   return `${tY}-${String(tM).padStart(2, '0')}-${String(sD).padStart(2, '0')}`;
 }
 
+// Which previous reading is a cycle's excess measured from?
+//
+// The quarter-boundary reading (getPrevQuarterEndDate) is only right when the excess itself is
+// accumulated over the quarter: excess billed quarterly, or the invoice covering the whole quarter
+// (quarterly_total). A contract whose fixed charge is quarterly but whose excess is MONTHLY bills
+// each month's usage on its own, so it must be measured from the previous month's reading —
+// measuring from the quarter boundary re-bills the earlier months of the quarter.
+//
+// Rules are read the same way applyInvoiceRules reads them: a missing excessFrequency is 'monthly'.
+export function usesQuarterEndBaseline(invoiceRules) {
+  const rules = invoiceRules ?? {};
+  if (rules.fixedChargeFrequency !== 'quarterly' || !rules.contractStartDate) return false;
+  const excessFrequency = rules.excessFrequency ?? 'monthly';
+  return excessFrequency !== 'monthly' || rules.quarterlyBreakdownStyle === 'quarterly_total';
+}
+
 export function getDefaultRules() {
   return {
     fixedChargeFrequency:    'monthly',

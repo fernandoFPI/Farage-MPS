@@ -14,7 +14,7 @@ import {
   calculateGroupedMinVolumeBilling,
 } from './netCalculationService.js';
 import { canConfirmCycle } from './cityCycleStatusService.js';
-import { applyInvoiceRules, getPrevQuarterEndDate } from '../utils/invoiceRulesEngine.js';
+import { applyInvoiceRules, getPrevQuarterEndDate, usesQuarterEndBaseline } from '../utils/invoiceRulesEngine.js';
 import { assertCycleNotLocked } from '../utils/cycleLockGuard.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -258,10 +258,11 @@ async function buildBillingCycleSummary(id, { applyGroupAdjustment = true, ignor
   for (const reading of printers) {
 
     // Previous cycle supplies the raw starting counters.
-    // Quarterly contracts reference the last reading of the previous quarter instead of the previous month.
+    // Contracts whose excess accumulates over the quarter reference the last reading of the previous
+    // quarter instead of the previous month (see usesQuarterEndBaseline).
     const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
     let prevReading;
-    if (invoiceRulesForPrev.fixedChargeFrequency === 'quarterly' && invoiceRulesForPrev.contractStartDate) {
+    if (usesQuarterEndBaseline(invoiceRulesForPrev)) {
       const targetDate = getPrevQuarterEndDate(invoiceRulesForPrev.contractStartDate, cycle.periodEnd);
       prevReading = await readingRepo.getPreviousQuarterEndCycleReading(
         reading.printerId, cycle.id, targetDate,
@@ -1154,8 +1155,7 @@ export async function getAuditExportData(cycleId, { ignoreLock = false } = {}) {
   }
 
   const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
-  const isQuarterly = invoiceRulesForPrev.fixedChargeFrequency === 'quarterly'
-    && !!invoiceRulesForPrev.contractStartDate;
+  const isQuarterly = usesQuarterEndBaseline(invoiceRulesForPrev);
 
   const toPeriodStr = v => {
     const d = v instanceof Date ? v : new Date(v);
@@ -1416,8 +1416,7 @@ export async function getOdooExportData(cycleId, { ignoreLock = false, readOnly 
   }
 
   const invoiceRulesForPrev = cycle.contract?.invoiceRules ?? {};
-  const isQuarterly = invoiceRulesForPrev.fixedChargeFrequency === 'quarterly'
-    && !!invoiceRulesForPrev.contractStartDate;
+  const isQuarterly = usesQuarterEndBaseline(invoiceRulesForPrev);
 
   const printers = await Promise.all(rawReadings.map(async (reading) => {
     const summaryPrinter = summary.printers?.find(p => p.printerId === reading.printerId);
