@@ -243,6 +243,10 @@ export async function confirmStock(req, res, next) {
   try { res.json(await stockReview.confirmStock(req.params.id, req.user)); } catch (err) { next(err); }
 }
 
+export async function addStock(req, res, next) {
+  try { res.json(await stockReview.addStock(req.params.id, req.body, req.user)); } catch (err) { next(err); }
+}
+
 export async function adjustStock(req, res, next) {
   try { res.json(await stockReview.adjustStock(req.params.id, req.params.historyId, req.body, req.user)); } catch (err) { next(err); }
 }

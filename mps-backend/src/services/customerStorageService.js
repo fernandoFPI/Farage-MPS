@@ -42,7 +42,9 @@ export async function getCustomerStorage(customerId) {
   return result;
 }
 
-export async function updateCustomerStorage(customerId, printerModel, body, userId) {
+// opts.reason: a reviewer adding a stock entry from the cycle. It is logged as an adjustment that
+// carries the reason, instead of as an engineer's plain submission.
+export async function updateCustomerStorage(customerId, printerModel, body, userId, opts = {}) {
   const location = (body.location ?? '').trim();
   const quantities = {
     cQty:       clampQty(body.cQty),
@@ -75,7 +77,7 @@ export async function updateCustomerStorage(customerId, printerModel, body, user
   // and a bookkeeping hiccup must not fail an engineer's ticket.
   if (body.billingCycleId) {
     try {
-      await afterCycleStockWrite({ historyId, billingCycleId: body.billingCycleId, printerModel, location, quantities, userId });
+      await afterCycleStockWrite({ historyId, billingCycleId: body.billingCycleId, printerModel, location, quantities, userId, reason: opts.reason });
     } catch (err) {
       console.error('Stock review bookkeeping failed:', err.message);
     }
@@ -95,9 +97,15 @@ export async function refreshAnomaly(historyId) {
   return anomaly;
 }
 
-async function afterCycleStockWrite({ historyId, billingCycleId, printerModel, location, quantities, userId }) {
+async function afterCycleStockWrite({ historyId, billingCycleId, printerModel, location, quantities, userId, reason }) {
   const anomaly = await refreshAnomaly(historyId);
-  await eventRepo.add(billingCycleId, 'stock_submitted', userId, { historyId, printerModel, location, quantities, anomaly });
+  if (reason) {
+    await eventRepo.add(billingCycleId, 'stock_adjusted', userId, {
+      historyId, printerModel, location, added: true, before: null, after: quantities, reason, anomaly,
+    });
+  } else {
+    await eventRepo.add(billingCycleId, 'stock_submitted', userId, { historyId, printerModel, location, quantities, anomaly });
+  }
 
   const cycle = await cycleRepo.findById(billingCycleId);
   // Only while the cycle is still being worked on: a confirmed cycle's stock confirmation stays as it was.

@@ -43,7 +43,8 @@ export async function findLegacyStockSubmissions(billingCycleId) {
      WHERE h.billing_cycle_id = $1
        AND NOT EXISTS (
          SELECT 1 FROM billing_cycle_events e
-         WHERE e.billing_cycle_id = h.billing_cycle_id AND e.event_type = 'stock_submitted'
+         WHERE e.billing_cycle_id = h.billing_cycle_id
+           AND (e.event_type = 'stock_submitted' OR (e.event_type = 'stock_adjusted' AND e.detail->>'added' = 'true'))
            AND e.detail->>'historyId' = h.id::text)
      ORDER BY h.snapshot_at`,
     [billingCycleId],

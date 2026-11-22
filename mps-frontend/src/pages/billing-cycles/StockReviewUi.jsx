@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { AlertTriangle, CheckCircle2, ClipboardList, Pencil, ShieldCheck } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ClipboardList, Pencil, Plus, ShieldCheck } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ErrorAlert from '../../components/ErrorAlert'
 import FormField, { inputCls } from '../../components/FormField'
@@ -10,6 +10,7 @@ import {
   useStockReview,
   useConfirmStock,
   useAdjustStock,
+  useAddStock,
   useAcknowledgeStockAnomaly,
   useCycleActivity,
 } from '../../api/hooks/useStockReview'
@@ -129,6 +130,96 @@ function AdjustStockModal({ open, onClose, cycleId, row }) {
   )
 }
 
+// ── Add a stock entry where none was submitted ───────────────────────────────
+
+function AddStockModal({ open, onClose, cycleId, options }) {
+  const { t } = useTranslation()
+  const { showToast } = useToast()
+  const addMutation = useAddStock()
+  const [index, setIndex] = useState(0)
+  const [qty, setQty] = useState(() => Object.fromEntries(ITEMS.map(i => [i.key, 0])))
+  const [reason, setReason] = useState('')
+  const [error, setError] = useState('')
+  const slot = options[index] ?? options[0]
+
+  async function save() {
+    setError('')
+    if (reason.trim().length < 3) { setError(t('billingCycles.stockReasonRequired')); return }
+    const quantities = {}
+    for (const item of ITEMS) {
+      if (slot.isBwOnly && item.colorOnly) { quantities[item.key] = 0; continue }
+      const v = Number(qty[item.key])
+      if (qty[item.key] === '' || !Number.isInteger(v) || v < 0) { setError(t('billingCycles.stockQtyInvalid')); return }
+      quantities[item.key] = v
+    }
+    try {
+      await addMutation.mutateAsync({ cycleId, printerModel: slot.printerModel, location: slot.location, quantities, reason: reason.trim() })
+      showToast({ title: t('billingCycles.stockAdded'), variant: 'success' })
+      onClose()
+    } catch (err) {
+      setError(errMsg(err))
+    }
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={t('billingCycles.stockAddTitle')}
+      footer={
+        <>
+          <button
+            onClick={onClose}
+            disabled={addMutation.isPending}
+            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-300 dark:hover:bg-gray-800 disabled:opacity-50"
+          >
+            {t('common.cancel')}
+          </button>
+          <button
+            onClick={save}
+            disabled={addMutation.isPending}
+            className="rounded-lg bg-brand-500 px-4 py-2 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+          >
+            {addMutation.isPending ? t('common.loading') : t('billingCycles.stockAddSave')}
+          </button>
+        </>
+      }
+    >
+      <p className="text-xs text-gray-500 dark:text-gray-400">{t('billingCycles.stockAddNote')}</p>
+      <FormField label={t('billingCycles.stockLocationModel')} required>
+        <select className={inputCls} value={index} onChange={e => setIndex(Number(e.target.value))}>
+          {options.map((o, i) => (
+            <option key={`${o.location}|${o.printerModel}`} value={i}>
+              {(o.location || t('consumables.storageMainBranch'))} — {o.printerModel}
+            </option>
+          ))}
+        </select>
+      </FormField>
+      {slot?.serials?.length > 0 && <p className="text-xs text-gray-400">{slot.serials.join(' · ')}</p>}
+      <div className="grid grid-cols-3 gap-3">
+        {ITEMS.filter(i => !i.colorOnly || !slot?.isBwOnly).map(i => (
+          <FormField key={i.key} label={i.short}>
+            <input
+              type="number" min="0" inputMode="numeric" className={inputCls}
+              value={qty[i.key] ?? ''}
+              onChange={e => setQty(q => ({ ...q, [i.key]: e.target.value === '' ? '' : Number(e.target.value) }))}
+            />
+          </FormField>
+        ))}
+      </div>
+      <FormField label={t('billingCycles.stockReason')} required>
+        <textarea
+          className={inputCls + ' min-h-[80px] resize-none'}
+          value={reason}
+          onChange={e => setReason(e.target.value)}
+          placeholder={t('billingCycles.stockAddReasonPlaceholder')}
+        />
+      </FormField>
+      {error && <ErrorAlert message={error} />}
+    </Modal>
+  )
+}
+
 // ── Stock review panel on the cycle detail page ─────────────────────────────
 
 export function StockReviewPanel({ cycle }) {
@@ -140,6 +231,7 @@ export function StockReviewPanel({ cycle }) {
   const confirmMutation = useConfirmStock()
   const ackMutation = useAcknowledgeStockAnomaly()
   const [adjusting, setAdjusting] = useState(null)
+  const [adding, setAdding] = useState(false)
   const [error, setError] = useState('')
 
   if (!canView || isLoading || !review || !review.stockRequired) return null
@@ -270,6 +362,14 @@ export function StockReviewPanel({ cycle }) {
         <p className="text-xs text-gray-500 dark:text-gray-400">
           {!review.editable ? t('billingCycles.stockLockedNote') : !canReview ? t('billingCycles.stockReviewerOnly') : t('billingCycles.stockConfirmHint')}
         </p>
+        {canAct && review.addOptions?.length > 0 && (
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            <Plus className="h-4 w-4" />{t('billingCycles.stockAdd')}
+          </button>
+        )}
         {canAct && !confirmed && (
           <button
             onClick={handleConfirm}
@@ -281,6 +381,10 @@ export function StockReviewPanel({ cycle }) {
           </button>
         )}
       </div>
+
+      {adding && (
+        <AddStockModal open onClose={() => setAdding(false)} cycleId={cycle.id} options={review.addOptions} />
+      )}
 
       {adjusting && (
         <AdjustStockModal key={adjusting.historyId} open onClose={() => setAdjusting(null)} cycleId={cycle.id} row={adjusting} />
@@ -297,6 +401,7 @@ function eventText(t, e) {
   switch (e.type) {
     case 'stock_submitted': return t('billingCycles.activity.stock_submitted', { where })
     case 'stock_adjusted': {
+      if (d.added) return t('billingCycles.activity.stock_added', { where, reason: d.reason ?? '' })
       const changes = Object.entries(d.changes ?? {}).map(([k, v]) => `${ITEMS.find(i => i.key === k)?.short ?? k}: ${v.from} → ${v.to}`).join(', ')
       return t('billingCycles.activity.stock_adjusted', { where, changes, reason: d.reason ?? '' })
     }

@@ -1,7 +1,8 @@
 import * as cycleRepo from '../repositories/billingCycleRepository.js';
 import * as storageRepo from '../repositories/customerStorageRepository.js';
 import * as eventRepo from '../repositories/cycleEventRepository.js';
-import { refreshAnomaly } from './customerStorageService.js';
+import * as cpRepo from '../repositories/contractPrinterRepository.js';
+import { refreshAnomaly, updateCustomerStorage } from './customerStorageService.js';
 import { STOCK_QTY_KEYS } from '../utils/stockAnomaly.js';
 import { cycleLockedError } from '../utils/cycleLockGuard.js';
 
@@ -37,11 +38,47 @@ async function loadWorkableCycle(id) {
   return cycle;
 }
 
+// pg returns DATE columns as local-midnight Date objects; read them with local getters.
+function ymd(v) {
+  if (v instanceof Date) {
+    return `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`;
+  }
+  return String(v).slice(0, 10);
+}
+
+const locationOf = (printer) => (printer?.location ?? '').trim();
+// One map key per location + model (JSON keeps locations containing any character unambiguous)
+const slotKey = (location, model) => JSON.stringify([(location ?? '').trim(), model]);
+
+// Location + model combinations of the printers active on this cycle's contract (the same rule the
+// Tickets page uses), i.e. the places where stock can be entered.
+async function stockSlots(cycle) {
+  const ref = ymd(cycle.periodStart);
+  const all = await cpRepo.findAll({ contractId: cycle.contractId });
+  const slots = new Map();
+  for (const a of all) {
+    if (a.assignedUntil && ymd(a.assignedUntil) < ref) continue;
+    const printer = a.printer;
+    if (!printer?.model) continue;
+    const key = slotKey(locationOf(printer), printer.model);
+    if (!slots.has(key)) slots.set(key, { printerModel: printer.model, location: locationOf(printer), isBwOnly: !!printer.isBwOnly, serials: [] });
+    if (printer.serialNumber) slots.get(key).serials.push(printer.serialNumber);
+  }
+  return slots;
+}
+
 export async function getStockReview(cycleId) {
   const cycle = await loadCycle(cycleId);
   const rows = await storageRepo.findReviewRowsByCycle(cycleId);
   const unacknowledged = rows.filter(r => r.anomaly && !r.anomalyAcknowledgedAt);
+  // Slots with no entry on this cycle yet: what "Add stock entry" can offer
+  const have = new Set(rows.map(r => slotKey(r.location, r.printerModel)));
+  const addOptions = [...(await stockSlots(cycle)).entries()]
+    .filter(([key]) => !have.has(key))
+    .map(([, slot]) => slot)
+    .sort((a, b) => a.location.localeCompare(b.location) || a.printerModel.localeCompare(b.printerModel));
   return {
+    addOptions,
     cycleId,
     stockRequired: stockRequiredFor(cycle),
     editable: !cycle.isLocked && WORKABLE_STATUSES.includes(cycle.status),
@@ -99,6 +136,35 @@ export async function adjustStock(cycleId, historyId, body, user) {
     });
   }
   return getStockReview(cycle.id);
+}
+
+// Reviewer adds a stock entry for a location/model where nothing was submitted for this cycle (or fixes the
+// customer's current level from the cycle). Same rules as Adjust: reason required, logged, and the stock
+// has to be confirmed again.
+export async function addStock(cycleId, body, user) {
+  const reason = String(body?.reason ?? '').trim();
+  if (reason.length < 3) throw httpError(400, 'A reason is required to add a stock entry');
+
+  const cycle = await loadWorkableCycle(cycleId);
+  const model = String(body?.printerModel ?? '').trim();
+  const location = String(body?.location ?? '').trim();
+  const slot = (await stockSlots(cycle)).get(slotKey(location, model));
+  if (!slot) throw httpError(400, "That location and model is not on this cycle's contract");
+
+  const rows = await storageRepo.findReviewRowsByCycle(cycleId);
+  if (rows.some(r => (r.location ?? '').trim() === location && r.printerModel === model)) {
+    throw httpError(409, 'This cycle already has an entry for that location and model. Use Adjust to change it.');
+  }
+
+  const quantities = {};
+  for (const key of STOCK_QTY_KEYS) {
+    quantities[key] = (slot.isBwOnly && ['cQty', 'mQty', 'yQty'].includes(key)) ? 0 : cleanQuantity(key, body?.quantities?.[key] ?? 0);
+  }
+  const customerId = cycle.contract?.customer?.id;
+  if (!customerId) throw httpError(400, 'Cycle has no associated customer');
+
+  await updateCustomerStorage(customerId, model, { location, ...quantities, billingCycleId: cycleId }, user.id, { reason });
+  return getStockReview(cycleId);
 }
 
 export async function acknowledgeAnomaly(cycleId, historyId, user) {

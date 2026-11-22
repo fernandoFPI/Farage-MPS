@@ -46,6 +46,15 @@ export function useAdjustStock() {
   })
 }
 
+export function useAddStock() {
+  const refresh = useRefreshAfterStockChange()
+  return useMutation({
+    mutationFn: ({ cycleId, printerModel, location, quantities, reason }) =>
+      client.post(`/api/billing-cycles/${cycleId}/stock-review`, { printerModel, location, quantities, reason }).then(r => r.data),
+    onSuccess: refresh,
+  })
+}
+
 export function useAcknowledgeStockAnomaly() {
   const refresh = useRefreshAfterStockChange()
   return useMutation({

@@ -61,6 +61,7 @@ router.patch('/:id/reset-storage',            ...manageBilling,              ctr
 const reviewStock = [verifyToken, blockOdoo, requirePermission('can_review_stock')];
 router.get('/:id/stock-review',                         verifyToken, blockOdoo, requirePermission('can_view_operational_data'), ctrl.getStockReview);
 router.post('/:id/stock-review/confirm',                ...reviewStock, ctrl.confirmStock);
+router.post('/:id/stock-review',                        ...reviewStock, ctrl.addStock);
 router.patch('/:id/stock-review/:historyId',            ...reviewStock, ctrl.adjustStock);
 router.post('/:id/stock-review/:historyId/acknowledge', ...reviewStock, ctrl.acknowledgeStockAnomaly);
 router.get('/:id/activity',                             verifyToken, blockOdoo, requirePermission('can_view_billing'), ctrl.getActivity);

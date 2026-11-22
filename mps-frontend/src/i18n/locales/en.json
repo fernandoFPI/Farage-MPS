@@ -665,8 +665,15 @@
       "stock_confirmation_reset": "Stock confirmation cleared. {{reason}}",
       "cycle_confirmed": "Cycle confirmed",
       "cycle_confirmed_legacy": "Cycle confirmed (user not recorded — confirmed before this log existed)",
-      "cycle_unconfirmed": "Cycle unconfirmed"
-    }
+      "cycle_unconfirmed": "Cycle unconfirmed",
+      "stock_added": "Stock entry added by reviewer — {{where}}. Reason: {{reason}}"
+    },
+    "stockAdd": "Add stock entry",
+    "stockAddTitle": "Add stock entry",
+    "stockAddNote": "For a location and model where no stock was submitted for this cycle. It also becomes the customer's current stock level. It is logged with your reason, and the stock must be confirmed again afterwards.",
+    "stockAddSave": "Add entry",
+    "stockAdded": "Stock entry added",
+    "stockAddReasonPlaceholder": "Why are you entering this stock yourself (e.g. counted on site, engineer could not submit)?"
   },
   "consumables": {
     "title": "Consumables",
