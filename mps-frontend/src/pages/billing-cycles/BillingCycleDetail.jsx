@@ -29,6 +29,7 @@ import { CONSUMABLE_FIELD_MAP, COLOR_CONSUMABLES, BW_CONSUMABLES } from '../../u
 import PhotoViewerModal from '../../components/PhotoViewerModal'
 import GroupCyclesModal from './GroupCyclesModal'
 import { CycleLockPanel } from './CycleLockUi'
+import { StockReviewPanel, CycleActivityLog } from './StockReviewUi'
 import { usePermission } from '../../hooks/usePermission'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
@@ -1253,6 +1254,12 @@ const { data: appSettings } = useSettings()
                 )}
               </div>
               <InfoRow label={t('common.status')} value={<StatusBadge status={cycle.status} />} />
+              {cycle.confirmedAt && (
+                <InfoRow
+                  label={t('billingCycles.confirmedBy')}
+                  value={`${cycle.confirmedByName ?? t('billingCycles.confirmedByNotRecorded')} · ${fmtDateTime(cycle.confirmedAt)}`}
+                />
+              )}
               <InfoRow label={t('billingCycles.specialist')} value={cycle.specialist?.fullName ?? cycle.specialistName ?? '—'} />
             </div>
             <div>
@@ -1310,6 +1317,10 @@ const { data: appSettings } = useSettings()
             </div>
           </div>
         )}
+
+        {/* ── Stock review (must be confirmed before the cycle can be) + activity log ── */}
+        <StockReviewPanel cycle={cycle} />
+        <CycleActivityLog cycleId={cycle.id} />
 
         {/* ── City Submission Progress ── */}
         {isMultiCity && (

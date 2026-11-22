@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { Plus, Eye, CheckCircle, Link2, List, LayoutGrid, Trash2, RotateCcw, Package, Lock } from 'lucide-react'
 import { LockBadge, BulkLockModal } from './CycleLockUi'
+import { StockAnomalyBadge } from './StockReviewUi'
 import SearchableSelect from '../../components/SearchableSelect'
 import { contractOptions } from '../../utils/filterOptions'
 import AccordionGroup from '../../components/AccordionGroup'
@@ -315,6 +316,7 @@ export default function BillingCyclesPage() {
           <StatusBadge status={r.status} />
           {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
           {r.isLocked && <LockBadge label={t('billingCycles.lockedBadge')} title={t('billingCycles.lockedBadgeTitle')} />}
+          {r.stockAnomalies > 0 && <StockAnomalyBadge count={r.stockAnomalies} label={t('billingCycles.stockAnomalyBadge')} title={t('billingCycles.stockAnomalyBadgeTitle')} />}
           {r.storageUnavailableReason && <StorageUnavailableBadge label={t('tickets.storageUnavailableNote')} reason={r.storageUnavailableReason} />}
           <CityDots cityStatuses={r.cityStatuses} />
         </div>
@@ -515,6 +517,7 @@ export default function BillingCyclesPage() {
                 </span>
                 {r.isBaseline && <BaselineBadge label={t('billingCycles.baseline')} />}
                 {r.isLocked && <LockBadge label={t('billingCycles.lockedBadge')} title={t('billingCycles.lockedBadgeTitle')} />}
+                {r.stockAnomalies > 0 && <StockAnomalyBadge count={r.stockAnomalies} label={t('billingCycles.stockAnomalyBadge')} title={t('billingCycles.stockAnomalyBadgeTitle')} />}
                 {r.storageUnavailableReason && <StorageUnavailableBadge label={t('tickets.storageUnavailableNote')} reason={r.storageUnavailableReason} />}
                 {r.status === 'pending_quarterly' && r.cycleGroupId && (
                   <Link

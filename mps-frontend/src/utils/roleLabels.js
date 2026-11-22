@@ -31,6 +31,7 @@ export const PERMISSION_LABELS = {
   can_view_manual_billing:     { en: 'View Manual Billing',       ar: 'عرض الفوترة اليدوية' },
   can_view_operational_data:   { en: 'View Printers/Contracts/Customers', ar: 'عرض الطابعات والعقود والعملاء' },
   can_view_performance:        { en: 'View Engineer Performance', ar: 'عرض أداء المهندسين' },
+  can_review_stock:            { en: 'Review & Adjust Customer Stock', ar: 'مراجعة وتعديل مخزون العملاء' },
 }
 
 export function getPermissionLabel(flag, lang = 'en') {

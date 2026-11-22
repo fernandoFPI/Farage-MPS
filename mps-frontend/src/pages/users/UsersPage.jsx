@@ -43,6 +43,7 @@ const PERMISSION_FLAGS = [
   'can_view_manual_billing',
   'can_view_operational_data',
   'can_view_performance',
+  'can_review_stock',
 ]
 
 const PROTECTED_ROLE_NAMES = ['admin', 'odoo_integration']

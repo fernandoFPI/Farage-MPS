@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useReadingGaps, useCycleGaps, useOdooMonitorStatus } from '../../api/hooks/useMonitor'
+import { useStockAnomalies } from '../../api/hooks/useStockReview'
 import { useDocTitle } from '../../hooks/useDocTitle'
 import PageHeader from '../../components/PageHeader'
 
@@ -831,9 +832,60 @@ function RefreshBar({ onRefresh, lastUpdated }) {
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
+// Customer stock that jumped abnormally and has not been acknowledged or adjusted yet (cycles still open)
+const STOCK_GROUP_LABEL = { toner: 'Toner', drums: 'Drums', waste: 'Waste toner' }
+
+function StockAnomaliesTab({ data, isLoading }) {
+  if (isLoading) return <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
+  if (!data?.length) {
+    return (
+      <div className="flex flex-col items-center gap-2 py-16 text-gray-400">
+        <CheckCircle2 className="h-8 w-8 text-green-500" />
+        <p className="text-sm">No unreviewed stock anomalies</p>
+      </div>
+    )
+  }
+  return (
+    <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <table className="min-w-full text-sm">
+        <thead className="bg-gray-50 text-xs text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
+          <tr>
+            <th className="px-4 py-2.5 text-left font-medium">Customer / cycle</th>
+            <th className="px-4 py-2.5 text-left font-medium">Location · model</th>
+            <th className="px-4 py-2.5 text-left font-medium">What jumped</th>
+            <th className="px-4 py-2.5 text-left font-medium">Submitted</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+          {data.map(r => (
+            <tr key={r.historyId}>
+              <td className="px-4 py-3">
+                <Link to={`/billing-cycles/${r.cycleId}`} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                  {r.customer} — {r.month}
+                </Link>
+                <p className="text-xs text-gray-400">{r.contractNumber}</p>
+              </td>
+              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                {r.location || 'Main branch'} · {r.printerModel}
+              </td>
+              <td className="px-4 py-3 text-red-600 dark:text-red-400">
+                {r.kinds.map(k => `${STOCK_GROUP_LABEL[k.key] ?? k.key} ${k.previous} → ${k.current} (+${k.rise})`).join(' · ')}
+              </td>
+              <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
+                {r.submittedBy ?? '—'}<br />{relTime(r.submittedAt)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 const TABS = [
   { key: 'readings', label: 'Reading Submissions', icon: FileWarning },
   { key: 'cycles',   label: 'Cycle Opening',        icon: CalendarX },
+  { key: 'stock',    label: 'Stock Anomalies',       icon: AlertTriangle },
   { key: 'odoo',     label: 'Odoo Sync',             icon: Activity },
 ]
 
@@ -847,6 +899,7 @@ export default function MonitorPage() {
   const readings = useReadingGaps()
   const cycles   = useCycleGaps(graceDays)
   const odoo     = useOdooMonitorStatus()
+  const stock    = useStockAnomalies()
 
   const refresh = useCallback(() => {
     qc.invalidateQueries({ queryKey: ['monitor'] })
@@ -880,7 +933,7 @@ export default function MonitorPage() {
       {/* Tab strip */}
       <div className="flex gap-1 mb-6 border-b border-gray-200 dark:border-gray-800">
         {TABS.map(({ key, label, icon: Icon }) => {
-          const count = key === 'readings' ? summaryReadings : key === 'cycles' ? summaryCycles : (odoo.data ?? []).length
+          const count = key === 'readings' ? summaryReadings : key === 'cycles' ? summaryCycles : key === 'stock' ? (stock.data ?? []).length : (odoo.data ?? []).length
           return (
             <button
               key={key}
@@ -914,6 +967,12 @@ export default function MonitorPage() {
         <>
           <SectionHeader icon={CalendarX} title="Contracts Without an Open Cycle" count={summaryCycles} accent="red" />
           <CycleGapsTab data={cycles.data} isLoading={cycles.isLoading} graceDays={graceDays} onGraceDaysChange={setGraceDays} />
+        </>
+      )}
+      {activeTab === 'stock' && (
+        <>
+          <SectionHeader icon={AlertTriangle} title="Stock Anomalies Awaiting Review" count={(stock.data ?? []).length} accent="red" />
+          <StockAnomaliesTab data={stock.data} isLoading={stock.isLoading} />
         </>
       )}
       {activeTab === 'odoo' && (
