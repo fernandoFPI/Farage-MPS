@@ -16,6 +16,8 @@ import {
 import { canConfirmCycle } from './cityCycleStatusService.js';
 import { applyInvoiceRules, getPrevQuarterEndDate, usesQuarterEndBaseline } from '../utils/invoiceRulesEngine.js';
 import { assertCycleNotLocked } from '../utils/cycleLockGuard.js';
+import * as eventRepo from '../repositories/cycleEventRepository.js';
+import { stockRequiredFor } from './stockReviewService.js';
 
 const BAGHDAD_OFFSET_MS = 3 * 60 * 60 * 1000;
 
@@ -800,7 +802,7 @@ export async function buildCycleSnapshot(id) {
 
 // ── Status transitions ──────────────────────────────────────────────────────
 
-export async function confirmCycle(id) {
+export async function confirmCycle(id, userId = null) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {
     const err = new Error('Billing cycle not found');
@@ -819,7 +821,15 @@ export async function confirmCycle(id) {
     err.status = 400;
     throw err;
   }
-  return cycleRepo.update(id, { status: 'confirmed', confirmedAt: new Date() });
+  // The cycle's customer stock must have been reviewed (confirmed) first
+  if (stockRequiredFor(cycle) && !cycle.stockConfirmedAt) {
+    const err = new Error('Cannot confirm cycle — the customer stock has not been confirmed yet. Review and confirm it in the Stock review section first.');
+    err.status = 400;
+    throw err;
+  }
+  const confirmed = await cycleRepo.update(id, { status: 'confirmed', confirmedAt: new Date(), confirmedByUserId: userId });
+  await eventRepo.add(id, 'cycle_confirmed', userId, {});
+  return confirmed;
 }
 
 export async function disputeCycle(id, { disputeNote }) {
@@ -863,7 +873,7 @@ export async function reopenCycle(id) {
   return cycleRepo.update(id, { status: 'open', disputeNote: null });
 }
 
-export async function unconfirmCycle(id) {
+export async function unconfirmCycle(id, userId = null) {
   const cycle = await cycleRepo.findById(id);
   if (!cycle) {
     const err = new Error('Billing cycle not found');
@@ -882,7 +892,9 @@ export async function unconfirmCycle(id) {
     err.status = 400;
     throw err;
   }
-  return cycleRepo.update(id, { status: 'open', confirmedAt: null, confirmedByUserId: null });
+  const reopened = await cycleRepo.update(id, { status: 'open', confirmedAt: null, confirmedByUserId: null });
+  await eventRepo.add(id, 'cycle_unconfirmed', userId, {});
+  return reopened;
 }
 
 export async function setManualBillingAmount(id, amount) {

@@ -30,3 +30,9 @@ export async function getTvData(req, res, next) {
     res.json(await repo.getTvData());
   } catch (err) { next(err); }
 }
+
+export async function getStockAnomalies(req, res, next) {
+  try {
+    res.json(await repo.getStockAnomalies());
+  } catch (err) { next(err); }
+}

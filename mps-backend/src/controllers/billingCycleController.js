@@ -2,6 +2,7 @@ import * as service from '../services/billingCycleService.js';
 import * as cycleRepo from '../repositories/billingCycleRepository.js';
 import * as storageService from '../services/customerStorageService.js';
 import * as lockService from '../services/cycleLockService.js';
+import * as stockReview from '../services/stockReviewService.js';
 import { canViewPricing, omitFields, CONTRACT_FINANCIAL_FIELDS, PRINTER_FINANCIAL_FIELDS } from '../utils/financialFields.js';
 
 const PRINTER_SUMMARY_FINANCIAL_FIELDS = [...PRINTER_FINANCIAL_FIELDS, 'effectiveMinBwPages', 'effectiveMinColorPages'];
@@ -59,7 +60,7 @@ export async function updatePeriod(req, res, next) {
 
 export async function confirm(req, res, next) {
   try {
-    res.json(await service.confirmCycle(req.params.id));
+    res.json(await service.confirmCycle(req.params.id, req.user.id));
   } catch (err) { next(err); }
 }
 
@@ -80,7 +81,7 @@ export async function unconfirm(req, res, next) {
     if (req.user?.role?.name !== 'admin') {
       return res.status(403).json({ error: 'Admin only' });
     }
-    res.json(await service.unconfirmCycle(req.params.id));
+    res.json(await service.unconfirmCycle(req.params.id, req.user.id));
   } catch (err) { next(err); }
 }
 
@@ -230,6 +231,28 @@ export async function getAuditExport(req, res, next) {
   try {
     res.json(await service.getAuditExportData(req.params.id));
   } catch (err) { next(err); }
+}
+
+// ── Stock review + activity log ───────────────────────────────────────────────
+
+export async function getStockReview(req, res, next) {
+  try { res.json(await stockReview.getStockReview(req.params.id)); } catch (err) { next(err); }
+}
+
+export async function confirmStock(req, res, next) {
+  try { res.json(await stockReview.confirmStock(req.params.id, req.user)); } catch (err) { next(err); }
+}
+
+export async function adjustStock(req, res, next) {
+  try { res.json(await stockReview.adjustStock(req.params.id, req.params.historyId, req.body, req.user)); } catch (err) { next(err); }
+}
+
+export async function acknowledgeStockAnomaly(req, res, next) {
+  try { res.json(await stockReview.acknowledgeAnomaly(req.params.id, req.params.historyId, req.user)); } catch (err) { next(err); }
+}
+
+export async function getActivity(req, res, next) {
+  try { res.json(await stockReview.getActivity(req.params.id)); } catch (err) { next(err); }
 }
 
 // ── Cycle locks (admin only — enforced in the routes) ─────────────────────────

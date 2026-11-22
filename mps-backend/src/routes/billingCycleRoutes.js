@@ -56,6 +56,15 @@ router.delete('/:id/lock-printer/:printerId', ...submitReadings,             ctr
 router.patch('/:id/submit-storage',           ...submitReadings,             ctrl.submitStorage);
 router.patch('/:id/reset-storage',            ...manageBilling,              ctrl.resetStorageSubmission);
 
+// Stock review (confirm / adjust / acknowledge anomalies) needs can_review_stock; reading it needs the
+// same access as the customer stock tab. The activity log is part of the cycle view.
+const reviewStock = [verifyToken, blockOdoo, requirePermission('can_review_stock')];
+router.get('/:id/stock-review',                         verifyToken, blockOdoo, requirePermission('can_view_operational_data'), ctrl.getStockReview);
+router.post('/:id/stock-review/confirm',                ...reviewStock, ctrl.confirmStock);
+router.patch('/:id/stock-review/:historyId',            ...reviewStock, ctrl.adjustStock);
+router.post('/:id/stock-review/:historyId/acknowledge', ...reviewStock, ctrl.acknowledgeStockAnomaly);
+router.get('/:id/activity',                             verifyToken, blockOdoo, requirePermission('can_view_billing'), ctrl.getActivity);
+
 // City status routes
 router.get('/:id/cities',                     ...manageBilling,   cityCtrl.list);
 router.patch('/:id/cities/:city/confirm',     ...confirmBilling,  cityCtrl.confirm);

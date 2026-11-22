@@ -1,4 +1,7 @@
 import * as repo from '../repositories/customerStorageRepository.js';
+import * as cycleRepo from '../repositories/billingCycleRepository.js';
+import * as eventRepo from '../repositories/cycleEventRepository.js';
+import { detectStockAnomaly } from '../utils/stockAnomaly.js';
 
 function clampQty(val) {
   if (val == null || val === '') return 0;
@@ -65,9 +68,46 @@ export async function updateCustomerStorage(customerId, printerModel, body, user
   }
 
   const record = await repo.upsert(customerId, printerModel, location, isBwOnly, quantities, userId);
-  await repo.addHistory(record.id, body.billingCycleId ?? null, quantities, userId);
+  const historyId = await repo.addHistory(record.id, body.billingCycleId ?? null, quantities, userId);
+
+  // Stock recorded against a cycle: flag abnormal jumps, log who submitted, and drop any earlier
+  // stock confirmation (the numbers just changed). Best-effort — the stock itself is already saved,
+  // and a bookkeeping hiccup must not fail an engineer's ticket.
+  if (body.billingCycleId) {
+    try {
+      await afterCycleStockWrite({ historyId, billingCycleId: body.billingCycleId, printerModel, location, quantities, userId });
+    } catch (err) {
+      console.error('Stock review bookkeeping failed:', err.message);
+    }
+  }
 
   return record;
+}
+
+// Recomputes the anomaly flag of one snapshot against the snapshot before it. Returns the anomaly or null.
+export async function refreshAnomaly(historyId) {
+  const [previous, current] = await Promise.all([
+    repo.findPreviousQuantities(historyId),
+    repo.findHistoryQuantities(historyId),
+  ]);
+  const anomaly = detectStockAnomaly(previous, current);
+  await repo.setAnomaly(historyId, anomaly);
+  return anomaly;
+}
+
+async function afterCycleStockWrite({ historyId, billingCycleId, printerModel, location, quantities, userId }) {
+  const anomaly = await refreshAnomaly(historyId);
+  await eventRepo.add(billingCycleId, 'stock_submitted', userId, { historyId, printerModel, location, quantities, anomaly });
+
+  const cycle = await cycleRepo.findById(billingCycleId);
+  // Only while the cycle is still being worked on: a confirmed cycle's stock confirmation stays as it was.
+  if (cycle && ['open', 'pending_confirmation', 'disputed'].includes(cycle.status)) {
+    if (await cycleRepo.clearStockConfirmed(billingCycleId)) {
+      await eventRepo.add(billingCycleId, 'stock_confirmation_reset', userId, {
+        reason: 'Stock was submitted again after it had been confirmed', printerModel, location,
+      });
+    }
+  }
 }
 
 export async function getStorageHistory(customerId, printerModel) {

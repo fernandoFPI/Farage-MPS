@@ -18,5 +18,6 @@ router.get('/reading-gaps',  ...guard, ctrl.getReadingGaps);
 router.get('/cycle-gaps',    ...guard, ctrl.getCycleGaps);
 router.get('/odoo-status',   ...guard, ctrl.getOdooStatus);
 router.get('/tv',            ...guard, ctrl.getTvData);
+router.get('/stock-anomalies', ...guard, ctrl.getStockAnomalies);
 
 export default router;
