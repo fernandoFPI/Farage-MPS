@@ -25,5 +25,25 @@ jobs:
             docker compose build --no-cache
             docker compose run --rm mps-backend npm run migrate
             docker compose up -d
+            # The backend/frontend containers were just recreated and got new addresses, but nginx only
+            # resolves its upstream names at start/reload, so it keeps sending traffic to the old ones (502).
+            for i in 1 2 3 4 5 6; do
+              if docker exec mps-nginx nginx -t >/dev/null 2>&1 && docker exec mps-nginx nginx -s reload; then
+                echo "nginx reloaded"
+                break
+              fi
+              echo "nginx not ready for a reload yet (attempt $i), waiting..."
+              sleep 5
+            done
             docker image prune -f
-            echo "Deployment complete"
+            # Fail the deploy visibly instead of leaving the site down: wait until the app answers through nginx.
+            ok=0
+            for i in $(seq 1 12); do
+              fe=$(curl -sk -o /dev/null -m 10 -w "%{http_code}" https://127.0.0.1/ || true)
+              api=$(curl -sk -o /dev/null -m 10 -w "%{http_code}" https://127.0.0.1/api/billing-cycles || true)
+              if [ "$fe" = "200" ] && [ "$api" = "401" ]; then ok=1; break; fi
+              echo "site not ready yet (frontend $fe, api $api), waiting..."
+              sleep 5
+            done
+            if [ "$ok" != "1" ]; then echo "Deploy check FAILED: frontend $fe, api $api"; exit 1; fi
+            echo "Deployment complete (frontend $fe, api $api)"
