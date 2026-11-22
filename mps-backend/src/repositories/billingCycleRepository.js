@@ -45,6 +45,14 @@ function mapRow(row) {
     lockedAt:             row.locked_at ?? null,
     lockedByUserId:       row.locked_by_user_id ?? null,
     lockedByName:         row.locked_by_name ?? null,
+    // Who confirmed the cycle (only recorded from migration 064 on) and who confirmed its stock
+    confirmedByUserId:    row.confirmed_by_user_id ?? null,
+    confirmedByName:      row.confirmed_by_name ?? null,
+    stockConfirmedAt:     row.stock_confirmed_at ?? null,
+    stockConfirmedByUserId: row.stock_confirmed_by_user_id ?? null,
+    stockConfirmedByName: row.stock_confirmed_by_name ?? null,
+    // Stock snapshots that jumped abnormally and have not been acknowledged yet
+    stockAnomalies:       row.stock_anomalies != null ? Number(row.stock_anomalies) : 0,
   };
 }
 
@@ -67,6 +75,10 @@ export async function findAll({ contractId, status, excludeInvoiced, locked } = 
             bu.full_name AS baseline_set_by_name,
             su.full_name AS storage_submitted_by_name,
             lu.full_name AS locked_by_name,
+            cbu.full_name AS confirmed_by_name,
+            sbu.full_name AS stock_confirmed_by_name,
+            (SELECT COUNT(*) FROM customer_storage_history sh
+              WHERE sh.billing_cycle_id = bc.id AND sh.anomaly IS NOT NULL AND sh.anomaly_acknowledged_at IS NULL) AS stock_anomalies,
             TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
             cg.id   AS contract_group_id,
             cg.name AS contract_group_name,
@@ -81,6 +93,8 @@ export async function findAll({ contractId, status, excludeInvoiced, locked } = 
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      LEFT JOIN users su ON bc.storage_submitted_by = su.id
      LEFT JOIN users lu ON bc.locked_by_user_id = lu.id
+     LEFT JOIN users cbu ON bc.confirmed_by_user_id = cbu.id
+     LEFT JOIN users sbu ON bc.stock_confirmed_by_user_id = sbu.id
      LEFT JOIN contract_groups cg ON cg.id = (
        SELECT cgm.group_id FROM contract_group_members cgm
        WHERE cgm.contract_id = bc.contract_id LIMIT 1
@@ -110,6 +124,10 @@ export async function findById(id) {
        bu.full_name AS baseline_set_by_name,
        su.full_name AS storage_submitted_by_name,
        lu.full_name AS locked_by_name,
+       cbu.full_name AS confirmed_by_name,
+       sbu.full_name AS stock_confirmed_by_name,
+       (SELECT COUNT(*) FROM customer_storage_history sh
+         WHERE sh.billing_cycle_id = bc.id AND sh.anomaly IS NOT NULL AND sh.anomaly_acknowledged_at IS NULL) AS stock_anomalies,
        TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_month,
        cg.id   AS contract_group_id,
        cg.name AS contract_group_name,
@@ -145,6 +163,8 @@ export async function findById(id) {
      LEFT JOIN users bu ON bc.baseline_set_by = bu.id
      LEFT JOIN users su ON bc.storage_submitted_by = su.id
      LEFT JOIN users lu ON bc.locked_by_user_id = lu.id
+     LEFT JOIN users cbu ON bc.confirmed_by_user_id = cbu.id
+     LEFT JOIN users sbu ON bc.stock_confirmed_by_user_id = sbu.id
      LEFT JOIN contract_groups cg ON cg.id = (
        SELECT cgm.group_id FROM contract_group_members cgm
        WHERE cgm.contract_id = bc.contract_id LIMIT 1
@@ -329,6 +349,7 @@ export async function update(id, fields) {
     status:         'status',
     disputeNote:    'dispute_note',
     confirmedAt:    'confirmed_at',
+    confirmedByUserId: 'confirmed_by_user_id',
     cycleGroupId:   'cycle_group_id',
     groupPosition:  'group_position',
     isBaseline:     'is_baseline',
@@ -599,4 +620,23 @@ export async function findLockCandidates({ contractId, limit } = {}) {
     `SELECT bc.id FROM billing_cycles bc WHERE ${where} ORDER BY bc.period_start ASC, bc.id ${limitSql}`, values,
   );
   return { total, ids: rows.map(r => r.id) };
+}
+
+// ── Stock review ─────────────────────────────────────────────────────────────
+
+export async function setStockConfirmed(id, userId) {
+  await pool.query(
+    `UPDATE billing_cycles SET stock_confirmed_at = NOW(), stock_confirmed_by_user_id = $2 WHERE id = $1`,
+    [id, userId],
+  );
+}
+
+// Returns true when a confirmation was actually cleared (so callers only log a reset when there was one).
+export async function clearStockConfirmed(id) {
+  const { rowCount } = await pool.query(
+    `UPDATE billing_cycles SET stock_confirmed_at = NULL, stock_confirmed_by_user_id = NULL
+     WHERE id = $1 AND stock_confirmed_at IS NOT NULL`,
+    [id],
+  );
+  return rowCount > 0;
 }

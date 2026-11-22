@@ -13,7 +13,7 @@ const roles = [
     can_delete_contracts: true, can_view_billing: true, can_edit_billing: true, can_confirm_billing: true,
     can_push_to_odoo: true, can_view_users: true, can_manage_users: true,
     can_view_contract_pricing: true, can_view_billing_totals: true, can_view_billing_breakdown: true,
-    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true,
+    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true, can_review_stock: true, can_review_stock: false,
   },
   {
     name: 'mps_team_lead',
@@ -22,7 +22,7 @@ const roles = [
     can_delete_contracts: true, can_view_billing: true, can_edit_billing: true, can_confirm_billing: true,
     can_push_to_odoo: false, can_view_users: true, can_manage_users: false,
     can_view_contract_pricing: true, can_view_billing_totals: true, can_view_billing_breakdown: true,
-    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true,
+    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true, can_review_stock: false,
   },
   {
     name: 'mps_specialist',
@@ -31,7 +31,7 @@ const roles = [
     can_delete_contracts: false, can_view_billing: true, can_edit_billing: true, can_confirm_billing: false,
     can_push_to_odoo: false, can_view_users: true, can_manage_users: false,
     can_view_contract_pricing: true, can_view_billing_totals: true, can_view_billing_breakdown: true,
-    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true,
+    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true, can_review_stock: true,
   },
   {
     name: 'service_manager',
@@ -40,7 +40,7 @@ const roles = [
     can_delete_contracts: false, can_view_billing: true, can_edit_billing: false, can_confirm_billing: false,
     can_push_to_odoo: false, can_view_users: true, can_manage_users: false,
     can_view_contract_pricing: false, can_view_billing_totals: false, can_view_billing_breakdown: false,
-    can_view_manual_billing: false, can_view_operational_data: true, can_view_performance: true,
+    can_view_manual_billing: false, can_view_operational_data: true, can_view_performance: true, can_review_stock: false,
   },
   {
     name: 'finance',
@@ -49,7 +49,7 @@ const roles = [
     can_delete_contracts: false, can_view_billing: true, can_edit_billing: false, can_confirm_billing: true,
     can_push_to_odoo: true, can_view_users: true, can_manage_users: false,
     can_view_contract_pricing: true, can_view_billing_totals: true, can_view_billing_breakdown: true,
-    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true,
+    can_view_manual_billing: true, can_view_operational_data: true, can_view_performance: true, can_review_stock: false,
   },
   {
     name: 'engineer',
@@ -58,7 +58,7 @@ const roles = [
     can_delete_contracts: false, can_view_billing: true, can_edit_billing: false, can_confirm_billing: false,
     can_push_to_odoo: false, can_view_users: false, can_manage_users: false,
     can_view_contract_pricing: false, can_view_billing_totals: false, can_view_billing_breakdown: false,
-    can_view_manual_billing: false, can_view_operational_data: true, can_view_performance: false,
+    can_view_manual_billing: false, can_view_operational_data: true, can_view_performance: false, can_review_stock: false,
   },
   {
     name: 'operations_viewer',
@@ -67,7 +67,7 @@ const roles = [
     can_delete_contracts: false, can_view_billing: true, can_edit_billing: false, can_confirm_billing: false,
     can_push_to_odoo: false, can_view_users: true, can_manage_users: false,
     can_view_contract_pricing: false, can_view_billing_totals: false, can_view_billing_breakdown: false,
-    can_view_manual_billing: false, can_view_operational_data: true, can_view_performance: true,
+    can_view_manual_billing: false, can_view_operational_data: true, can_view_performance: true, can_review_stock: false,
   },
   {
     name: 'odoo_integration',
@@ -76,7 +76,7 @@ const roles = [
     can_delete_contracts: false, can_view_billing: false, can_edit_billing: false, can_confirm_billing: false,
     can_push_to_odoo: true, can_view_users: false, can_manage_users: false,
     can_view_contract_pricing: false, can_view_billing_totals: false, can_view_billing_breakdown: false,
-    can_view_manual_billing: false, can_view_operational_data: false, can_view_performance: true,
+    can_view_manual_billing: false, can_view_operational_data: false, can_view_performance: true, can_review_stock: false,
   },
 ];
 
@@ -85,7 +85,7 @@ const ROLE_COLUMNS = [
   'can_delete_contracts', 'can_view_billing', 'can_edit_billing', 'can_confirm_billing',
   'can_push_to_odoo', 'can_view_users', 'can_manage_users',
   'can_view_contract_pricing', 'can_view_billing_totals', 'can_view_billing_breakdown',
-  'can_view_manual_billing', 'can_view_operational_data', 'can_view_performance',
+  'can_view_manual_billing', 'can_view_operational_data', 'can_view_performance', 'can_review_stock',
 ];
 
 const roleSql = `

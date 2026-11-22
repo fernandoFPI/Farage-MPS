@@ -122,15 +122,172 @@ export async function addHistory(customerStorageId, billingCycleId, quantities, 
          WHERE id = $11`,
         [cQty, mQty, yQty, kQty, r1Qty, r2Qty, r3Qty, r4Qty, wasteTonQty, userId, existing[0].id],
       );
-      return;
+      return existing[0].id;
     }
   }
 
-  await pool.query(
+  const { rows } = await pool.query(
     `INSERT INTO customer_storage_history
        (customer_storage_id, billing_cycle_id, c_qty, m_qty, y_qty, k_qty, r1_qty, r2_qty, r3_qty, r4_qty, waste_toner_qty, submitted_by_user_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+     RETURNING id`,
     [customerStorageId, billingCycleId ?? null, cQty, mQty, yQty, kQty, r1Qty, r2Qty, r3Qty, r4Qty, wasteTonQty, userId],
+  );
+  return rows[0].id;
+}
+
+// ── Stock review (per cycle) ─────────────────────────────────────────────────
+
+const QTY_COLS = {
+  cQty: 'c_qty', mQty: 'm_qty', yQty: 'y_qty', kQty: 'k_qty',
+  r1Qty: 'r1_qty', r2Qty: 'r2_qty', r3Qty: 'r3_qty', r4Qty: 'r4_qty', wasteTonQty: 'waste_toner_qty',
+};
+
+function qtyFrom(row, prefix = '') {
+  const out = {};
+  for (const [key, col] of Object.entries(QTY_COLS)) out[key] = Number(row[`${prefix}${col}`]);
+  return out;
+}
+
+function mapReviewRow(r) {
+  return {
+    historyId: r.id,
+    customerStorageId: r.customer_storage_id,
+    printerModel: r.printer_model,
+    location: r.location ?? '',
+    isBwOnly: r.is_bw_only ?? false,
+    quantities: qtyFrom(r),
+    previous: r.prev_id ? qtyFrom(r, 'prev_') : null,
+    submittedByName: r.submitted_by_name ?? null,
+    submittedAt: r.snapshot_at,
+    anomaly: r.anomaly ?? null,
+    anomalyAcknowledgedAt: r.anomaly_acknowledged_at ?? null,
+    anomalyAcknowledgedByName: r.ack_by_name ?? null,
+  };
+}
+
+// Every stock snapshot recorded against this cycle, each with the snapshot before it (same customer,
+// model and location) so the reviewer sees previous -> now. "Before" is by cycle period, not by the
+// time the row was written, so a late back-fill still compares against the right month.
+export async function findReviewRowsByCycle(billingCycleId) {
+  const { rows } = await pool.query(
+    `SELECT h.*, cs.printer_model, cs.location, cs.is_bw_only,
+            su.full_name AS submitted_by_name, au.full_name AS ack_by_name,
+            prev.id AS prev_id,
+            prev.c_qty AS prev_c_qty, prev.m_qty AS prev_m_qty, prev.y_qty AS prev_y_qty, prev.k_qty AS prev_k_qty,
+            prev.r1_qty AS prev_r1_qty, prev.r2_qty AS prev_r2_qty, prev.r3_qty AS prev_r3_qty, prev.r4_qty AS prev_r4_qty,
+            prev.waste_toner_qty AS prev_waste_toner_qty
+     FROM customer_storage_history h
+     JOIN customer_storage cs ON cs.id = h.customer_storage_id
+     JOIN billing_cycles cbc ON cbc.id = h.billing_cycle_id
+     LEFT JOIN users su ON su.id = h.submitted_by_user_id
+     LEFT JOIN users au ON au.id = h.anomaly_acknowledged_by_user_id
+     LEFT JOIN LATERAL (
+       SELECT p.* FROM customer_storage_history p
+       LEFT JOIN billing_cycles pbc ON pbc.id = p.billing_cycle_id
+       WHERE p.customer_storage_id = h.customer_storage_id AND p.id <> h.id
+         AND COALESCE(pbc.period_end::timestamptz, p.snapshot_at) < cbc.period_end::timestamptz
+       ORDER BY COALESCE(pbc.period_end::timestamptz, p.snapshot_at) DESC, p.snapshot_at DESC
+       LIMIT 1
+     ) prev ON true
+     WHERE h.billing_cycle_id = $1
+     ORDER BY cs.location, cs.printer_model`,
+    [billingCycleId],
+  );
+  return rows.map(mapReviewRow);
+}
+
+export async function findReviewRow(billingCycleId, historyId) {
+  const rows = await findReviewRowsByCycle(billingCycleId);
+  return rows.find(r => r.historyId === historyId) ?? null;
+}
+
+export async function findHistoryQuantities(historyId) {
+  const { rows } = await pool.query(`SELECT * FROM customer_storage_history WHERE id = $1`, [historyId]);
+  return rows[0] ? qtyFrom(rows[0]) : null;
+}
+
+// Previous snapshot quantities for one history row (null when it is the first ever).
+export async function findPreviousQuantities(historyId) {
+  const { rows } = await pool.query(
+    `WITH me AS (
+       SELECT h.id, COALESCE(bc.period_end::timestamptz, h.snapshot_at) AS ref, h.customer_storage_id AS sid
+       FROM customer_storage_history h LEFT JOIN billing_cycles bc ON bc.id = h.billing_cycle_id
+       WHERE h.id = $1)
+     SELECT p.* FROM customer_storage_history p
+     LEFT JOIN billing_cycles pbc ON pbc.id = p.billing_cycle_id, me
+     WHERE p.customer_storage_id = me.sid AND p.id <> me.id
+       AND COALESCE(pbc.period_end::timestamptz, p.snapshot_at) < me.ref
+     ORDER BY COALESCE(pbc.period_end::timestamptz, p.snapshot_at) DESC, p.snapshot_at DESC
+     LIMIT 1`,
+    [historyId],
+  );
+  return rows[0] ? qtyFrom(rows[0]) : null;
+}
+
+// Sets (or clears, with null) the anomaly on a snapshot. Always clears any acknowledgement:
+// the numbers it covered have just changed.
+export async function setAnomaly(historyId, anomaly) {
+  await pool.query(
+    `UPDATE customer_storage_history
+     SET anomaly = $2::jsonb, anomaly_acknowledged_by_user_id = NULL, anomaly_acknowledged_at = NULL
+     WHERE id = $1`,
+    [historyId, anomaly ? JSON.stringify(anomaly) : null],
+  );
+}
+
+export async function acknowledgeAnomaly(historyId, userId) {
+  await pool.query(
+    `UPDATE customer_storage_history
+     SET anomaly_acknowledged_by_user_id = $2, anomaly_acknowledged_at = NOW()
+     WHERE id = $1`,
+    [historyId, userId],
+  );
+}
+
+// Reviewer adjustment of one snapshot. Returns the updated quantities.
+export async function updateHistoryQuantities(historyId, quantities) {
+  const sets = [];
+  const values = [];
+  for (const [key, col] of Object.entries(QTY_COLS)) {
+    values.push(quantities[key]);
+    sets.push(`${col} = $${values.length}`);
+  }
+  values.push(historyId);
+  await pool.query(`UPDATE customer_storage_history SET ${sets.join(', ')} WHERE id = $${values.length}`, values);
+}
+
+// Is this snapshot the newest one for its storage row? Only then does the customer's CURRENT stock
+// level (customer_storage) mirror it and need updating when the snapshot is adjusted.
+export async function isLatestSnapshot(historyId) {
+  const { rows } = await pool.query(
+    `WITH me AS (
+       SELECT h.id, COALESCE(bc.period_end::timestamptz, h.snapshot_at) AS ref, h.customer_storage_id AS sid
+       FROM customer_storage_history h LEFT JOIN billing_cycles bc ON bc.id = h.billing_cycle_id
+       WHERE h.id = $1)
+     SELECT NOT EXISTS (
+       SELECT 1 FROM customer_storage_history p
+       LEFT JOIN billing_cycles pbc ON pbc.id = p.billing_cycle_id, me
+       WHERE p.customer_storage_id = me.sid AND p.id <> me.id
+         AND COALESCE(pbc.period_end::timestamptz, p.snapshot_at) > me.ref
+     ) AS latest`,
+    [historyId],
+  );
+  return rows[0]?.latest === true;
+}
+
+export async function updateCurrentQuantities(customerStorageId, quantities, userId) {
+  const sets = [];
+  const values = [];
+  for (const [key, col] of Object.entries(QTY_COLS)) {
+    values.push(quantities[key]);
+    sets.push(`${col} = $${values.length}`);
+  }
+  values.push(userId, customerStorageId);
+  await pool.query(
+    `UPDATE customer_storage SET ${sets.join(', ')}, updated_at = NOW(), updated_by_user_id = $${values.length - 1}
+     WHERE id = $${values.length}`,
+    values,
   );
 }
 

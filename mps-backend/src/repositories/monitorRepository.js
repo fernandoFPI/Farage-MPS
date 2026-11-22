@@ -358,3 +358,28 @@ export async function getSummary() {
     total: readingGaps.rows[0].count + cycleGaps.rows[0].count + odooErrors.rows[0].count,
   };
 }
+
+// Customer-stock snapshots that jumped abnormally (see utils/stockAnomaly.js) and have not been
+// acknowledged or adjusted yet, on cycles that are still being worked on.
+export async function getStockAnomalies() {
+  const { rows } = await pool.query(
+    `SELECT h.id AS history_id, bc.id AS cycle_id, TO_CHAR(bc.period_end, 'Mon YYYY') AS month, bc.status,
+            cu.name AS customer, co.contract_number, cs.printer_model, cs.location, h.anomaly,
+            h.snapshot_at, u.full_name AS submitted_by
+     FROM customer_storage_history h
+     JOIN billing_cycles bc ON bc.id = h.billing_cycle_id
+     JOIN contracts co ON co.id = bc.contract_id
+     JOIN customers cu ON cu.id = co.customer_id
+     JOIN customer_storage cs ON cs.id = h.customer_storage_id
+     LEFT JOIN users u ON u.id = h.submitted_by_user_id
+     WHERE h.anomaly IS NOT NULL AND h.anomaly_acknowledged_at IS NULL
+       AND bc.status IN ('open', 'pending_confirmation', 'disputed')
+       AND bc.deleted_at IS NULL AND bc.is_cancelled = false
+     ORDER BY h.snapshot_at DESC`,
+  );
+  return rows.map(r => ({
+    historyId: r.history_id, cycleId: r.cycle_id, month: r.month, status: r.status,
+    customer: r.customer, contractNumber: r.contract_number, printerModel: r.printer_model,
+    location: r.location ?? '', kinds: r.anomaly?.kinds ?? [], submittedAt: r.snapshot_at, submittedBy: r.submitted_by ?? null,
+  }));
+}
