@@ -37,8 +37,8 @@ function QtyCell({ value, isBwOnly, show }) {
 }
 
 // ── Storage history row (lazy loaded) ────────────────────────────────────────
-function StorageHistoryPanel({ customerId, printerModel, isBwOnly, t }) {
-  const { data: history = [], isLoading } = useCustomerStorageHistory(customerId, printerModel)
+function StorageHistoryPanel({ customerId, printerModel, location, isBwOnly, t }) {
+  const { data: history = [], isLoading } = useCustomerStorageHistory(customerId, printerModel, location ?? '')
   const cols = isBwOnly ? BW_CONSUMABLES : COLOR_CONSUMABLES
 
   if (isLoading) return <div className="py-3 px-4 text-xs text-gray-400">{t('common.loading')}</div>
@@ -204,6 +204,7 @@ function CustomerStorageCard({ customer, filterLocation, t }) {
                     <StorageHistoryPanel
                       customerId={customer.id}
                       printerModel={s.printerModel}
+                      location={s.location ?? ''}
                       isBwOnly={s.isBwOnly}
                       t={t}
                     />

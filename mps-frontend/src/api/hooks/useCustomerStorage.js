@@ -9,11 +9,14 @@ export function useCustomerStorage(customerId) {
   })
 }
 
-export function useCustomerStorageHistory(customerId, printerModel) {
+// location: history of one site's stock row (the same model can exist at several sites)
+export function useCustomerStorageHistory(customerId, printerModel, location) {
   return useQuery({
-    queryKey: ['customer-storage', customerId, 'history', printerModel],
+    queryKey: ['customer-storage', customerId, 'history', printerModel, location ?? null],
     queryFn: () =>
-      client.get(`/api/customer-storage/${customerId}/history/${encodeURIComponent(printerModel)}`).then(r => r.data),
+      client.get(`/api/customer-storage/${customerId}/history/${encodeURIComponent(printerModel)}`, {
+        params: location == null ? {} : { location },
+      }).then(r => r.data),
     enabled: !!customerId && !!printerModel,
   })
 }

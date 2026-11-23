@@ -291,7 +291,15 @@ export async function updateCurrentQuantities(customerStorageId, quantities, use
   );
 }
 
-export async function findHistory(customerId, printerModel) {
+// location: when given, only that location's snapshots. Stock rows are per customer + model + LOCATION, so
+// without it the same model at two sites (e.g. Altalink C8155 at Barzin and at the main office) shares one list.
+export async function findHistory(customerId, printerModel, location) {
+  const values = [customerId, printerModel];
+  let locationFilter = '';
+  if (location !== undefined) {
+    values.push(String(location).trim());
+    locationFilter = `AND cs.location = $${values.length}`;
+  }
   const { rows } = await pool.query(
     `SELECT csh.*, u.full_name AS submitted_by_name,
             TO_CHAR(bc.period_end, 'Month YYYY') AS cycle_name
@@ -299,9 +307,9 @@ export async function findHistory(customerId, printerModel) {
      JOIN customer_storage cs ON cs.id = csh.customer_storage_id
      LEFT JOIN users u ON u.id = csh.submitted_by_user_id
      LEFT JOIN billing_cycles bc ON bc.id = csh.billing_cycle_id
-     WHERE cs.customer_id = $1 AND cs.printer_model = $2
+     WHERE cs.customer_id = $1 AND cs.printer_model = $2 ${locationFilter}
      ORDER BY csh.snapshot_at DESC`,
-    [customerId, printerModel],
+    values,
   );
   return rows.map(mapHistoryRow);
 }

@@ -28,6 +28,8 @@ export async function getHistory(req, res, next) {
     const history = await service.getStorageHistory(
       req.params.customerId,
       decodeURIComponent(req.params.printerModel),
+      // '' is a real location (main branch), so only an absent parameter means "all locations"
+      typeof req.query.location === 'string' ? req.query.location : undefined,
     );
     res.json(history);
   } catch (err) {

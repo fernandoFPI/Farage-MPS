@@ -118,6 +118,6 @@ async function afterCycleStockWrite({ historyId, billingCycleId, printerModel, l
   }
 }
 
-export async function getStorageHistory(customerId, printerModel) {
-  return repo.findHistory(customerId, printerModel);
+export async function getStorageHistory(customerId, printerModel, location) {
+  return repo.findHistory(customerId, printerModel, location);
 }
