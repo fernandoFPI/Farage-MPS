@@ -673,7 +673,12 @@
     "stockAddNote": "For a location and model where no stock was submitted for this cycle. It also becomes the customer's current stock level. It is logged with your reason, and the stock must be confirmed again afterwards.",
     "stockAddSave": "Add entry",
     "stockAdded": "Stock entry added",
-    "stockAddReasonPlaceholder": "Why are you entering this stock yourself (e.g. counted on site, engineer could not submit)?"
+    "stockAddReasonPlaceholder": "Why are you entering this stock yourself (e.g. counted on site, engineer could not submit)?",
+    "stockMissingBanner": "{{count}} location(s) with active printers have no stock entry for this cycle yet. Add the stock before confirming, otherwise those locations' current levels are not checked.",
+    "stockMissingRow": "No stock submitted for this cycle",
+    "stockAddShort": "Add",
+    "stockUpdated": "Last updated",
+    "stockEarlierCycle": "from an earlier cycle — not submitted for this one"
   },
   "consumables": {
     "title": "Consumables",

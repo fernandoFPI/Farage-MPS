@@ -132,11 +132,11 @@ function AdjustStockModal({ open, onClose, cycleId, row }) {
 
 // ── Add a stock entry where none was submitted ───────────────────────────────
 
-function AddStockModal({ open, onClose, cycleId, options }) {
+function AddStockModal({ open, onClose, cycleId, options, initialKey }) {
   const { t } = useTranslation()
   const { showToast } = useToast()
   const addMutation = useAddStock()
-  const [index, setIndex] = useState(0)
+  const [index, setIndex] = useState(() => Math.max(0, options.findIndex(o => `${o.location}|${o.printerModel}` === initialKey)))
   const [qty, setQty] = useState(() => Object.fromEntries(ITEMS.map(i => [i.key, 0])))
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
@@ -231,7 +231,7 @@ export function StockReviewPanel({ cycle }) {
   const confirmMutation = useConfirmStock()
   const ackMutation = useAcknowledgeStockAnomaly()
   const [adjusting, setAdjusting] = useState(null)
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState(null)
   const [error, setError] = useState('')
 
   if (!canView || isLoading || !review || !review.stockRequired) return null
@@ -280,9 +280,18 @@ export function StockReviewPanel({ cycle }) {
         </div>
       )}
 
-      {review.rows.length === 0 ? (
+      {review.addOptions?.length > 0 && (
+        <div className="mt-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 dark:border-amber-800/60 dark:bg-amber-900/10">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <p className="text-sm text-amber-800 dark:text-amber-300">{t('billingCycles.stockMissingBanner', { count: review.addOptions.length })}</p>
+        </div>
+      )}
+
+      {review.rows.length === 0 && (
         <p className="mt-3 text-sm text-gray-500 dark:text-gray-400">{t('billingCycles.stockNoneSubmitted')}</p>
-      ) : (
+      )}
+
+      {(review.rows.length > 0 || review.addOptions?.length > 0) && (
         <div className="mt-3 overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-800">
           <table className="min-w-full text-xs">
             <thead className="bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400">
@@ -351,6 +360,29 @@ export function StockReviewPanel({ cycle }) {
                   </tr>
                 )
               })}
+              {/* Locations with active printers where nothing was submitted for this cycle */}
+              {(review.addOptions ?? []).map(o => (
+                <tr key={`missing-${o.location}|${o.printerModel}`} className="bg-amber-50/60 dark:bg-amber-900/10">
+                  <td className="px-3 py-2 align-top">
+                    <p className="font-medium text-gray-900 dark:text-gray-100">{o.printerModel}</p>
+                    <p className="text-gray-500 dark:text-gray-400">{o.location || t('consumables.storageMainBranch')}</p>
+                  </td>
+                  <td colSpan={ITEMS.length + 1} className="px-3 py-2 align-middle text-amber-700 dark:text-amber-400">
+                    {t('billingCycles.stockMissingRow')}
+                    {o.serials?.length > 0 && <span className="ms-2 text-[10px] text-gray-400">{o.serials.join(' · ')}</span>}
+                  </td>
+                  {canAct && (
+                    <td className="px-3 py-2 align-middle">
+                      <button
+                        onClick={() => setAdding({ key: `${o.location}|${o.printerModel}` })}
+                        className="flex items-center gap-1 whitespace-nowrap rounded border border-amber-300 px-2 py-0.5 text-[11px] font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                      >
+                        <Plus className="h-3 w-3" />{t('billingCycles.stockAddShort')}
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
@@ -364,7 +396,7 @@ export function StockReviewPanel({ cycle }) {
         </p>
         {canAct && review.addOptions?.length > 0 && (
           <button
-            onClick={() => setAdding(true)}
+            onClick={() => setAdding({ key: null })}
             className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
           >
             <Plus className="h-4 w-4" />{t('billingCycles.stockAdd')}
@@ -383,7 +415,7 @@ export function StockReviewPanel({ cycle }) {
       </div>
 
       {adding && (
-        <AddStockModal open onClose={() => setAdding(false)} cycleId={cycle.id} options={review.addOptions} />
+        <AddStockModal open onClose={() => setAdding(null)} cycleId={cycle.id} options={review.addOptions} initialKey={adding.key} />
       )}
 
       {adjusting && (

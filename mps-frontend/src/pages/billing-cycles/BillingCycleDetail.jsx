@@ -30,6 +30,7 @@ import PhotoViewerModal from '../../components/PhotoViewerModal'
 import GroupCyclesModal from './GroupCyclesModal'
 import { CycleLockPanel } from './CycleLockUi'
 import { StockReviewPanel, CycleActivityLog } from './StockReviewUi'
+import { useStockReview } from '../../api/hooks/useStockReview'
 import { usePermission } from '../../hooks/usePermission'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../components/Toast'
@@ -945,6 +946,11 @@ const { data: appSettings } = useSettings()
   const { data: consumableReadings = [] } = useConsumableReadings({ billingCycleId: id })
   const customerId = cycle?.contract?.customer?.id
   const { data: storageSnapshot = [] } = useCustomerStorage(customerId)
+  // The customer-stock box shows CURRENT levels, which carry over between cycles. Know which rows actually
+  // have an entry for this cycle, so the others can be flagged as "from an earlier cycle".
+  const canViewStockReview = usePermission('can_view_operational_data')
+  const { data: stockReviewForBox } = useStockReview(id, canViewStockReview)
+  const stockEntryKeys = new Set((stockReviewForBox?.rows ?? []).map(r => `${(r.location ?? '').trim()}|${r.printerModel}`))
   const { data: groupSummary } = useBillingCycleGroupSummary(
     cycle?.groupPosition === 3 && cycle?.cycleGroupId ? id : null
   )
@@ -2104,12 +2110,18 @@ const { data: appSettings } = useSettings()
                             {COLOR_CONSUMABLES.map(c => (
                               <th key={c} className="px-2 py-2 text-center text-gray-500 dark:text-gray-400 font-semibold whitespace-nowrap">{c === 'wasteToner' ? 'WT' : c}</th>
                             ))}
+                            <th className="px-3 py-2 text-start text-gray-500 dark:text-gray-400 font-semibold">{t('billingCycles.stockUpdated')}</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                          {storageSnapshot.map(s => (
-                            <tr key={s.printerModel}>
-                              <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">{s.printerModel}</td>
+                          {storageSnapshot.map(s => {
+                            const fromEarlier = !!stockReviewForBox && !stockEntryKeys.has(`${(s.location ?? '').trim()}|${s.printerModel}`)
+                            return (
+                            <tr key={s.id ?? `${s.location}|${s.printerModel}`} className={fromEarlier ? 'bg-amber-50/50 dark:bg-amber-900/10' : ''}>
+                              <td className="px-3 py-1.5 text-gray-700 dark:text-gray-300">
+                                {s.printerModel}
+                                {s.location ? <span className="block text-[10px] text-gray-400">{s.location}</span> : null}
+                              </td>
                               {COLOR_CONSUMABLES.map(c => {
                                 const { qtyKey } = CONSUMABLE_FIELD_MAP[c]
                                 const isNA = s.isBwOnly && !BW_CONSUMABLES.includes(c)
@@ -2129,8 +2141,13 @@ const { data: appSettings } = useSettings()
                                   </td>
                                 )
                               })}
+                              <td className="px-3 py-1.5 text-[11px] text-gray-500 dark:text-gray-400">
+                                {s.updatedAt ? fmtDate(s.updatedAt) : '—'}{s.updatedByName ? ` · ${s.updatedByName}` : ''}
+                                {fromEarlier && <span className="block font-medium text-amber-600 dark:text-amber-400">{t('billingCycles.stockEarlierCycle')}</span>}
+                              </td>
                             </tr>
-                          ))}
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
