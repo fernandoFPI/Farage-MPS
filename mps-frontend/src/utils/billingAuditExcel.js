@@ -212,7 +212,7 @@ function buildSheet(wb, data) {
       'Xerox',
       p.model,
       p.serialNumber,
-      p.location ? `${p.city} - ${p.location}` : p.city,
+      p.city,   // Location column = the printer's City only (the printer's free-text Location field is not exported)
     ]
     leftData.forEach((val, ci) => {
       const cell = ws.getCell(dataRow, ci + 1)
