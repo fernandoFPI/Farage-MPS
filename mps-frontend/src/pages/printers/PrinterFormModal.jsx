@@ -157,7 +157,7 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
               <FormField label={t('printers.latitude')}>
                 <input
                   type="number"
-                  step="0.0001"
+                  step="any"
                   min="-90"
                   max="90"
                   className={inputCls}
@@ -169,7 +169,7 @@ export default function PrinterFormModal({ open, onClose, initial, onSaveAndAssi
               <FormField label={t('printers.longitude')}>
                 <input
                   type="number"
-                  step="0.0001"
+                  step="any"
                   min="-180"
                   max="180"
                   className={inputCls}
